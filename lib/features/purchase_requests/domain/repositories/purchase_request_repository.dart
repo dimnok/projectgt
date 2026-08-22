@@ -13,13 +13,7 @@ abstract class PurchaseRequestRepository {
   Future<List<PurchaseRequestListItem>> list({
     required PurchaseRequestListFilter filter,
     String? search,
-    String? objectId,
-    PurchaseRequestStatus? status,
-    String? createdBy,
-    DateTime? fromDate,
-    DateTime? toDate,
     int limit = 50,
-    int offset = 0,
   });
 
   /// Карточка заявки.
@@ -96,10 +90,10 @@ abstract class PurchaseRequestRepository {
   Future<PurchaseRequestItem> updateItem(PurchaseRequestItem item);
 
   /// Отправить / отправить повторно.
-  Future<PurchaseRequest> submit(String requestId, {String? comment});
+  Future<PurchaseRequest> submit(String requestId);
 
   /// Согласовать заявку.
-  Future<PurchaseRequest> approve(String requestId, {String? comment});
+  Future<PurchaseRequest> approve(String requestId);
 
   /// Вернуть на доработку.
   Future<PurchaseRequest> returnForRevision(
@@ -111,7 +105,7 @@ abstract class PurchaseRequestRepository {
   Future<PurchaseRequest> submitInvoices(String requestId);
 
   /// Согласовать счета.
-  Future<PurchaseRequest> approveInvoice(String requestId, {String? comment});
+  Future<PurchaseRequest> approveInvoice(String requestId);
 
   /// Вернуть счета на доработку.
   Future<PurchaseRequest> returnInvoice(
@@ -120,21 +114,13 @@ abstract class PurchaseRequestRepository {
   });
 
   /// Заведено на оплату.
-  Future<PurchaseRequest> queuePayment(String requestId, {String? comment});
+  Future<PurchaseRequest> queuePayment(String requestId);
 
   /// Оплачено.
-  Future<PurchaseRequest> markPaid(
-    String requestId, {
-    DateTime? paymentDate,
-    String? comment,
-  });
+  Future<PurchaseRequest> markPaid(String requestId);
 
   /// Материал получен.
-  Future<PurchaseRequest> markReceived(
-    String requestId, {
-    DateTime? receivedDate,
-    String? comment,
-  });
+  Future<PurchaseRequest> markReceived(String requestId);
 
   /// Вернуть заявку в черновик с обязательной причиной.
   Future<PurchaseRequest> cancel(

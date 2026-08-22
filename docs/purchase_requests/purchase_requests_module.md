@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
 **Дата:** 22.08.2026  
-**Изменения:** чистка модуля (Вариант 1): удалены неиспользуемые поля `itemsPreview` / `itemsCount` из `PurchaseRequestListItem` и из RPC `purchase_request_list` (миграция `20260822110000`, применена на прод через MCP `apply_migration`); агрегация `item_agg` убрана — меньше нагрузка на БД. Поле `currentAssigneeId` удалено из Dart-entity `PurchaseRequest` и `PurchaseRequestListItem` (в БД колонка `current_assignee_id` осталась для индекса `idx_purchase_requests_assignee`; в RPC RETURN сохранена для совместимости). Удалены 2 мёртвых теста на `currentAssigneeId` и 1 дублирующий тест; параметр `assigneeId` убран из builder'а `request()`. Тестов: 28 (было 30). Ранее: мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
+**Изменения:** минимальная чистка API репозитория: из `list()` убраны неиспользуемые параметры (`objectId`, `status`, `createdBy`, `fromDate`, `toDate`, `offset`); из workflow-методов убраны опциональные параметры, которые UI не передавал (`comment` у `submit`/`approve`/`approveInvoice`/`queuePayment`; `paymentDate`/`comment` у `markPaid`; `receivedDate`/`comment` у `markReceived`). Комментарии остались только у `returnForRevision`, `returnInvoice`, `cancel`. Ранее: чистка модуля (Вариант 1): удалены неиспользуемые поля `itemsPreview` / `itemsCount` из `PurchaseRequestListItem` и из RPC `purchase_request_list` (миграция `20260822110000`, применена на прод через MCP `apply_migration`); агрегация `item_agg` убрана — меньше нагрузка на БД. Поле `currentAssigneeId` удалено из Dart-entity `PurchaseRequest` и `PurchaseRequestListItem` (в БД колонка `current_assignee_id` осталась для индекса `idx_purchase_requests_assignee`; в RPC RETURN сохранена для совместимости). Удалены 2 мёртвых теста на `currentAssigneeId` и 1 дублирующий тест; параметр `assigneeId` убран из builder'а `request()`. Тестов: 28 (было 30). Ранее: мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
 
 ---
 
@@ -207,7 +207,7 @@
 
 Право `view_all` **не привязано** к вкладке «Все» — оно расширяет видимость во **всех** фильтрах. В RPC `purchase_request_list`: если нет `view_all`, показываются свои заявки **или** те, где `purchase_request_internal_user_is_assignee(...)` (не сравнение с `current_assignee_id`).
 
-Дефолт UI: `PurchaseRequestListFilter.all`. Параметр `p_status` в RPC есть, в UI не используется.
+Дефолт UI: `PurchaseRequestListFilter.all`. Дополнительные фильтры RPC (`p_object_id`, `p_status`, `p_created_by`, даты, `p_offset`) в Dart-репозитории не пробрасываются — при необходимости пагинации/фильтров их нужно вернуть в `list()`.
 
 **Mobile:**
 
@@ -340,7 +340,7 @@
 | `deleteDraft` | RPC `purchase_request_delete_draft` |
 | items add/delete/update | PostgREST insert/delete/update (RLS); `addItem`, `deleteItem`, **`updateItem`** |
 | `upsertSettings` | RPC `purchase_request_upsert_settings` с массивами `uuid[]` (`p_first_approver_ids`, `p_invoice_preparer_ids`, `p_invoice_approver_ids`, `p_accountant_ids`, `p_receiver_mode`, `p_fixed_receiver_ids`); проверка `settings.companyId == activeCompanyId`; затем повторный `getSettings` |
-| `list` (расширенные параметры) | `objectId`, `status`, `createdBy`, `fromDate`, `toDate`, `limit`, `offset` — UI использует `filter` + `search` + **`limit=50`** |
+| `list` | `filter` + `search` + **`limit=50`** (RPC `purchase_request_list`; расширенные параметры RPC не пробрасываются из Dart) |
 
 **Guard:** все write-методы → `_requireCompany()` → `PurchaseRequestCompanyRequiredException`.
 
@@ -908,8 +908,7 @@ In-app UI уведомлений нет.
 - `metadata` истории не маппится в entity и не показывается в таймлайне
 - ФИО в деталях/истории — дополнительный round-trip к `profiles`
 - Ошибки в `FutureProvider` деталей — сырой текст исключения
-- Пагинация: offset/load-more не реализованы (только предупреждение о лимите 50)
-- Параметры `list()` (`objectId`, `status`, даты) не используются в UI
+- Пагинация: offset/load-more не реализованы (только предупреждение о лимите 50; параметры пагинации убраны из Dart `list()`)
 - Orphan в Storage возможен, если DELETE счёта уже прошёл, а `storage.remove` упал
 - ~~Часть тестов `resolvePurchaseRequestActions` для этапов согласования не передаёт `settings` (хелпер `request()` всё ещё заполняет `currentAssigneeId`, который UI больше не читает)~~ ✅ Исправлено: поле `currentAssigneeId` удалено из Dart-entity, параметр `assigneeId` убран из builder'а тестов, мёртвые тесты удалены.
 
@@ -921,7 +920,7 @@ In-app UI уведомлений нет.
 4. Domain use cases / перенос `resolvePurchaseRequestActions` из виджета
 5. RPC или view для истории с `user_name` (убрать batch на клиенте)
 6. Маппинг `metadata` истории в entity и отображение в таймлайне
-7. Load-more / offset пагинация списка
+7. Load-more / offset пагинация списка (потребует расширить `list()` в репозитории)
 8. Экспорт списка заявок (если потребуется `export` permission)
 9. Cross-link в `docs/database_structure.md`
 

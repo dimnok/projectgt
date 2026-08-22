@@ -81,13 +81,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   Future<List<PurchaseRequestListItem>> list({
     required PurchaseRequestListFilter filter,
     String? search,
-    String? objectId,
-    PurchaseRequestStatus? status,
-    String? createdBy,
-    DateTime? fromDate,
-    DateTime? toDate,
     int limit = 50,
-    int offset = 0,
   }) async {
     if (!_hasCompany) return [];
 
@@ -97,13 +91,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
         'p_company_id': activeCompanyId,
         'p_filter': filter.rpcValue,
         'p_search': search,
-        'p_object_id': objectId,
-        'p_status': status?.dbValue,
-        'p_created_by': createdBy,
-        'p_from_date': fromDate != null ? dateOnlyToJson(fromDate) : null,
-        'p_to_date': toDate != null ? dateOnlyToJson(toDate) : null,
         'p_limit': limit,
-        'p_offset': offset,
       },
     );
 
@@ -587,21 +575,21 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
-  Future<PurchaseRequest> submit(String requestId, {String? comment}) async {
+  Future<PurchaseRequest> submit(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_submit',
-      params: {'p_request_id': requestId, 'p_comment': comment},
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
 
   @override
-  Future<PurchaseRequest> approve(String requestId, {String? comment}) async {
+  Future<PurchaseRequest> approve(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_approve',
-      params: {'p_request_id': requestId, 'p_comment': comment},
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
@@ -630,14 +618,11 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
-  Future<PurchaseRequest> approveInvoice(
-    String requestId, {
-    String? comment,
-  }) async {
+  Future<PurchaseRequest> approveInvoice(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_approve_invoice',
-      params: {'p_request_id': requestId, 'p_comment': comment},
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
@@ -656,54 +641,31 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
-  Future<PurchaseRequest> queuePayment(
-    String requestId, {
-    String? comment,
-  }) async {
+  Future<PurchaseRequest> queuePayment(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_queue_payment',
-      params: {'p_request_id': requestId, 'p_comment': comment},
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
 
   @override
-  Future<PurchaseRequest> markPaid(
-    String requestId, {
-    DateTime? paymentDate,
-    String? comment,
-  }) async {
+  Future<PurchaseRequest> markPaid(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_mark_paid',
-      params: {
-        'p_request_id': requestId,
-        'p_payment_date': paymentDate != null
-            ? dateOnlyToJson(paymentDate)
-            : null,
-        'p_comment': comment,
-      },
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
 
   @override
-  Future<PurchaseRequest> markReceived(
-    String requestId, {
-    DateTime? receivedDate,
-    String? comment,
-  }) async {
+  Future<PurchaseRequest> markReceived(String requestId) async {
     _requireCompany();
     final row = await client.rpc(
       'purchase_request_mark_received',
-      params: {
-        'p_request_id': requestId,
-        'p_received_date': receivedDate != null
-            ? dateOnlyToJson(receivedDate)
-            : null,
-        'p_comment': comment,
-      },
+      params: {'p_request_id': requestId},
     );
     return _mapRequest(row);
   }
