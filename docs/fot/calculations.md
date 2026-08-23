@@ -1,86 +1,102 @@
 # Детализация расчетов модуля ФОТ
 
-**Дата:** 23 августа 2026 года
+**Дата:** 23 августа 2026 года (аудит RPC на self-hosted)
 
 **Изменения 23.08.2026:**
-- Фильтр объектов в `calculate_payroll_for_month` и на вкладках «Премии» / «Штрафы»: в срез входят только записи с `object_id` из выбранных объектов. Записи без объекта не подмешиваются. При «Все объекты» поведение прежнее.
+- Фильтр объектов: при заданном `p_object_ids` премии и штрафы без `object_id` в срез не входят; выплата не создаёт строку ведомости. Правило то же на вкладках «Премии» / «Штрафы» (`inFilter('object_id', …)`).
+- Сигнатуры RPC сверены с `pg_proc`: `p_before_date` / `p_date` имеют тип **timestamptz**, не `date`.
+- Зафиксировано: `calculate_employee_balances_at_date` суммирует **все** выплаты компании, без отсечения по `p_date`.
 
-**Изменения 16.07.2026:**
-- Документирована **инвалидация клиентского кэша** после мутаций: премии/штрафы → `invalidatePayrollFotTableDependents`; выплаты → `invalidatePayrollPayoutDependents`. Без сброса `payoutsByEmployeeAndMonthFIFOProvider` UI показывал устаревшие «Выплаты» и «Баланс» при неизменных начислениях RPC.
-- **UI:** пересчёт FIFO/RPC на вкладке ФОТ использует stale-while-revalidate (таблица не скрывается; `PayrollRefreshingAmount` в денежных колонках). См. `docs/fot/ui_structure.md`.
+**Изменения 16.07.2026:** инвалидация FIFO-кэша; stale-while-revalidate UI — см. `docs/fot/ui_structure.md`.
 
-**Изменения 09.07.2026:**
-- Документирован **паритет состава строк**: таблица ФОТ (UI), Edge Function `export-payroll` и RPC `calculate_payroll_for_month` — разные уровни агрегации (см. раздел «Состав строк: RPC, UI и Excel»).
+**Изменения 09.07.2026:** паритет состава строк RPC / UI / Excel.
 
-**Изменения 19.04.2026:**
-- Унифицирован приоритет командировочных ставок во всех RPC (`calculate_payroll_for_month`, `calculate_employee_balances`, `calculate_employee_balances_before_date`, `calculate_employee_balances_at_date`, `calculate_single_employee_balance`).
-- Удалены неиспользуемые функции (`get_employee_bonuses`, `calculate_base_salary_all_time`, `calculate_business_trip_all_time`, `get_payroll_report_data`, старая перегрузка `calculate_payroll_for_month` без `company_id`).
-- В `calculate_employee_balances_at_date` добавлены `company_id`-фильтры в подзапросы по `employee_rates` и `business_trip_rates`.
+**Изменения 19.04.2026:** единый приоритет суточных; удалены неиспользуемые RPC.
 
-**Ранее:** RPC `calculate_payroll_for_month` и клиентский fallback включают в результат сотрудников с премией и/или штрафом за месяц **без** отработанных часов (при тех же фильтрах `p_object_ids` / `company_id`).
+---
 
-## 🚀 Hybrid расчет ФОТ
+## Hybrid расчёт ФОТ
 
-Модуль использует гибридную схему для обеспечения максимальной скорости при сохранении надежности.
+Основной путь — RPC `calculate_payroll_for_month`. При ошибке — `filteredPayrollsProvider` → `_calculatePayrollClientSide`.
 
-### 1. Серверный расчет (PostgreSQL RPC)
-Основной метод получения данных — вызов функции `calculate_payroll_for_month`.
-- **Преимущество:** Агрегация тысяч записей `work_hours` и `employee_rates` за миллисекунды.
-- **Логика:**
-    - Объединяет `work_hours` (из закрытых смен) и `employee_attendance`.
-    - Подбирает актуальную часовую ставку из `employee_rates` для каждой даты (с фильтром по `company_id`).
-    - Рассчитывает суточные через `business_trip_rates` по **унифицированному приоритету** (см. ниже раздел «Приоритет суточных»).
-    - Суммирует премии и штрафы за указанный период. При заданном `p_object_ids` берутся только записи с `object_id` из списка (без объекта в срез не входят).
-    - **Включение строки:** без фильтра объектов — часы, премия, штраф **или** выплата за месяц. При выбранном объекте — только часы / премия / штраф этого объекта (выплаты в состав строк не входят: у них нет `object_id`). Сумма выплаты в колонку `net_salary` не входит.
+### 1. Серверный расчёт
+
+`calculate_payroll_for_month(p_year int, p_month int, p_object_ids uuid[] DEFAULT NULL, p_company_id uuid DEFAULT NULL)`
+
+Логика (факт SQL на 23.08.2026):
+- Часы: `work_hours` ∩ `works.status = 'closed'` UNION ALL `employee_attendance` за год/месяц.
+- Фильтр объекта: `object_id = ANY(p_object_ids)` (NULL в `p_object_ids` = все объекты).
+- Ставка дня: `employee_rates` на `work_date`, `ORDER BY valid_from DESC LIMIT 1`.
+- Суточные: см. раздел «Приоритет суточных».
+- Премии/штрафы: сумма `amount` за месяц; при `p_object_ids` — только `object_id = ANY(...)`.
+- `net_salary` = база + суточные + премии − штрафы. Выплаты в сумму **не** входят.
+- Строка в результате, если есть часы **или** премия **или** штраф **или** (`p_object_ids IS NULL` **и** есть выплата за месяц).
+
+`current_hourly_rate` — ставка, активная на `CURRENT_DATE`, не на день смены.
 
 ### Состав строк: RPC, UI и Excel
 
-| Источник | Что включает сверх RPC |
-|----------|-------------------------|
-| **RPC** `calculate_payroll_for_month` | Только сотрудники с часами / премией / штрафом / выплатой в месяце |
-| **Таблица ФОТ (UI)** | При «Все объекты»: + сотрудники из справочника (устроены до конца месяца и не уволены **или** баланс ≠ 0). При фильтре объектов доп. строк нет. `_groupPayrolls` |
-| **Excel** `export-payroll` | То же. При `objectIds` нулевые строки штата не добавляются. При `employeeIds` — все отмеченные ID |
+| Источник | Сверх RPC |
+|----------|-----------|
+| **RPC** | Только активность месяца (правило выплаты — см. выше) |
+| **Таблица ФОТ** | При «Все объекты»: + штат без начислений (`_groupPayrolls`). При объекте — только RPC |
+| **Excel** `export-payroll` | Как UI. При `employeeIds` — все отмеченные ID. Нулевые строки штата при `objectIds` не добавляются, кроме режима «только выбранные» |
 
-Условие «в штате» в UI и экспорте: `status != fired` (отпуск, больничный и т.д. считаются «в штате»). Порог баланса: `|balance| > 0.01`.
+«В штате»: `status != fired`. Порог баланса: `|balance| > 0.01`. Устроен не позже последнего дня месяца.
 
-### 2. Клиентский расчет (Dart Fallback)
-Если RPC-вызов завершился ошибкой, провайдер `filteredPayrollsProvider` автоматически переключается на метод `_calculatePayrollClientSide`.
-- Выполняет ту же логику на стороне клиента, используя загруженные данные.
-- Гарантирует работоспособность модуля даже при проблемах с функциями БД.
-- Объединяет множество сотрудников из часов, премий, штрафов и **выплат** за месяц (см. `bonusesByFilterProvider` / `penaltiesByFilterProvider` / `payrollPayoutsByFilterProvider`).
+### 2. Клиентский fallback
 
-## 💰 Алгоритм FIFO для выплат
-Выплаты в системе не привязаны жестко к конкретному месяцу начисления в базе данных (в таблице `payroll_payout` есть `payout_date`, но нет `period_month`).
+`_calculatePayrollClientSide` в `payroll_providers.dart`:
+- Часы из `payrollWorkHoursProvider` (закрытые смены + attendance за месяц). **Фильтр объектов на часы не накладывается.**
+- Премии/штрафы из `bonusesByFilterProvider` / `penaltiesByFilterProvider` (фильтр объектов есть).
+- Выплаты добавляют сотрудника в список только без фильтра объектов.
+- Ставка дня: `getEmployeeRateForDateUseCase`. Суточные: `getActiveRateForEmployeeAndDate`.
 
-Для корректного отображения колонки "Выплаты" в таблице ФОТ используется **сквозной FIFO (First In, First Out)**:
-1.  **Исторический долг**: Сначала вычисляется сумма всех начислений до 1 января выбранного года (через RPC `calculate_employee_balances_before_date`).
-2.  **Гашение прошлого**: Все выплаты сотрудника (в хронологическом порядке) сначала направляются на закрытие этого исторического долга.
-3.  **Текущий год**: Только после того, как исторический долг полностью погашен, остаток выплат распределяется по месяцам (1-12) выбранного года.
-4.  **Отображение**: В таблице конкретного месяца отображается сумма, которая была распределена на этот месяц после закрытия всех предыдущих задолженностей.
-5.  **Остаток без начислений за год:** если после гашения исторического долга часть выплаты не «ложится» ни на один месяц с положительным `net_salary` (все начисления за год нулевые или отсутствуют), остаток относится на **календарный месяц даты выплаты** в выбранном году — иначе колонка «Выплаты» для таких сотрудников оставалась бы пустой.
+Пока RPC жив, fallback не влияет на экран.
 
-## 📊 Расчет баланса
-Баланс сотрудника рассчитывается через RPC `calculate_employee_balances(p_company_id)`.
-- **Формула:** `Total Accrued - Total Paid`.
-- Учитывает всю историю работы сотрудника в системе в рамках выбранной компании.
-- В UI: `employeeAggregatedBalanceProvider` (массовые выплаты), `singleEmployeeBalanceProvider` (профиль сотрудника).
+---
 
-## 🧭 Приоритет суточных (унифицированный)
+## FIFO выплат
 
-Логика выбора `business_trip_rates` для отработанной смены `(employee_id, object_id, work_date, work_hours)` едина во всех RPC ФОТ:
+В `payroll_payout` есть `payout_date`, нет периода начисления.
 
-1. Берутся все ставки по объекту, активные на `work_date` (`valid_from <= work_date AND (valid_to IS NULL OR valid_to >= work_date)`), отфильтрованные по `company_id`.
-2. Из них рассматриваются только те, где **выполнен `minimum_hours`** (`work_hours >= COALESCE(minimum_hours, 0)`).
-3. Среди подходящих выбирается **одна** ставка с наибольшим приоритетом по правилу:
-   - сначала **именная** (`employee_id = current employee`),
-   - затем **общая** (`employee_id IS NULL`),
-   - при равенстве типа — самая поздняя по `valid_from`.
+Клиент (`payoutsByEmployeeAndMonthFIFOProvider`) и Excel (`buildFifoForYear` в `export-payroll`) считают одинаково:
 
-В SQL это реализовано через скалярный подзапрос вида:
+1. Исторический долг: RPC `calculate_employee_balances_before_date(p_before_date timestamptz, p_company_id uuid)` на `YYYY-01-01`. Берётся колонка `accruals_sum`.
+2. Все выплаты компании, сортировка по дате.
+3. 12 вызовов `calculate_payroll_for_month` **без** `p_object_ids` — `net_salary` месяца.
+4. Каждая выплата: сначала гасит долг до года, затем месяцы 1–12 с `net_salary > 0`.
+5. Если остаток выплаты некуда отнести и `payout_date.year == выбранный год` — сумма идёт в календарный месяц даты выплаты.
+6. Баланс(М) = бегущая сумма: старт = непогашенный исторический долг после всех выплат; каждый месяц `+ net_salary − fifo_payout`.
+
+Колонки «Выплаты» и «Баланс» таблицы ФОТ берутся из этого FIFO, не из RPC месяца.
+
+---
+
+## Баланс за всё время
+
+`calculate_employee_balances(p_company_id uuid)`:
+
+`база + суточные + премии − штрафы − выплаты` по всей истории компании.
+
+UI: `employeeAggregatedBalanceProvider` (массовые выплаты), `singleEmployeeBalanceProvider` → `calculate_single_employee_balance` (профиль).
+
+`calculate_employee_balances_at_date(p_date timestamptz, p_company_id uuid)`: начисления, премии, штрафы с `date <= p_date`; **выплаты без отсечения по дате**. Провайдер `employeeBalanceAtDateProvider` в UI не используется.
+
+---
+
+## Приоритет суточных
+
+Едино во всех пяти расчётных RPC:
+
+1. Ставки объекта, активные на `work_date`, с фильтром `company_id`.
+2. Только если `work_hours >= COALESCE(minimum_hours, 0)`.
+3. Среди них: именная (`employee_id` сотрудника) важнее общей (`employee_id IS NULL`); при равенстве типа — позднейший `valid_from`.
+
 ```sql
 SELECT btr.rate
 FROM business_trip_rates btr
-WHERE btr.object_id   = ah.obj_id
+WHERE btr.object_id = ah.obj_id
   AND (p_company_id IS NULL OR btr.company_id = p_company_id)
   AND (btr.employee_id = ah.emp_id OR btr.employee_id IS NULL)
   AND ah.work_date >= btr.valid_from
@@ -90,32 +106,24 @@ ORDER BY btr.employee_id NULLS LAST, btr.valid_from DESC
 LIMIT 1
 ```
 
-**Важное следствие:** если у сотрудника есть именная ставка с `minimum_hours = 8`, но в этот день он отработал 6 часов, для него применится **общая ставка по объекту** (если её `minimum_hours` выполнен), а не «нулевые суточные». Раньше в части RPC именная ставка побеждала общую безусловно — это и было причиной разночтений между балансами и месячным расчётом.
+Если именная ставка требует 8 часов, а отработано 6 — берётся общая ставка объекта (если её `minimum_hours` выполнен).
 
-## 🔄 Согласованность UI после изменений данных
+---
 
-Колонки «Выплаты» и «Баланс» на вкладке ФОТ берутся из **клиентского** FIFO (`payoutsByEmployeeAndMonthFIFOProvider`), а не напрямую из RPC `calculate_payroll_for_month`. FIFO зависит от:
+## Согласованность UI после мутаций
 
-1. `calculate_employee_balances_before_date` (долг до года),
-2. всех записей `payroll_payout` (`allPayoutsProvider`),
-3. twelve× `calculate_payroll_for_month` за выбранный год (`net_salary` по месяцам).
+После премии / штрафа / выплаты сбрасывать кэш через `invalidatePayrollFotTableDependents` / `invalidatePayrollPayoutDependents` (`payroll_providers.dart`). Формулы FIFO не меняются.
 
-После любой **премии**, **штрафа** или **выплаты** соответствующие провайдеры должны быть сброшены (см. `invalidatePayrollFotTableDependents` / `invalidatePayrollPayoutDependents` в `payroll_providers.dart`). Формулы FIFO при этом **не меняются** — обновляется только кэш Riverpod.
+---
 
-`employeeAggregatedBalanceProvider` (RPC `calculate_employee_balances`, баланс за всё время) **не подставляется** в колонку «Баланс» таблицы ФОТ; используется, например, при массовом вводе выплат.
-
-## 🛡 Защита периодов ставок
+## Защита периодов ставок
 
 ### `employee_rates`
-- БД: EXCLUDE-constraint `employee_rates_no_overlap` запрещает любое пересечение `daterange(valid_from, COALESCE(valid_to, 'infinity'), '[]')` в рамках `(employee_id, company_id)`.
-- UI (`AddEmployeeRateDialog`): перед сохранением вызывается `EmployeeRateRepository.findOverlappingRates(...)`, и если найдены пересечения — показывается диалог с перечнем и описанием действия для каждой записи (закрыта датой / удалена / заменена). Сохранение происходит только при подтверждении.
-- Логика разрешения пересечений (`EmployeeRateRepositoryImpl.setNewRate`):
-  - `existingFrom == newValidFrom` → старая запись удаляется, на её место встаёт новая;
-  - `existingFrom < newValidFrom` → старая закрывается датой `newValidFrom - 1 день`;
-  - `existingFrom > newValidFrom` → будущая запись удаляется (новая её перекрывает).
-- Старый частичный индекс `idx_employee_rates_active_unique` удалён (избыточен; не учитывал `company_id`).
+- БД: EXCLUDE `employee_rates_no_overlap`.
+- UI: `EmployeeRateRepository.findOverlappingRates` → диалог; `setNewRate` закрывает/удаляет пересечения.
 
 ### `business_trip_rates`
-- БД: EXCLUDE-constraint `business_trip_rates_no_overlap` запрещает пересечения в рамках `(object_id, company_id, COALESCE(employee_id, sentinel-uuid))`. `COALESCE` нужен потому, что `NULL` `employee_id` означает «общая ставка»: без него EXCLUDE считал бы NULL≠NULL и не блокировал две пересекающиеся общие ставки на один объект.
-- UI: `BusinessTripRateRepositoryImpl` уже выполнял `hasOverlappingPeriods()` и выбрасывал ошибку до записи. Constraint в БД — последняя линия защиты от прямых INSERT/UPDATE через миграции, импорты, ручной SQL.
+- БД: EXCLUDE `business_trip_rates_no_overlap` с `COALESCE(employee_id, sentinel-uuid)`.
+- UI: `hasOverlappingPeriods()` до INSERT.
 
+Канонический обзор модуля: `docs/fot/fot_module.md`.

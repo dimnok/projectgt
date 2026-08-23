@@ -1,6 +1,8 @@
 # Структура интерфейса модуля ФОТ
 
-**Дата актуализации:** 18 июля 2026 года
+**Дата актуализации:** 23 августа 2026 года
+
+> **Изменения 23.08.2026 (фильтр объектов, аудит):** На вкладках «Премии» и «Штрафы» при выбранных объектах в список входят только записи с `object_id` из фильтра (`inFilter`, без записей без объекта). Фильтр объектов на вкладке «Выплаты» по-прежнему отключён (у выплат нет `object_id`). На вкладке ФОТ при выбранном объекте `_groupPayrolls` не добавляет штат без начислений. Канон расчёта и RLS: `docs/fot/fot_module.md`.
 
 > **Изменения 18.07.2026:** Сегментированные переключатели панели (`PayrollTabSegment`, `PayrollEmployeeStatusFilterSegment`) на **desktop** (`ResponsiveUtils.isDesktop`) сворачиваются до одной активной опции; при наведении мыши раскрываются через `PayrollToolbarCollapsibleSegmentTrack` (`payroll_toolbar_metrics.dart`). На **mobile-list** — полный трек, как раньше. Порядок сегментов при раскрытии: у вкладок выбранная слева (рост вправо), у фильтра статуса — справа (рост влево). Резерв ширины вкладок в `payrollToolbarSearchWidth()`: `kPayrollTabSegmentOuterWidth = 92` (свёрнуто), `kPayrollTabSegmentExpandedOuterWidth = 272` (полный трек).
 
@@ -175,7 +177,7 @@
 - **Итоги:** строка «ИТОГО», пересчёт при поиске.
 - **Loading (первый вход):** полноэкранный «Загрузка данных ФОТ...» (`filteredPayrollsProvider`, `PayrollListScreen`).
 - **Loading (пересчёт после операции):** таблица и список сотрудников **остаются видимыми**; предыдущие суммы сохраняются до ответа RPC/FIFO; в колонках «К выплате», «Выплаты», «Остаток», «Баланс» и в строке ИТОГО — `PayrollRefreshingAmount` (`CupertinoActivityIndicator`, ~14 px). Флаги: `isPayrollsRefreshing` (RPC месяца), `isSettlementRefreshing` (FIFO + RPC).
-- **Источник «Выплаты» / «Баланс»:** `payoutsByEmployeeAndMonthFIFOProvider(year)` → срез на `selectedMonth` в `PayrollTableWidget`.
+- **Источник «Выплаты» / «Баланс»:** `payoutsByEmployeeAndMonthFIFOProvider(year)` → срез на `selectedMonth` в `PayrollTableWidget`. FIFO **всегда по всей компании**; при фильтре объекта начисления срезаны, выплаты/баланс — нет.
 
 ### 2. Вкладка «Премии»
 
@@ -184,12 +186,14 @@
 - Колонки: Дата, Сотрудник, Сумма, Объект, Примечание.
 - Таблица: `FOTTransactionTable` / `GTAdaptiveTable`.
 - CRUD: контекстное меню строки; создание — кнопка в панели фильтров.
+- Фильтр объектов: только записи с выбранным `object_id` (без «без объекта»). Поиск по ФИО снимает ограничение месяца (загрузка за всё время по найденным сотрудникам).
 
 ### 3. Вкладка «Штрафы»
 
 `PayrollTabPenalties` → `PayrollPenaltyTableWidget` → `PayrollPenaltyTableView`.
 
 - Структура аналогична премиям; данные из `payroll_penalty`.
+- Тот же фильтр объектов: только выбранные `object_id`.
 
 ### 4. Вкладка «Выплаты»
 
@@ -298,7 +302,7 @@
 
 ---
 
-## Дерево файлов Presentation (аудит 18.07.2026)
+## Дерево файлов Presentation (аудит 23.08.2026, состав файлов без изменений с 18.07.2026)
 
 ```
 lib/features/fot/presentation/

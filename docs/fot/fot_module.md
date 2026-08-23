@@ -1,305 +1,416 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 23 августа 2026 года
-**Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import/Export Payouts, Timesheet-aligned UI Shell, Stale-while-revalidate Table UX, Collapsible Toolbar Segments)
+**Дата актуализации:** 23 августа 2026 года (полный аудит кода, БД self-hosted, Edge Function)
 
-> **Изменения 23.08.2026 (фильтр объектов):**
-> - При выборе объекта в ФОТ премии и штрафы без `object_id` не входят в срез. Правило едино: RPC `calculate_payroll_for_month`, вкладки «Премии» / «Штрафы». При «Все объекты» поведение прежнее.
-> - Список вкладки ФОТ при выбранном объекте больше не дополняется всем штатом без начислений (`_groupPayrolls` / `export-payroll`).
+**Изменения в этой версии (аудит 23.08.2026):**
+- Документация приведена к фактическому состоянию кода, PostgreSQL и `export-payroll`.
+- Зафиксированы сигнатуры RPC (`timestamptz`, имена аргументов), RLS, индексы, constraints.
+- Описан фильтр объектов 23.08.2026: премии/штрафы без `object_id` не входят в срез; при выбранном объекте выплаты не добавляют строку в ведомость.
+- Зафиксированы расхождения аудита (см. Roadmap): RLS без `check_permission` на премии/штрафы/выплаты; `is_official` в БД без поля в Dart; `calculate_employee_balances_at_date` не режет выплаты по дате; клиентский fallback не фильтрует часы по объекту.
 
-> **Изменения 18.07.2026 (сворачиваемые сегменты панели):**
-> - На **desktop** (`ResponsiveUtils.isDesktop`, ширина ≥ `900` px) вкладки (`PayrollTabSegment`) и фильтр статуса (`PayrollEmployeeStatusFilterSegment`) показывают только активную опцию; при наведении мыши раскрываются через `PayrollToolbarCollapsibleSegmentTrack` в `payroll_toolbar_metrics.dart`.
-> - Порядок сегментов при раскрытии: вкладки — выбранная слева (рост вправо); статус — выбранный справа (рост влево, блок у правого края панели).
-> - На **mobile-list** (`EmployeesLayoutUtils.useEmployeesMobileList`) — полный сегментированный трек без сворачивания.
-> - Резерв ширины вкладок в `payrollToolbarSearchWidth()`: `kPayrollTabSegmentOuterWidth = 92` (свёрнуто), `kPayrollTabSegmentExpandedOuterWidth = 272` (полный трек).
-> - Документация: `docs/fot/ui_structure.md`.
-
-> **Изменения 17.07.2026 (правка 3, клик по ФИО → карточка сотрудника):**
-> - В таблице ФОТ клик по ФИО сотрудника открывает **карточку сотрудника**: на desktop — `EmployeeDetailsModal`, на mobile — `EmployeesMobileEmployeeDetailsSheet` (как в модуле «Табель»).
-> - Доступ по праву `employees` / `read` (`permissionServiceProvider`); при отсутствии права имя отображается как обычный текст без тапа.
-> - Подсказка `Tooltip` «Открыть карточку сотрудника» при наведении.
-> - Контекстное меню по правому клику сохранено (правка 2).
-
-> **Изменения 17.07.2026 (правка 2, UX контекстного меню):**
-> - Контекстное меню строки ФОТ (Премия / Штраф / Выплата / Детали) теперь открывается **только правой кнопкой мыши** (`onRowSecondaryTapDown`).
-> - Левый клик по строке больше не вызывает меню (`onRowTapDown` удалён в `payroll_table_view.dart`).
-> - Документация `docs/fot/ui_structure.md` и `docs/fot/fot_module.md` актуализирована.
-
-> **Изменения 17.07.2026 (документация и чистка кода):**
-> - Актуализирован `docs/fot/ui_structure.md`: удалены ссылки на несуществующие `payroll_search_action.dart` / `payroll_filter_helpers.dart`; таблица миграции на актуальные виджеты и утилиты.
-> - Удалён неиспользуемый код: `payrollDataReadyProvider`, `cachedEmployeeBalanceProvider`, `getAllBonuses` / `getAllPenalties`, `buildSimpleBalanceText`, `hasActiveFilters`, `resetFilters`. `employeeBalanceAtDateProvider` сохранён как заготовка.
-> - `docs/fot/calculations.md`: исправлено описание провайдеров баланса.
-
-> **Изменения 16.07.2026 (инвалидация кэша и UX пересчёта):**
-> - **Централизованная инвалидация после мутаций** в `payroll_providers.dart`:
->   - `invalidatePayrollFotTableDependents` — сброс `filteredPayrollsProvider`, `payoutsByEmployeeAndMonthFIFOProvider`, `employeeAggregatedBalanceProvider` (премии, штрафы, любое изменение начислений/FIFO).
->   - `invalidatePayrollPayoutDependents` — дополнительно `allPayoutsProvider`, `payrollPayoutsByFilterProvider`, `filteredPayrollPayoutsProvider` + вызов `invalidatePayrollFotTableDependents` (создание/правка/удаление выплат, импорт Excel).
-> - **Точки вызова:** `PayrollTransactionFormModal`, `PayrollBonusTableView`, `PayrollPenaltyTableView`, `PayrollPayoutFormModal`, `PayrollPayoutAmountModal`, `PayrollPayoutTableView`, `savePayrollPayoutBatch`.
-> - **Stale-while-revalidate на вкладке ФОТ:** при фоновом пересчёте таблица **не скрывается**; `PayrollListScreen` — `skipLoadingOnReload: true` для `filteredPayrollsProvider`; `PayrollTableWidget` держит предыдущие данные FIFO.
-> - **Индикатор пересчёта:** `PayrollRefreshingAmount` (`payroll_refreshing_amount.dart`) — вместо сумм в колонках «К выплате», «Выплаты», «Остаток», «Баланс» (и в итогах) показывается `CupertinoActivityIndicator`; на mobile — в `PayrollCard` и нижней панели `PayrollMobileView`.
-> - **Полноэкранный спиннер** «Расчет выплат и балансов...» — только при **первой** загрузке экрана (`PayrollListScreen` → `filteredPayrollsProvider` без данных).
-
-> **Изменения 16.07.2026 (UI, Presentation):**
-> - **Единая панель фильтров** `PayrollFiltersToolbar` внутри `MobileAtmosphereMainSurface`: одна строка — вкладки (ФОТ / Премии / Штрафы / Выплаты), период, поиск, объекты, действия справа. Паттерн выровнен с модулем «Табель» (`TimesheetCompactMonthSwitcher`, `TimesheetObjectsBarDropdown`, `EmployeesLayoutUtils`).
-> - **Шапка экрана** `PayrollListScreen`: статичный заголовок «Фонд оплаты труда»; поиск на телефоне — `PayrollMobileSearchField`; на desktop — `PayrollToolbarSearch` в панели.
-> - **Общая геометрия** `PayrollToolbarMetrics` (высота `34`, радиус `18`): вкладки, фильтр статуса, кнопки действий, dropdown объектов.
-> - **Дедупликация:** панели фильтров удалены из `PayrollTableWidget`, `PayrollBonusTableWidget`, `PayrollPenaltyTableWidget`, `PayrollPayoutTableWidget`.
-> - **Удалены устаревшие виджеты:** `GTMonthPicker`, `GTObjectPicker`, `PayrollSearchAction`, `PayrollFilterHelpers`, `payrollSearchVisibleProvider`.
-> - **Новые файлы:** `payroll_filters_toolbar.dart`, `payroll_objects_bar_dropdown.dart`, `payroll_mobile_search_field.dart`, `payroll_tab_toolbar_actions.dart`, `payroll_toolbar_metrics.dart`, `payroll_name_search_filters.dart`.
-> - Документация UI: `docs/fot/ui_structure.md`.
-
-> **Изменения 09.07.2026:**
-> - **Экспорт ведомости ФОТ в Excel** (`export-payroll`): выгрузка приведена к составу таблицы на экране. Дополнительно к строкам RPC `calculate_payroll_for_month` в файл попадают сотрудники **без начислений за месяц**, если они устроены до конца периода и (**ещё в штате** или имеют **ненулевой FIFO-баланс** на конец месяца) — логика `mergeZeroActivityRows` / `shouldIncludeZeroActivityEmployee` зеркалит `_groupPayrolls` в `payroll_table_view.dart`.
-> - Режим **«Только выбранные»** (`PayrollExportAction` + `employeeIds` в теле запроса): все отмеченные чекбоксом ID включаются в Excel, в т.ч. «нулевые» строки.
-> - Для дополнительных строк: ФИО и статус из `employees`, текущая ставка из `employee_rates` (активный период на дату экспорта), начисления = 0, выплаты и баланс — из той же FIFO-цепочки, что в UI.
-> - Клиентское приложение **не менялось**; правка только в Edge Function `supabase/functions/export-payroll/index.ts`.
-
-> **Изменения 26.05.2026:**
-> - **Импорт выплат из Excel** на вкладке «Выплаты»: загрузка банковской ведомости `.xlsx` без сохранения файла (парсинг только в памяти на клиенте).
-> - Предпросмотр со статусами сопоставления ФИО: `Найден` / `Не найден` / `Неоднозначно`; при расхождениях — предупреждение и импорт только найденных строк (с подтверждением).
-> - Сопоставление по справочнику `employees` (включая уволенных); формат ФИО в файле: **Фамилия Имя Отчество**; регистр и «ё» не учитываются.
-> - Пакетное создание записей в `payroll_payout` через `savePayrollPayoutBatch` (те же поля, что при ручном вводе).
-> - Юнит-тесты матчинга ФИО: `test/features/fot/payroll_payout_excel_import_service_test.dart`.
-
-> **Изменения 19.04.2026:**
-> - Восстановлена корректность данных в `employee_rates` (исправлен дубликат для одного сотрудника).
-> - Очищен реестр RPC: удалены неиспользуемые/небезопасные функции (`get_employee_bonuses`, `calculate_base_salary_all_time`, `calculate_business_trip_all_time`, `get_payroll_report_data`, старая перегрузка `calculate_payroll_for_month` без `company_id`).
-> - Унифицирован приоритет суточных (индивидуальная ставка → общая по объекту) во всех RPC: `calculate_payroll_for_month`, `calculate_employee_balances`, `calculate_employee_balances_before_date`, `calculate_employee_balances_at_date`, `calculate_single_employee_balance`. Новое правило: индивидуальная ставка применяется только если выполнен её `minimum_hours`, иначе — fallback на общую ставку при выполнении её `minimum_hours`.
-> - Добавлен `company_id`-фильтр в `calculate_employee_balances_at_date` (превентивно для мультикомпании).
-> - Добавлены индексы `(company_id, date)` для `payroll_bonus`/`payroll_penalty`/`payroll_payout` и `(employee_id, company_id, valid_from DESC)` для `employee_rates`.
-> - **Защита периодов ставок:** EXCLUDE-constraint на `employee_rates` (`employee_rates_no_overlap`) и `business_trip_rates` (`business_trip_rates_no_overlap`) запрещают пересечения периодов на уровне БД (через расширение `btree_gist`). Старый частичный индекс `idx_employee_rates_active_unique` удалён как избыточный и не учитывавший `company_id`.
-> - **UI-форма «Изменение ставки» сотрудника** теперь до сохранения находит все пересекающиеся ставки (включая закрытые в будущем) и показывает диалог подтверждения с описанием действия для каждой (закрыта датой / удалена / заменена). Вся логика разрешения пересечений сосредоточена в `EmployeeRateRepositoryImpl`; data source выполняет «чистый» INSERT.
-> - **Логирование ошибок:** в Dart-провайдерах ФОТ (`payroll_providers.dart`, `balance_providers.dart`, `payroll_list_screen.dart`) `catch`-блоки больше не молча проглатывают исключения — пишут в `dart:developer` со стек-трейсом.
+**Предыдущие версии (кратко):** UI-панель как у «Табель» (16.07.2026); FIFO + stale-while-revalidate (16.07.2026); Excel-импорт выплат (26.05.2026); EXCLUDE на ставки и очистка RPC (19.04.2026). Детали UI — [`ui_structure.md`](./ui_structure.md), формул — [`calculations.md`](./calculations.md).
 
 ---
 
-## 📂 Описание модуля
-Модуль **ФОТ** отвечает за динамический расчет заработной платы сотрудников. Он объединяет данные об отработанных часах, ставках, премиях, штрафах и командировочных выплатах.
+## Важное замечание
 
-**Ключевые функции:**
-- **Cumulative FIFO Balance:** Реализована продвинутая логика взаиморасчетов. Выплаты закрывают задолженность по методу FIFO (First In, First Out), начиная с самых ранних долгов. Баланс каждого месяца является кумулятивным: `Баланс(М) = Баланс(М-1) + Начислено(М) - Выплачено_FIFO(М)`.
-- **Parallel Batch Processing:** Оптимизирован расчет годовых показателей. Запросы к PostgreSQL RPC для всех 12 месяцев года выполняются параллельно через `Future.wait`, что сокращает время загрузки в 10-12 раз.
-- **Hybrid-расчет:** Высокопроизводительный расчет на стороне БД (PostgreSQL RPC) с автоматическим переключением на клиентский расчет (Dart) при сбоях.
-- **Unified Reporting (Новое):** Годовой PDF-отчет полностью синхронизирован с основной таблицей ФОТ. И в таблице, и в PDF используются одни и те же данные из провайдера FIFO, что гарантирует идентичность цифр («один источник правды»).
-- **Mobile-First UX (Timesheet-aligned Shell):** Адаптивное переключение между табличным видом (Desktop/Tablet) и карточками (Mobile).
-    - **Atmosphere UI:** `MobileAtmosphereBackdrop`, `MobileAtmosphereMainSurface`, круглые chrome-кнопки меню и темы — как в модуле «Табель».
-    - **Unified Toolbar:** `PayrollFiltersToolbar` — вкладки, период, поиск, объекты и действия в одной строке (`PayrollToolbarMetrics.height = 34`).
-    - **Без дублирования периода:** месяц отображается только в `PayrollCompactMonthSwitcher`, не в заголовке экрана.
-    - **Loading States (Stale-while-revalidate):** при пересчёте после премии/штрафа/выплаты таблица остаётся на экране; в денежных ячейках — `CupertinoActivityIndicator` (`PayrollRefreshingAmount`). Полный экран загрузки — только при первом открытии вкладки ФОТ.
-- **Импорт выплат из Excel (26.05.2026):** Массовое создание выплат из банковской ведомости на вкладке «Выплаты». Файл не сохраняется на сервере и в Storage.
-- **Экспорт ведомости в Excel:** Серверная ведомость за месяц (Edge Function `export-payroll`, ExcelJS). Состав строк синхронизирован с таблицей ФОТ, включая сотрудников без операций за месяц (см. раздел «Экспорт ведомости в Excel»).
+Модуль **не хранит** готовую ведомость. Таблицы `payroll_calculation` и `payroll_deduction` **в БД отсутствуют**. Строка ФОТ считается динамически.
 
----
+**Owner таблиц модуля:**
+- `payroll_bonus`, `payroll_penalty`, `payroll_payout`
 
-## ⚠️ Важное замечание
-- **Owner таблиц:** `payroll_payout`, `payroll_bonus`, `payroll_penalty`, `employee_rates` — модуль ФОТ; `employees` — модуль «Сотрудники» (используется при импорте для сопоставления ФИО).
-- **Мультикомпания:** все операции фильтруются по `activeCompanyId`; RLS на `company_id`.
-- **Импорт Excel:** только клиент (`file_picker` + пакет `excel`); Edge Function **не** используется. После импорта вызывается `invalidatePayrollPayoutDependents` (в т.ч. FIFO и месячный ФОТ).
-- **Баланс в таблице ФОТ:** колонка «Баланс» и «Выплаты» — из `payoutsByEmployeeAndMonthFIFOProvider` (кумулятивный FIFO на конец месяца), **не** из `employeeAggregatedBalanceProvider` (баланс за всё время; используется в форме массовых выплат).
+**Usage (другие модули владеют CRUD, ФОТ читает для расчёта):**
+- `employee_rates` — UI ставок в «Сотрудники»; запись в БД требует прав модуля `payroll`
+- `business_trip_rates` — суточные; owner «Сотрудники» / «Объекты»; SELECT также при `payroll.read`
+- `employees`, `work_hours`, `works`, `employee_attendance`, `objects`, `company_members`
+
+Ключевые принципы:
+- начисления за месяц — RPC `calculate_payroll_for_month` (часы только из **закрытых** смен + `employee_attendance`)
+- колонки «Выплаты» и «Баланс» на вкладке ФОТ — **клиентский FIFO** (`payoutsByEmployeeAndMonthFIFOProvider`), не колонка RPC
+- FIFO всегда **по всей компании** (12 месяцев без `objectIds`); при фильтре объекта начисления срезаются, выплаты/баланс остаются сквозными
+- мультикомпания: клиент передаёт `activeCompanyId`; RLS на `company_id` / `get_my_company_ids()`
+- без активной компании провайдеры возвращают пустые списки
+- импорт выплат — только клиент (`file_picker` + `excel`), файл на сервер не пишется
+- экспорт ведомости — Edge Function `export-payroll` (ExcelJS, `service_role`)
 
 ---
 
-## 🧱 Архитектура и структура
-Модуль реализован согласно принципам **Clean Architecture**.
+## Описание модуля
 
-### Слой Presentation (UI)
+Модуль считает заработную плату за месяц: часы × ставка, суточные, премии, штрафы, выплаты и кумулятивный остаток.
 
-#### Экран и оболочка
-- `lib/features/fot/presentation/screens/payroll_list_screen.dart` — корневой экран: шапка (chrome), `MobileAtmosphereMainSurface`, `IndexedStack` вкладок.
-- `lib/features/fot/presentation/screens/tabs/` — обёртки вкладок: `payroll_tab_bonuses.dart`, `payroll_tab_penalties.dart`, `payroll_tab_payouts.dart`.
+Ключевые функции:
+- вкладки: ФОТ / Премии / Штрафы / Выплаты
+- фильтры: месяц, объекты (мультивыбор), поиск ФИО, статус (Все / Работает / Уволен) на вкладке ФОТ
+- hybrid-расчёт: PostgreSQL RPC, при ошибке — Dart fallback
+- Cumulative FIFO: выплата гасит долги от ранних к поздним
+- Excel-ведомость (сервер) и Excel-импорт выплат (клиент)
+- годовой PDF сотрудника (`PayrollPdfService` + `EmployeeFinancialReportService`) — тот же FIFO, что в таблице
+- карточка сотрудника по клику на ФИО (`employees.read`)
+- контекстное меню строки ФОТ только ПКМ: Премия / Штраф / Выплата / Детали (PDF)
 
-#### Панель фильтров (единая строка)
-- `lib/features/fot/presentation/widgets/payroll_filters_toolbar.dart` — `PayrollFiltersToolbar`, `PayrollCompactMonthSwitcher`, `PayrollToolbarSearch`.
-- `lib/features/fot/presentation/widgets/payroll_tab_segment.dart` — сегмент вкладок (ФОТ / Премии / Штрафы / Выплаты); на desktop — сворачиваемый через `PayrollToolbarCollapsibleSegmentTrack`.
-- `lib/features/fot/presentation/widgets/payroll_objects_bar_dropdown.dart` — мультивыбор объектов (`MenuAnchor`).
-- `lib/features/fot/presentation/widgets/payroll_tab_toolbar_actions.dart` — правый блок: статус / «Добавить» / «Импорт».
-- `lib/features/fot/presentation/widgets/payroll_toolbar_metrics.dart` — общая геометрия, `PayrollToolbarSegmentTrack`, `PayrollToolbarCollapsibleSegmentTrack`, `PayrollToolbarTextButton`.
-- `lib/features/fot/presentation/widgets/payroll_mobile_search_field.dart` — поиск в шапке на телефоне.
-- `lib/features/fot/presentation/widgets/payroll_employee_status_filter_segment.dart` — фильтр «Все / Работает / Уволен» на вкладке ФОТ; на desktop — сворачиваемый.
-- `lib/features/fot/presentation/providers/payroll_filter_providers.dart` — `payrollFilterProvider`, `payrollSearchQueryProvider`, `availableObjectsForPayrollProvider`.
-- `lib/features/fot/presentation/utils/payroll_name_search_filters.dart` — фильтрация списков по ФИО.
-
-#### Таблицы и действия
-- `lib/features/fot/presentation/widgets/payroll_table_widget.dart` — обёртка вкладки ФОТ: FIFO, фильтр статуса, флаги `isPayrollsRefreshing` / `isSettlementRefreshing`.
-- `lib/features/fot/presentation/widgets/payroll_table_view.dart` — основная таблица; `_groupPayrolls`; чекбоксы (`PayrollGridCheckbox`); контекстное меню по **правой кнопке мыши** (`onRowSecondaryTapDown`) → «Премия», «Штраф», «Выплата», «Детали» (PDF). Левый клик меню не вызывает.
-- `lib/features/fot/presentation/widgets/payroll_refreshing_amount.dart` — `PayrollRefreshingAmount` (Cupertino-спиннер вместо суммы при пересчёте).
-- `lib/features/fot/presentation/widgets/payroll_mobile_view.dart`, `payroll_card.dart` — mobile-карточки с тем же паттерном индикации.
-- `lib/features/fot/presentation/widgets/payroll_export_action.dart` — экспорт в шапке: «Весь ФОТ» / «Только выбранные» → Edge Function `export-payroll` (`payroll` / `export`).
-- `lib/features/fot/presentation/widgets/payroll_bonus_table_widget.dart`, `payroll_penalty_table_widget.dart`, `payroll_payout_table_widget.dart` — тела вкладок без дублирующих toolbar.
-- `lib/features/fot/presentation/widgets/payroll_payout_excel_import_dialog.dart`, `payroll_payout_import_preview_dialog.dart` — импорт выплат из Excel.
-- `lib/features/fot/presentation/widgets/payroll_payout_form_modal.dart`, `payroll_payout_amount_modal.dart` — ручное создание выплат.
-- `lib/features/fot/presentation/providers/payroll_providers.dart` — FIFO, CRUD выплат, `invalidatePayrollFotTableDependents`, `invalidatePayrollPayoutDependents`.
-- `lib/features/fot/presentation/providers/balance_providers.dart` — `employeeAggregatedBalanceProvider`, `singleEmployeeBalanceProvider`, `employeeBalanceAtDateProvider` (заготовка).
-
-### Слой Domain
-- `lib/features/fot/domain/entities/payroll_payout_import.dart` — `PayrollPayoutImportRow`, `PayrollPayoutImportParseResult`, `PayrollPayoutImportMatchStatus`.
-- `lib/features/fot/domain/repositories/payroll_payout_repository.dart` — интерфейс CRUD выплат.
-
-### Слой Data
-- `lib/features/fot/data/models/payroll_payout_model.dart` — DTO выплаты (`employee_id`, `amount`, `payout_date`, `method`, `type`, `comment`).
-- `lib/features/fot/data/repositories/payroll_payout_repository_impl.dart` — Supabase `payroll_payout`.
-
-### Слой Application/Services
-- `lib/features/fot/presentation/services/employee_financial_report_service.dart` — Единый сервис сбора данных за год (FIFO).
-- `lib/features/fot/presentation/services/payroll_pdf_service.dart` — Генерация PDF с кумулятивным остатком.
-- `lib/features/fot/presentation/services/payroll_payout_excel_import_service.dart` — Парсинг `.xlsx`, автопоиск колонок «ФИО» / «Сумма», сопоставление ФИО.
-- `lib/features/fot/presentation/utils/payroll_payout_batch_save.dart` — Пакетное создание выплат; `invalidatePayrollPayoutDependents`.
-
-### Инвалидация кэша после операций (Presentation)
-
-| Операция | Функция | Затронутые провайдеры |
-|----------|---------|------------------------|
-| Премия / штраф (create/update/delete) | `invalidatePayrollFotTableDependents` | `filteredPayrollsProvider`, `payoutsByEmployeeAndMonthFIFOProvider`, `employeeAggregatedBalanceProvider` + список вкладки (`bonusesByFilterProvider` / `penaltiesByFilterProvider`) |
-| Выплата (create/update/delete/import) | `invalidatePayrollPayoutDependents` | Всё из строки выше + `allPayoutsProvider`, `payrollPayoutsByFilterProvider`, `filteredPayrollPayoutsProvider` |
-
-Без сброса `payoutsByEmployeeAndMonthFIFOProvider` колонки «Выплаты» и «Баланс» на вкладке ФОТ показывали устаревшие значения до перезагрузки экрана.
+Архитектурные особенности:
+- Clean Architecture: `presentation` / `domain` / `data`
+- Riverpod; Freezed-модели выплат/премий/штрафов и `PayrollCalculation`
+- списки премий/штрафов/выплат читаются из провайдеров напрямую в Supabase, не через repository `getAll*`
+- repository в модуле — только CRUD create/update/delete
 
 ---
 
-## 🗄 База данных и RLS
+## Зависимости
 
-### Таблицы (Owner)
-1. `employee_rates` — История ставок. **RLS: Enabled** (company_id).
-   - **Constraint** `employee_rates_no_overlap` (EXCLUDE USING gist) — запрет пересечения `daterange(valid_from, COALESCE(valid_to, 'infinity'), '[]')` в рамках `(employee_id, company_id)`.
-2. `business_trip_rates` (used) — Командировочные ставки. Owner модуля «Объекты», но критичны для расчёта.
-   - **Constraint** `business_trip_rates_no_overlap` (EXCLUDE USING gist) — запрет пересечения периодов в рамках `(object_id, company_id, COALESCE(employee_id, sentinel-uuid))`. NULL-employee_id трактуется как «общая ставка для всех».
-3. `payroll_payout` — Выплаты. **RLS: Enabled** (company_id). Индекс `idx_payroll_payout_company_date (company_id, payout_date)`.
-4. `payroll_bonus` — Премии. **RLS: Enabled** (company_id). Индекс `idx_payroll_bonus_company_date (company_id, date)`.
-5. `payroll_penalty` — Штрафы. **RLS: Enabled** (company_id). Индекс `idx_payroll_penalty_company_date (company_id, date)`.
+### Таблицы модуля (owner)
+- `payroll_bonus`
+- `payroll_penalty`
+- `payroll_payout`
 
-### Расширения
-- `btree_gist` — требуется для EXCLUDE-constraint по комбинации равенства (UUID) и диапазона дат.
+### Таблицы других модулей (usage)
+- `employee_rates` — почасовая ставка на дату смены
+- `business_trip_rates` — суточные по объекту
+- `employees` — ФИО, статус, дата трудоустройства, ставка в UI
+- `work_hours` + `works` — часы закрытых смен
+- `employee_attendance` — ручные часы
+- `objects` — фильтр и название объекта у премии/штрафа
+- `company_members` / `profiles` — RLS и `activeCompanyId`
 
-### Активные RPC модуля
-- `calculate_payroll_for_month(p_year int, p_month int, p_object_ids uuid[], p_company_id uuid)`
-- `calculate_employee_balances(p_company_id uuid)`
-- `calculate_employee_balances_before_date(p_date date, p_company_id uuid)`
-- `calculate_employee_balances_at_date(p_date date, p_company_id uuid)`
-- `calculate_single_employee_balance(p_employee_id uuid, p_company_id uuid)`
-
-### Удалённые RPC (19.04.2026)
-- `get_employee_bonuses(int, int)` — legacy, не использовался, без `company_id`.
-- `calculate_payroll_for_month(int, int, uuid[])` — старая перегрузка без `company_id`.
-- `calculate_base_salary_all_time()` — не использовался, без `company_id`.
-- `calculate_business_trip_all_time()` — не использовался, без `company_id`.
-- `get_payroll_report_data(int, int, uuid)` — не использовался; содержал альтернативную FIFO-логику, конфликтующую с клиентской.
+### Связанные модули
+- `employees` — справочник, карточка, ставки
+- `timesheet` — те же источники часов; UI-паттерн панели
+- `objects` — суточные и фильтр
+- `company` — `activeCompanyIdProvider`
+- `roles` — модуль `payroll`: `read`, `create`, `update`, `delete`, `export`. Право `import` в матрице ролей **отключено**; импорт Excel выплат идёт через `create`
+- `profile` — финансовый отчёт сотрудника использует RPC и FIFO ФОТ
+- `export` — `WorkSearchExportServerService.exportPayroll`
 
 ---
 
-## ⚙ Бизнес-логика (Audit)
+## Presentation
 
-### RPC `calculate_payroll_for_month` (начисления за месяц)
-Строка попадает в результат, если за выбранный месяц есть **часы**, **премия** или **штраф** (при фильтре объектов — только выбранные объекты). **Выплата** добавляет строку только без фильтра объектов. Колонка `net_salary` — только начисления; выплаты отображаются через FIFO. Подробнее: `docs/fot/calculations.md`.
+Корневой экран: `PayrollListScreen`. Подробная вёрстка: [`ui_structure.md`](./ui_structure.md).
 
-**Важно:** RPC **не** возвращает сотрудников «в штате без операций за месяц». Такие строки добавляются на **клиенте** (`_groupPayrolls`) и на **сервере при экспорте** (`mergeZeroActivityRows` в `export-payroll`) **только если объекты не выбраны**. При фильтре по объекту список = результат RPC.
+| Файл | Назначение |
+|------|------------|
+| `screens/payroll_list_screen.dart` | Шапка, `IndexedStack` вкладок, `skipLoadingOnReload` для RPC |
+| `screens/tabs/payroll_tab_*.dart` | Обёртки вкладок Премии / Штрафы / Выплаты |
+| `widgets/payroll_filters_toolbar.dart` | Единая строка фильтров |
+| `widgets/payroll_table_widget.dart` / `payroll_table_view.dart` | Таблица ФОТ, `_groupPayrolls` |
+| `widgets/payroll_mobile_view.dart` / `payroll_card.dart` | Карточки на телефоне |
+| `widgets/payroll_refreshing_amount.dart` | Спиннер в суммах при пересчёте |
+| `widgets/payroll_export_action.dart` | Excel: весь ФОТ / выбранные |
+| `widgets/payroll_*_table_*.dart` | Таблицы премий, штрафов, выплат |
+| `widgets/payroll_transaction_form_modal.dart` | Форма премии/штрафа |
+| `widgets/payroll_payout_form_modal.dart` / `payroll_payout_amount_modal.dart` | Ручные и массовые выплаты |
+| `widgets/payroll_payout_excel_import_dialog.dart` | Импорт выплат |
+| `providers/payroll_providers.dart` | RPC месяца, FIFO, выплаты, инвалидация |
+| `providers/bonus_providers.dart` / `penalty_providers.dart` | Списки и CRUD |
+| `providers/balance_providers.dart` | Баланс за всё время / одного / на дату |
+| `providers/payroll_filter_providers.dart` | Год, месяц, объекты, поиск |
+| `services/employee_financial_report_service.dart` | Годовые данные FIFO для PDF |
+| `services/payroll_pdf_service.dart` | PDF |
+| `services/payroll_payout_excel_import_service.dart` | Парсинг `.xlsx` и матчинг ФИО |
 
-### Состав таблицы ФОТ на экране (`_groupPayrolls`)
-1. Все строки из `filteredPayrollsProvider` (RPC / fallback).
-2. Если фильтр объектов **пустой**: плюс сотрудники из справочника (`employees`), если:
-   - `employment_date` не позже последнего дня выбранного месяца;
-   - **не уволен** (`status != fired`) **или** `|balance на конец месяца| > 0.01` (FIFO);
-   - ещё не попали в п.1.
-3. Если выбран объект — шаг 2 не выполняется.
-4. Для дополнительных строк: нулевые начисления, ставка из `currentHourlyRate`, выплаты и баланс — из `payoutsByEmployeeAndMonthFIFOProvider`.
+### Права UI
 
-### Экспорт ведомости в Excel (Edge Function `export-payroll`)
-**Триггер UI:** `PayrollExportAction` в **шапке** экрана (`PermissionGuard`: `payroll` / `export`). Скрыт на вкладке «Выплаты». Параметры запроса: `year`, `month`, `companyId`, опционально `objectIds`, `searchQuery`, `employeeIds`.
-
-**Алгоритм (сервер):**
-1. RPC `calculate_payroll_for_month` за выбранный месяц (с теми же `objectIds` / `companyId`, что в UI).
-2. Параллельно — FIFO за год: `calculate_employee_balances_before_date`, все `payroll_payout`, 12× `calculate_payroll_for_month` (без `objectIds` — для сквозного баланса).
-3. `mergeZeroActivityRows`: дополнение «нулевыми» сотрудниками (условия как в `_groupPayrolls`; при переданном `employeeIds` — любой отмеченный ID).
-4. Фильтр по `searchQuery` (подстрока ФИО, case-insensitive).
-5. Сборка `.xlsx` (ExcelJS): колонки как в таблице; формулы «К выплате» и «Остаток»; строка ИТОГО; уволенные — розовая заливка.
-6. Ответ: `base64` + `filename` (`ФОТ_<Месяц> <Год>.xlsx`); сохранение на устройстве — `WorkSearchExportServerService._saveExcelFile`.
-
-**Режимы экспорта:**
-| Режим | Условие в UI | Поведение |
-|-------|----------------|-----------|
-| Весь ФОТ | Нет отмеченных чекбоксов или пункт меню «Весь ФОТ» | RPC + все «нулевые» по правилу штат/баланс |
-| Только выбранные | Есть отмеченные строки → «Только выбранные (N)» | Только `employeeIds` из чекбоксов (включая нулевые строки) |
-
-### Алгоритм Cumulative FIFO Balance
-1.  **Начальное сальдо:** Вызывается RPC `calculate_employee_balances_before_date` на 1 января выбранного года.
-2.  **Параллельный сбор:** Загружаются начисления за все 12 месяцев года через параллельные вызовы `calculate_payroll_for_month`.
-3.  **FIFO Распределение:** 
-    - Каждая выплата (из всей истории) сначала гасит долг до начала года.
-    - Остаток выплаты последовательно закрывает `netSalary` каждого месяца текущего года.
-4.  **Кумуляция:** Баланс на конец месяца рассчитывается как бегущая строка. Это позволяет видеть, как декабрьская выплата «пробрасывается» в октябрь, уменьшая остаток долга именно того периода.
-
-### Формирование годового PDF-отчета
-Отчет больше не фильтрует выплаты по календарной дате. Вместо этого:
-- Сумма «Выплачено» за месяц берется из распределения FIFO.
-- Добавлена строка «ОСТАТОК К ВЫПЛАТЕ на конец месяца», которая отображает кумулятивный долг.
-- Итоговый баланс года соответствует финальному значению из FIFO-цепочки.
-
-### Импорт выплат из Excel (вкладка «Выплаты»)
-Точка входа UI: кнопка **«Импорт из Excel»** в `PayrollTabToolbarActions` (панель фильтров).
-
-1. **Параметры:** дата выплаты, способ (`card` / `cash` / `bank_transfer`), тип (`salary` / `advance`), комментарий — как при ручном вводе.
-2. **Файл:** только `.xlsx`, байты в памяти (`file_picker`, `withData: true`). Предобработка: `sanitizeXlsxForExcelNumberFormats` (`lib/core/utils/xlsx_excel_compatibility.dart`).
-3. **Колонки:** автопоиск заголовков по подстрокам `фио` и `сумм|перевод` в первых 15 строках; иначе — колонки B (ФИО) и C (сумма), данные с 2-й строки.
-4. **Сумма:** `parseAmount` из `formatters.dart` (пробелы, запятая, символ ₽).
-5. **Сопоставление ФИО** (`normalizePayrollImportFio`: lower case, `ё`→`е`, схлопывание пробелов):
-   - точное совпадение с `Employee.fullName`;
-   - иначе — фамилия + имя (2 токена в файле → любое отчество в справочнике; 3+ токена → полное отчество);
-   - 0 кандидатов → `notFound`; 2+ → `ambiguous`.
-   - Участвуют **все** сотрудники компании из `employeeProvider` (в т.ч. `EmployeeStatus.fired`).
-6. **Предпросмотр:** таблица на всю ширину диалога; при `hasIssues` — баннер и подтверждение «Импортировать только найденных».
-7. **Сохранение:** для каждой matched-строки — `PayrollPayoutModel` + `createPayoutUseCaseProvider` (UUID на клиенте).
-
-**Права:** `PermissionGuard(module: 'payroll', permission: 'create')`.
+| Действие | Право |
+|----------|--------|
+| Вход в модуль / маршрут | `payroll.read` |
+| Добавить премию / штраф / выплату, импорт Excel | `payroll.create` |
+| Экспорт ведомости | `payroll.export` |
+| Карточка сотрудника по ФИО | `employees.read` |
 
 ---
 
-## 🌲 Дерево файлов
+## Domain / Data
+
+### Domain
+
+| Файл | Назначение |
+|------|------------|
+| `entities/payroll_calculation.dart` | Freezed: часы, ставка, база, премии, штрафы, суточные, `netSalary` |
+| `entities/payroll_transaction.dart` | Интерфейс премии/штрафа + enum типа |
+| `entities/payroll_payout_import.dart` | Строка Excel: `matched` / `notFound` / `ambiguous` |
+| `repositories/payroll_*_repository.dart` | Интерфейсы CRUD (без list) |
+
+`PayrollCalculation` — расчёт в памяти, не таблица БД.
+
+### Data
+
+| Файл | Таблица |
+|------|---------|
+| `models/payroll_bonus_model.dart` | `payroll_bonus` |
+| `models/payroll_penalty_model.dart` | `payroll_penalty` |
+| `models/payroll_payout_model.dart` | `payroll_payout` (поля: `id`, `employee_id`, `company_id`, `amount`, `payout_date`, `method`, `type`, `comment`, `created_at`) |
+| `repositories/*_impl.dart` | Supabase insert/update/delete с `company_id` |
+
+Колонка БД `payroll_payout.is_official` (boolean, default `true`) **в Dart-модели нет** — клиент её не читает и не пишет.
+
+Списки читаются в провайдерах (`from('payroll_*').select()`), не в repository.
+
+---
+
+## Дерево файлов
+
 ```text
 lib/features/fot/
 ├── data/
-│   ├── models/             # payroll_payout_model, bonus, penalty
-│   └── repositories/       # *_repository_impl.dart (Supabase)
+│   ├── models/                 # bonus, penalty, payout (+ freezed/g)
+│   └── repositories/           # CRUD impl
 ├── domain/
-│   ├── entities/           # payroll_calculation, payroll_transaction, payroll_payout_import
-│   └── repositories/       # Интерфейсы CRUD
+│   ├── entities/               # payroll_calculation, payroll_transaction, payroll_payout_import
+│   └── repositories/           # интерфейсы CRUD
 └── presentation/
-    ├── providers/          # payroll_providers, balance_providers, payroll_filter_providers, bonus/penalty
-    ├── screens/            # payroll_list_screen, tabs/
-    ├── services/           # PDF, financial report, payroll_payout_excel_import_service
-    ├── widgets/            # payroll_filters_toolbar, tables, modals, payroll_refreshing_amount
-    └── utils/              # payroll_name_search_filters, payroll_payout_batch_save, payout_utils
+    ├── providers/              # payroll, bonus, penalty, balance, filter, grid selection
+    ├── screens/                # payroll_list_screen + tabs/
+    ├── services/               # PDF, financial report, excel import
+    ├── widgets/                # toolbar, tables, modals, export
+    └── utils/                  # search filters, batch save, payout/balance helpers
 
 test/features/fot/
 └── payroll_payout_excel_import_service_test.dart
+
+supabase/functions/export-payroll/
+└── index.ts                    # Excel-ведомость
 ```
 
 ---
 
-## 🔗 Интеграции
-| Направление | Компонент | Назначение |
-|-------------|-----------|------------|
-| **Сотрудники** | `employeeProvider` / таблица `employees` | Сопоставление ФИО при импорте Excel |
-| **Компания** | `activeCompanyIdProvider` | `company_id` в выплатах, RLS |
-| **Экспорт Excel (ведомость)** | Edge Function `export-payroll` + `WorkSearchExportServerService` | Серверный Excel (`PayrollExportAction` в шапке); состав = таблица ФОТ |
-| **Импорт Excel (выплаты)** | Клиент: `excel`, `file_picker` | Вкладка «Выплаты», `PayrollTabToolbarActions`; файл **не** сохраняется |
-| **Табель (UI-паттерн)** | `TimesheetScreen`, `timesheet_filters_toolbar.dart` | Общая оболочка `MobileAtmosphere*`, высота панели 34 px, `EmployeesLayoutUtils` |
-| **Core** | `formatters.parseAmount`, `xlsx_excel_compatibility` | Парсинг сумм и совместимость xlsx |
+## База данных (Audit)
+
+Источник: `information_schema`, `pg_policies`, `pg_indexes`, `pg_constraint`, `pg_proc`, `pg_stat_user_tables` на self-hosted **23.08.2026**. Миграции фильтра объектов применены: `payroll_object_filter_exclude_unassigned`, `payroll_object_filter_exclude_payout_only`.
+
+Приблизительный объём (`n_live_tup`): `payroll_payout` ~969, `employee_rates` ~248, `payroll_bonus` ~38, `payroll_penalty` ~25, `business_trip_rates` ~19.
+
+### Таблица `payroll_bonus`
+
+| Колонка | Тип | Nullable | Default |
+|---------|-----|----------|---------|
+| `id` | uuid PK | NO | `gen_random_uuid()` |
+| `type` | text | NO | — |
+| `amount` | numeric | NO | — |
+| `reason` | text | YES | — |
+| `created_at` | timestamptz | NO | `now()` |
+| `employee_id` | uuid FK → `employees` | NO | нулевой uuid (legacy) |
+| `object_id` | uuid FK → `objects` | YES | — |
+| `date` | date | YES | — |
+| `company_id` | uuid FK → `companies` ON DELETE CASCADE | NO | — |
+
+**RLS:** ✅ включён, `FORCE` нет.  
+Политика `Users can manage bonuses of their companies` (`ALL`): `company_id IN (get_my_company_ids())`. **`check_permission('payroll', …)` нет** — любой участник компании с доступом к API может менять премии.
+
+Индексы: PK, `idx_payroll_bonus_company_date (company_id, date)`, `idx_payroll_bonus_employee_id`, `idx_payroll_bonus_object_id`.
+
+Триггеров нет. CHECK на сумму нет.
+
+### Таблица `payroll_penalty`
+
+Колонки как у премий (`type`, `amount`, `reason`, `employee_id`, `object_id`, `date`, `company_id`, `created_at`).
+
+**RLS:** ✅. Политика `Users can manage penalties of their companies` (`ALL`) — только `company_id`. Без `check_permission`.
+
+Индексы: PK, `idx_payroll_penalty_company_date`, `idx_payroll_penalty_employee_date (employee_id, date)`, `idx_payroll_penalty_object_id`.
+
+### Таблица `payroll_payout`
+
+| Колонка | Тип | Nullable | Default |
+|---------|-----|----------|---------|
+| `id` | uuid PK | NO | `gen_random_uuid()` |
+| `amount` | numeric | NO | — |
+| `payout_date` | date | NO | — |
+| `method` | text | NO | — |
+| `created_at` | timestamptz | NO | `now()` |
+| `employee_id` | uuid FK → `employees` | NO | нулевой uuid (legacy) |
+| `type` | text | NO | `'salary'` |
+| `is_official` | boolean | NO | `true` |
+| `comment` | text | YES | — |
+| `company_id` | uuid FK → `companies` ON DELETE CASCADE | NO | — |
+
+**RLS:** ✅. Политика `Users can manage payouts of their companies` (`ALL`) — только `company_id`. Без `check_permission`.
+
+Индексы: PK, `idx_payroll_payout_company_date (company_id, payout_date)`, `idx_payroll_payout_employee_id`.
+
+`object_id` у выплат **нет**.
+
+### Таблица `employee_rates` (usage)
+
+| Колонка | Тип |
+|---------|-----|
+| `id` | uuid PK |
+| `employee_id` | uuid FK → `employees` ON DELETE CASCADE |
+| `hourly_rate` | numeric(10,2), CHECK `> 0` |
+| `valid_from` / `valid_to` | date, CHECK период |
+| `company_id` | uuid FK ON DELETE CASCADE |
+| `created_at`, `created_by` | timestamptz / uuid → `profiles` |
+
+**RLS:** ✅.
+
+| Политика | Команда | Условие |
+|----------|---------|---------|
+| `Users can view employee rates of their companies` | SELECT | `company_id IN (get_my_company_ids())` — **без** `payroll.read` |
+| `employee_rates_select` | SELECT | `payroll.read` **или** ставка своего `profiles.employee_id` |
+| `employee_rates_insert` | INSERT | `payroll.create` — **без** проверки `company_id` |
+| `employee_rates_update` | UPDATE | `payroll.update` — **без** `company_id` |
+| `employee_rates_delete` | DELETE | `payroll.delete` — **без** `company_id` |
+
+EXCLUDE `employee_rates_no_overlap`: gist `(employee_id, company_id, daterange(valid_from, COALESCE(valid_to,'infinity'), '[]'))`.
+
+Индекс подбора ставки: `idx_employee_rates_employee_company_from (employee_id, company_id, valid_from DESC)`.
+
+### Таблица `business_trip_rates` (usage)
+
+Суточные по объекту. CHECK `rate >= 0`, `valid_to >= valid_from`. EXCLUDE `business_trip_rates_no_overlap` с sentinel-uuid для `employee_id IS NULL` (общая ставка).
+
+**RLS:** SELECT при `employees.read` **или** `payroll.read`; INSERT/UPDATE/DELETE — `employees.update` + `company_id`.
+
+Триггер `business_trip_rates_updated_at` (BEFORE UPDATE).
+
+### Расширения
+- `btree_gist` — для EXCLUDE по UUID + `daterange`.
+
+### RPC модуля (факт в БД)
+
+Все, кроме `calculate_single_employee_balance`, — `LANGUAGE plpgsql`, **SECURITY INVOKER**. EXECUTE есть у `anon`, `authenticated`, `service_role` (изоляция — RLS таблиц внутри INVOKER).
+
+| Функция | Аргументы (факт) | Результат | Security |
+|---------|------------------|-----------|----------|
+| `calculate_payroll_for_month` | `p_year int`, `p_month int`, `p_object_ids uuid[]` default NULL, `p_company_id uuid` default NULL | TABLE: employee_id, full_name, total_hours, base_salary, business_trip_total, bonuses_total, penalties_total, net_salary, current_hourly_rate | INVOKER |
+| `calculate_employee_balances` | `p_company_id uuid` | TABLE(employee_id, balance) | INVOKER |
+| `calculate_employee_balances_before_date` | **`p_before_date timestamptz`**, `p_company_id uuid` | TABLE(employee_id, accruals_sum, payouts_sum, balance) | INVOKER |
+| `calculate_employee_balances_at_date` | **`p_date timestamptz`**, `p_company_id uuid` | TABLE(employee_id, balance) | INVOKER |
+| `calculate_single_employee_balance` | `p_employee_id uuid`, `p_company_id uuid` | numeric | **DEFINER**, STABLE, **без** `SET search_path` |
+| `get_employee_rate` | `p_employee_id uuid`, `p_date date`, `p_company_id uuid` | numeric | INVOKER, STABLE |
+
+`get_employee_rate` вызывается из модуля «Сотрудники» (`employee_rate_data_source.dart`), не из `lib/features/fot`.
+
+`p_company_id` / `p_object_ids` у месячной RPC допускают NULL (кросс-компания / все объекты). Клиент и `export-payroll` всегда передают `companyId`.
+
+### Удалённые RPC (19.04.2026, подтверждено отсутствием в `pg_proc`)
+- `get_employee_bonuses`
+- `calculate_payroll_for_month(int, int, uuid[])` без `company_id`
+- `calculate_base_salary_all_time`
+- `calculate_business_trip_all_time`
+- `get_payroll_report_data`
+
+### Миграции ФОТ (репозиторий → сервер)
+
+| Миграция | Суть |
+|----------|------|
+| `20260410120000` / applied `payroll_include_bonus_penalty_without_hours` | Строка без часов, если есть премия/штраф |
+| `20260411120000` / `payroll_include_payout_in_month*` | Строка, если есть выплата за месяц |
+| `20260419120000` | Индексы `(company_id, date)` |
+| `20260419120200`–`20800` | Дроп старых RPC, приоритет суточных, `company_id` в балансах |
+| `employee_rates_no_overlap` / `business_trip_rates_no_overlap` | EXCLUDE |
+| `drop_employee_rates_active_unique` | Удалён частичный unique |
+| `20260823180000` applied `payroll_object_filter_exclude_unassigned` | При `p_object_ids` премии/штрафы только с совпавшим `object_id` |
+| `20260823181000` applied `payroll_object_filter_exclude_payout_only` | При `p_object_ids` выплата **не** создаёт строку ведомости |
 
 ---
 
-## 🗺 Roadmap
-- 🟢 Hybrid-расчет (RPC + Fallback) — **Done**
-- 🟢 Yearly PDF Report с FIFO балансом — **Done**
-- 🟢 Cumulative FIFO Balance — **Done**
-- 🟢 Parallel Loading Optimization — **Done**
-- 🟢 Унификация логики отчетов (Table + Profile + PDF) — **Done**
-- 🟢 Экспорт в Excel (ведомость ФОТ, Edge Function `export-payroll`) — **Done**
-- 🟢 Паритет экспорта Excel с таблицей ФОТ (нулевые строки штат/баланс) — **Done (09.07.2026)**
-- 🟢 UI-панель фильтров в стиле модуля «Табель» (единая строка, `PayrollFiltersToolbar`) — **Done (16.07.2026)**
-- 🟢 Инвалидация FIFO/таблицы ФОТ после премий, штрафов и выплат — **Done (16.07.2026)**
-- 🟢 Stale-while-revalidate UX таблицы ФОТ (`PayrollRefreshingAmount`) — **Done (16.07.2026)**
-- 🟢 Импорт выплат из Excel (вкладка «Выплаты», клиентский парсинг) — **Done (26.05.2026)**
-- 🟢 Унификация приоритета суточных во всех RPC — **Done (19.04.2026)**
-- 🟢 Жёсткая защита от пересечения периодов ставок (UI + БД) — **Done (19.04.2026)**
-- 🟢 Очистка и обезопасивание реестра RPC ФОТ — **Done (19.04.2026)**
-- 🟡 Автоматическое уведомление сотрудника о выплате (Push) — **Planned**
-- 🟡 LATERAL JOIN-оптимизация подбора ставок в `calculate_payroll_for_month` — **Backlog** (отложено сознательно).
+## Бизнес-логика
+
+Подробные формулы: [`calculations.md`](./calculations.md).
+
+### Hybrid-расчёт месяца
+
+1. `filteredPayrollsProvider` → RPC `calculate_payroll_for_month` с годом, месяцем, `objectIds` или null, `companyId`.
+2. Ошибка RPC → `_calculatePayrollClientSide` (логируется в `dart:developer`).
+3. Fallback берёт часы из `payrollWorkHoursProvider` (**без** фильтра объектов), премии/штрафы — уже с фильтром объектов, выплаты — только если объекты не выбраны.
+
+### Состав строк вкладки ФОТ
+
+| Источник | Что в списке |
+|----------|----------------|
+| RPC | Часы и/или премия и/или штраф за месяц. Выплата добавляет строку **только** если объекты не выбраны. `net_salary` = база + суточные + премии − штрафы (выплата в сумму не входит) |
+| UI `_groupPayrolls` | При «Все объекты»: + сотрудники, устроенные до конца месяца и (не уволены **или** \|FIFO-баланс\| > 0.01). При фильтре объекта доп. строк нет |
+| Excel `mergeZeroActivityRows` | То же, что UI; при `employeeIds` — все отмеченные |
+
+### FIFO (вкладка ФОТ и Excel)
+
+1. Исторический долг: `calculate_employee_balances_before_date` на 1 января года (`p_before_date`).
+2. Все `payroll_payout` компании, по дате возрастания.
+3. 12× `calculate_payroll_for_month` **без** `objectIds` — `net_salary` месяца.
+4. Выплата сначала гасит долг до года, затем месяцы 1–12 с положительным начислением.
+5. Остаток выплаты в выбранном году, если гасить нечего, относится на **календарный месяц даты выплаты**.
+6. Баланс(М) = Баланс(М−1) + Начислено(М) − Выплата_FIFO(М).
+
+При фильтре объекта колонки «Выплаты» / «Баланс» / «Остаток» смешивают срез начислений объекта и **сквозной** FIFO компании.
+
+### Инвалидация кэша
+
+| Операция | Функция |
+|----------|---------|
+| Премия / штраф | `invalidatePayrollFotTableDependents` + список вкладки |
+| Выплата / импорт | `invalidatePayrollPayoutDependents` (включает строку выше + списки выплат) |
+
+### Баланс «за всё время»
+
+- `employeeAggregatedBalanceProvider` → `calculate_employee_balances` — форма массовых выплат, **не** колонка «Баланс» таблицы.
+- `singleEmployeeBalanceProvider` → `calculate_single_employee_balance` — профиль.
+- `employeeBalanceAtDateProvider` → `calculate_employee_balances_at_date` — **нигде не watch**, заготовка. В RPC выплаты **не** ограничены `p_date` (начисления ограничены).
+
+### Экспорт Excel
+
+`PayrollExportAction` → `WorkSearchExportServerService.exportPayroll` → `export-payroll`.
+
+Тело: `year`, `month`, `companyId`, опционально `objectIds`, `searchQuery`, `employeeIds`. JWT пользователя в `Authorization`; внутри функции — `SERVICE_ROLE_KEY`.
+
+Колонки файла: Сотрудник, Статус, Часы, Ставка, Базовая сумма, Премии, Штрафы, Суточные, К выплате, Выплаты, Остаток, Баланс. Уволенные — розовая заливка. ИТОГО. Формулы «К выплате» и «Остаток».
+
+### Импорт выплат
+
+Вкладка «Выплаты», `payroll.create`. Только `.xlsx` в памяти. Матчинг ФИО: lower, `ё`→`е`, все сотрудники компании включая уволенных. Пакет через `savePayrollPayoutBatch`.
+
+---
+
+## Интеграции
+
+### Внутренние
+- `employees`, `timesheet` (часы и UI-shell), `objects`, `company`, `roles`, `profile` (PDF/FIFO), `export`
+
+### Пакеты
+- `supabase_flutter`, `flutter_riverpod`, `freezed`, `json_serializable`, `excel`, `file_picker`, `collection`
+
+### Edge Functions
+
+MCP `list_edge_functions` в этом окружении недоступен. В репозитории и в вызовах клиента:
+
+| Функция | Файл | Назначение |
+|---------|------|------------|
+| `export-payroll` | `supabase/functions/export-payroll/index.ts` | Ведомость `.xlsx` (ExcelJS) |
+
+В `supabase/config.toml` отдельного блока `[functions.export-payroll]` нет (в отличие от части других функций). Вызов идёт с пользовательским JWT.
+
+Других Edge Functions модуля ФОТ в `supabase/functions/` нет.
+
+---
+
+## Roadmap
+
+### Реализовано
+- Hybrid RPC + fallback
+- FIFO + паритет PDF / таблицы / Excel
+- Параллельная загрузка 12 месяцев
+- Экспорт Excel, импорт выплат
+- Фильтр объектов: без «висячих» премий/штрафов и без строк «только выплата»
+- UI-панель как у «Табель», stale-while-revalidate
+- EXCLUDE на периоды ставок
+- Очистка старых RPC
+
+### Расхождения аудита 23.08.2026 (не закрыты кодом)
+
+| Приоритет | Факт | Следствие |
+|-----------|------|-----------|
+| 🔴 | RLS `payroll_bonus` / `payroll_penalty` / `payroll_payout` — только `company_id` | Права `payroll.create/update/delete` в UI не дублируются в БД |
+| 🔴 | `calculate_single_employee_balance` — SECURITY DEFINER без `search_path` | Типовой риск DEFINER; EXECUTE у `anon` |
+| 🟡 | `calculate_employee_balances_at_date`: выплаты без фильтра по `p_date` | Провайдер не используется; включать в UI нельзя без правки SQL |
+| 🟡 | `employee_rates` INSERT/UPDATE/DELETE без `company_id` в политике | Запись опирается только на `payroll.*` |
+| 🟡 | Fallback `_calculatePayrollClientSide` не фильтрует часы по объекту | При сбое RPC срез объекта завысит часы |
+| 🟡 | При фильтре объекта «Остаток» = начисления объекта − FIFO всей компании | Цифры колонок не про один срез |
+| 🟢 | `payroll_payout.is_official` есть в БД, нет в Dart | Мёртвая колонка для приложения |
+| 🟢 | `docs/database_structure.md` описывал несуществующие `payroll_calculation` / `payroll_deduction` | Исправлено в этом аудите |
+| 🟢 | Статический анализ `lib/features/fot` | Ошибок нет |
+
+### Planned / Backlog
+- 🟡 Push-уведомление сотруднику о выплате
+- 🟡 LATERAL JOIN для подбора ставок в `calculate_payroll_for_month`
+- 🟡 Выровнять RLS премий/штрафов/выплат с `check_permission('payroll', …)`
+- 🟡 Починить фильтр даты в `calculate_employee_balances_at_date` или удалить мёртвый провайдер

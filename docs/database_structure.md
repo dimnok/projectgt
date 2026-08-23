@@ -468,133 +468,25 @@
 
 ---
 
-## Таблица `payroll_calculation`
+## Таблицы модуля ФОТ (аудит 23.08.2026)
 
-**Описание:**
-Расчёт заработной платы сотрудника за месяц. Содержит все суммы, ставки, начисления, удержания, итоговые значения.
+Ведомость **не хранится** в БД: таблиц `payroll_calculation` и `payroll_deduction` **нет**. Расчёт — RPC `calculate_payroll_for_month` и клиентский FIFO. Канон: [`docs/fot/fot_module.md`](./fot/fot_module.md).
 
-**Структура:**
-- id: UUID, PK — уникальный идентификатор расчёта
-- employee_id: UUID — внешний ключ на employees.id
-- period_month: DATE — месяц расчёта (YYYY-MM-01)
-- hours_worked: NUMERIC — отработано часов за период
-- hourly_rate: NUMERIC — почасовая ставка
-- base_salary: NUMERIC — базовая сумма начисления
-- bonuses_total: NUMERIC — сумма всех премий
-- penalties_total: NUMERIC — сумма всех штрафов
-- deductions_total: NUMERIC — сумма всех удержаний
-- gross_salary: NUMERIC — начисленная сумма (до вычета)
-- net_salary: NUMERIC — сумма к выплате (на руки)
-- status: TEXT — статус расчёта (`draft`, `approved`)
-- created_at: TIMESTAMP — дата и время создания записи
-- updated_at: TIMESTAMP — дата и время последнего обновления
+### `payroll_bonus` / `payroll_penalty`
 
-**Связи:**
-- employee_id → employees.id (FK)
-- id → payroll_bonus.payroll_id, payroll_penalty.payroll_id, payroll_deduction.payroll_id, payroll_payout.payroll_id (FK)
+Премии и штрафы. RLS ✅, политика ALL по `company_id IN (get_my_company_ids())` (без `check_permission`).
 
-**RLS-политики:**
-- (RLS не включён)
+Колонки: `id` uuid PK, `type` text, `amount` numeric, `reason` text, `created_at` timestamptz, `employee_id` uuid → `employees`, `object_id` uuid → `objects` (nullable), `date` date, `company_id` uuid → `companies` ON DELETE CASCADE.
 
----
+Индексы: `(company_id, date)`; у штрафов дополнительно `(employee_id, date)`; `object_id`.
 
-## Таблица `payroll_bonus`
+### `payroll_payout`
 
-**Описание:**
-Бонусы, премии, надбавки по расчёту зарплаты.
+Фактические выплаты. Создание: форма, массовый ввод, импорт Excel (клиент). RLS ✅, ALL по `company_id`.
 
-**Структура:**
-- id: UUID, PK — уникальный идентификатор бонуса
-- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
-- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
-- type: TEXT — тип бонуса/премии
-- amount: NUMERIC — сумма бонуса
-- reason: TEXT — причина начисления
-- created_at: TIMESTAMP — дата и время создания записи
+Колонки: `id` uuid PK, `amount` numeric, `payout_date` date, `method` text, `type` text default `salary`, `is_official` boolean default true (**в Dart-модели нет**), `comment` text, `created_at` timestamptz, `employee_id` uuid → `employees`, `company_id` uuid → `companies` ON DELETE CASCADE. **Нет `object_id`.**
 
-**Связи:**
-- payroll_id → payroll_calculation.id (FK)
-- employee_id → employees.id (FK)
-
-**RLS-политики:**
-- (RLS не включён)
-
----
-
-## Таблица `payroll_penalty`
-
-**Описание:**
-Штрафы, удержания по расчёту зарплаты.
-
-**Структура:**
-- id: UUID, PK — уникальный идентификатор штрафа
-- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
-- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
-- type: TEXT — тип штрафа
-- amount: NUMERIC — сумма штрафа
-- reason: TEXT — причина штрафа
-- created_at: TIMESTAMP — дата и время создания записи
-
-**Связи:**
-- payroll_id → payroll_calculation.id (FK)
-- employee_id → employees.id (FK)
-
-**RLS-политики:**
-- (RLS не включён)
-
----
-
-## Таблица `payroll_deduction`
-
-**Описание:**
-Прочие удержания (например, алименты, налоги) по расчёту зарплаты.
-
-**Структура:**
-- id: UUID, PK — уникальный идентификатор удержания
-- payroll_id: UUID, FK — внешний ключ на payroll_calculation.id
-- employee_id: UUID, FK — внешний ключ на employees.id (новое поле, 2024-05-21)
-- type: TEXT — тип удержания
-- amount: NUMERIC — сумма удержания
-- comment: TEXT — комментарий
-- created_at: TIMESTAMP — дата и время создания записи
-
-**Связи:**
-- payroll_id → payroll_calculation.id (FK)
-- employee_id → employees.id (FK)
-
-**RLS-политики:**
-- (RLS не включён)
-
----
-
-## Таблица `payroll_payout`
-
-**Описание:**
-Фактические выплаты сотрудникам (модуль ФОТ). Создаются вручную, через массовую форму или **импорт из Excel** (клиент, без хранения файла). Подробнее: `docs/fot/fot_module.md`.
-
-**Структура (актуально по коду `PayrollPayoutModel`, 2026):**
-- id: UUID, PK — идентификатор (генерируется на клиенте при создании)
-- company_id: UUID, FK — компания (RLS, мультикомпания)
-- employee_id: UUID, FK — сотрудник (`employees.id`)
-- amount: NUMERIC — сумма выплаты
-- payout_date: DATE / TIMESTAMPTZ — дата выплаты
-- method: TEXT — способ: `card`, `cash`, `bank_transfer`
-- type: TEXT — тип: `salary`, `advance`
-- comment: TEXT, nullable — комментарий
-- created_at: TIMESTAMPTZ, nullable — дата создания записи
-
-**Связи:**
-- employee_id → employees.id (FK)
-- company_id → companies.id (FK)
-
-**Индексы:**
-- `idx_payroll_payout_employee_id (employee_id)`
-- `idx_payroll_payout_company_date (company_id, payout_date)`
-
-**RLS-политики:**
-- ✅ Включён (доступ по `company_id` / `get_my_company_ids()`)
-
-**Устаревшие поля (удалены из приложения):** `payroll_id`, `status` — в текущем Dart-коде не используются.
+Индексы: `idx_payroll_payout_employee_id`, `idx_payroll_payout_company_date (company_id, payout_date)`.
 
 ---
 

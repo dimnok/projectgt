@@ -326,7 +326,7 @@ lib/
 |--------|--------|---------|
 | **Управление версиями** | [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) | Система блокировки старых версий, Realtime синхронизация |
 | **Профиль пользователя** | [`profile/`](./profile/) | Управление учётной записью, данные сотрудника |
-| **ФОТ** | [`fot/fot_module.md`](./fot/fot_module.md) | Расчёты заработной платы, бонусы, штрафы |
+| **ФОТ** | [`fot/fot_module.md`](./fot/fot_module.md) | Расчёт зарплаты, премии, штрафы, выплаты, FIFO, Excel |
 | **Работы (смены и планы)** | [`works/works_module.md`](./works/works_module.md) | Ежедневные смены, фото, часы; планы работ |
 | **Взаиморасчёты** | [`settlements/settlements_module.md`](./settlements/settlements_module.md) | Счета на оплату по договорам, история оплат, привязка к ДДС из выписки |
 | **ТМЦ** | [`tmc/tmc_module.md`](./tmc/tmc_module.md) | Учёт имущества компании (инструмент, СИЗ, оргтехника); Desktop |
