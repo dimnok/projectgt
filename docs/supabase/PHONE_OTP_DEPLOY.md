@@ -55,20 +55,15 @@ SEND_SMS_HOOK_SECRET: ${SEND_SMS_HOOK_SECRET}
 
 ## 5. Edge Function
 
-Скопировать из репозитория:
-
-- `supabase/functions/auth-send-sms/` → `/home/supabase/supabase/docker/volumes/functions/auth-send-sms/`
-
-Или полный деплой functions из CI.
-
-## 6. Перезапуск
+Опубликовать скриптом проекта:
 
 ```bash
-cd /home/supabase/supabase/docker
-docker compose up -d auth functions
+./scripts/deploy-function.sh auth-send-sms
 ```
 
-## 7. Проверка
+Подробности: [EDGE_FUNCTIONS_DEPLOY.md](EDGE_FUNCTIONS_DEPLOY.md).
+
+## 6. Проверка
 
 ```bash
 curl -sS -X POST 'https://api.progt.ru/auth/v1/otp' \
@@ -87,7 +82,7 @@ docker compose logs auth --tail 20
 docker compose logs functions --tail 50 | grep auth-send-sms
 ```
 
-## 8. Откат
+## 7. Откат
 
 - Выключить `GOTRUE_HOOK_SEND_SMS_ENABLED=false`
 - В приложении временно откатить коммит с `signInWithOtp` (или включить старый `otp-notisend` в `auth_data_source`)

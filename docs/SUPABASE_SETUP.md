@@ -38,6 +38,7 @@ class AppConfig {
 ### 2. Edge Functions (26 функций)
 - Все функции перенесены на новый сервер.
 - Вызов функций происходит через стандартный API Gateway: `https://api.progt.ru/functions/v1/`.
+- **Публикация:** после изменения функции запускать `./scripts/deploy-function.sh <имя>`. Не использовать `supabase functions deploy`. См. [docs/supabase/EDGE_FUNCTIONS_DEPLOY.md](supabase/EDGE_FUNCTIONS_DEPLOY.md).
 - Настроены секреты для интеграций:
   - **DaData** (поиск по ИНН)
   - **Notisend** (отправка SMS/OTP)

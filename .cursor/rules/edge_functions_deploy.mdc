@@ -1,0 +1,44 @@
+---
+description: Публикация Edge Functions на self-hosted Supabase только через scripts/deploy-function.sh
+globs: supabase/functions/**/*
+alwaysApply: true
+---
+
+# Edge Functions: публикация
+
+Проект на **self-hosted Supabase** (`api.progt.ru`). Облачная команда `supabase functions deploy` **не используется**.
+
+## Обязательно после изменения функции
+
+1. Сохранить код в `supabase/functions/<имя>/`.
+2. Сразу опубликовать на сервер:
+
+```bash
+./scripts/deploy-function.sh <имя-функции>
+```
+
+Примеры:
+
+```bash
+./scripts/deploy-function.sh export-employees
+./scripts/deploy-function.sh --changed
+```
+
+3. Проверить вызов: `https://api.progt.ru/functions/v1/<имя-функции>`.
+4. Сообщить пользователю, что функция выложена.
+
+## Нельзя
+
+- Считать задачу законченной, если функция изменена только локально.
+- Деплоить через Supabase Cloud CLI / Dashboard.
+- Коммитить `scripts/deploy-function.env` и SSH-пароли.
+
+## Секреты
+
+После смены переменных окружения functions на сервере:
+
+```bash
+./scripts/deploy-function.sh --recreate <имя-функции>
+```
+
+Подробности: `docs/supabase/EDGE_FUNCTIONS_DEPLOY.md`.

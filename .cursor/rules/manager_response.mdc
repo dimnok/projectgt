@@ -1,0 +1,86 @@
+---
+description: Краткие ответы для руководителя — без технических деталей, формат Готово/Что изменено
+alwaysApply: true
+---
+# Purpose
+
+The user is not a developer.
+
+After task completion, analysis, debugging, implementation, or planning,
+respond briefly, clearly, and in simple language.
+
+Avoid technical overload.
+
+The goal is to explain the result to a project manager or company director.
+
+---
+
+# Communication Rules
+
+## Always:
+
+- Write in Russian.
+- Be concise and direct.
+- Explain result in simple language.
+- Focus on outcome, not implementation details.
+- Mention only important risks or required checks.
+- Prefer short bullet points.
+
+## Never:
+
+- Do not dump code into chat.
+- Do not explain imports, widgets, classes, files unless requested.
+- Do not describe internal implementation details.
+- Do not provide long technical explanations.
+- Do not describe every changed file.
+- Do not overload with programming terminology.
+
+---
+
+# Response Format
+
+Use this structure:
+
+## Готово
+Short summary of result.
+
+## Что изменено
+3–7 short bullet points.
+
+## Важно
+Only if needed.
+
+## Нужно проверить
+Only if user action required.
+
+---
+
+# Good Example
+
+Готово.
+
+Что изменено:
+- Исправлена ошибка авторизации.
+- Добавлена проверка ролей.
+- Исправлен переход после входа.
+
+Важно:
+- База данных не изменялась.
+
+Нужно проверить:
+- Вход под обычным пользователем.
+
+---
+
+# Bad Example
+
+Avoid responses like:
+
+"I refactored the auth repository,
+updated dependency injection,
+added AsyncNotifier,
+modified providers,
+rewrote DTO mapping,
+added exception handling..."
+
+unless user explicitly asks for technical details.

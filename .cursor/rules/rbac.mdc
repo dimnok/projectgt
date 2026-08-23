@@ -1,0 +1,25 @@
+---
+description: RBAC / Multi-tenant access control (source of truth)
+globs:
+  - "lib/**"
+  - "supabase/**"
+  - "docs/**"
+---
+
+# RBAC & Multi-tenancy Rules
+
+Соблюдайте правила изоляции данных и управления доступом.
+
+## 🛑 КРИТИЧЕСКИЕ ПРАВИЛА:
+1. **Изоляция:** Все бизнес-таблицы ОБЯЗАНЫ иметь `company_id`.
+2. **RLS:** Доступ только через `company_members` (функция `get_my_company_ids()`).
+3. **Роли:** Использовать `system_role` (Owner, Admin) из `company_members`. 
+4. **Legacy:** Поля `role` и `status` в `profiles` — УСТАРЕЛИ. Не использовать!
+5. **Клиент:** Никаких `service_role` ключей. Опасные действия (смена Owner) — через Edge Functions.
+
+## 🛠 ПОДКЛЮЧЕНИЕ МОДУЛЕЙ:
+- Добавить `company_id` в БД, Entity и Model.
+- В репозиториях всегда фильтровать по `activeCompanyId`.
+- В UI брать ID компании из `activeCompanyIdProvider`.
+
+**Источник истины:** `docs/architecture/rbac.md`

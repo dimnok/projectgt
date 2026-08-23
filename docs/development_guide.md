@@ -146,6 +146,17 @@ context.goNamed('profile');
 context.goNamed('user_profile', pathParameters: {'userId': profile.id});
 ```
 
+## Edge Functions (self-hosted)
+
+После изменения кода в `supabase/functions/` сразу публиковать на сервер:
+
+```bash
+./scripts/deploy-function.sh <имя-функции>
+```
+
+Команда `supabase functions deploy` для этого проекта **не используется**.  
+Подробности: [docs/supabase/EDGE_FUNCTIONS_DEPLOY.md](supabase/EDGE_FUNCTIONS_DEPLOY.md).
+
 ## Работа с Supabase
 
 ### Запросы к базе данных

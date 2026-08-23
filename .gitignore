@@ -49,8 +49,11 @@ docs/api/
 # Secrets and local configs
 .env
 .env.*
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .secrets/
+scripts/deploy-function.env
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 supabase/service_account.json

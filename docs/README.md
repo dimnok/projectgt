@@ -12,6 +12,8 @@
 
 4. [Руководство по разработке](development_guide.md) - практические рекомендации по стилю кода, UI/UX, работе с Riverpod и Supabase.
 
+4.1. [Публикация Edge Functions](supabase/EDGE_FUNCTIONS_DEPLOY.md) — выкладка на self-hosted через `scripts/deploy-function.sh`.
+
 5. [API Reference](api_reference.md) - справочник по ключевым классам, методам и провайдерам.
 
 6. [Полная API-документация (Dartdoc, автогенерация)](api/index.html) — подробная документация по всем классам, функциям и структуре проекта (открыть в браузере).
