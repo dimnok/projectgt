@@ -441,14 +441,18 @@ serve(async (req: Request) => {
       };
     });
 
-    mergeZeroActivityRows(
-      rowByEmployeeId,
-      employees,
-      fifoByEmployee,
-      year,
-      month,
-      employeeIdsFilter,
-    );
+    // Нулевые строки штата — только для «все объекты» (как `_groupPayrolls`).
+    // При фильтре объектов в ведомость входят только строки RPC.
+    if (objectIds == null || employeeIdsFilter != null) {
+      mergeZeroActivityRows(
+        rowByEmployeeId,
+        employees,
+        fifoByEmployee,
+        year,
+        month,
+        employeeIdsFilter,
+      );
+    }
 
     let rows = [...rowByEmployeeId.values()];
 

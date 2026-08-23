@@ -261,6 +261,9 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
     final bonusesAsync = bonusesAsyncRaw;
     final payoutsAsync = payoutsAsyncRaw;
 
+    final filterState = ref.read(payrollFilterProvider);
+    final hasObjectFilter = filterState.selectedObjectIds.isNotEmpty;
+
     final companyEmployeeIds =
         employeeState.employees.map((e) => e.id).toSet();
     final employeeIds = <String>{
@@ -269,8 +272,9 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
         if (companyEmployeeIds.contains(b.employeeId)) b.employeeId,
       for (final p in penaltiesAsync)
         if (companyEmployeeIds.contains(p.employeeId)) p.employeeId,
-      for (final po in payoutsAsync)
-        if (companyEmployeeIds.contains(po.employeeId)) po.employeeId,
+      if (!hasObjectFilter)
+        for (final po in payoutsAsync)
+          if (companyEmployeeIds.contains(po.employeeId)) po.employeeId,
     };
 
     final filteredEmployeeIds = employeeIds.toList();

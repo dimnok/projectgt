@@ -82,11 +82,9 @@ final penaltiesByFilterProvider = FutureProvider<List<PayrollPenaltyModel>>((ref
     // Фильтрация по сотрудникам (inFilter) будет применена ниже чанками
   }
 
-  // 2. Фильтрация по объектам
+  // 2. Фильтрация по объектам: только выбранные объекты (без записей без object_id).
   if (filterState.selectedObjectIds.isNotEmpty) {
-    // Штрафы могут быть не привязаны к объекту (object_id IS NULL)
-    final objectIdsStr = filterState.selectedObjectIds.map((id) => '"$id"').join(',');
-    query = query.or('object_id.in.($objectIdsStr),object_id.is.null');
+    query = query.inFilter('object_id', filterState.selectedObjectIds);
   }
 
   // Если нет поиска по сотрудникам, выполняем один запрос

@@ -787,7 +787,15 @@ class _PayrollTableViewState extends ConsumerState<PayrollTableView> {
       59,
     );
 
-    // 2. Добавляем сотрудников с балансом или активных
+    // 2. При «Все объекты» дополняем штатом без начислений за месяц.
+    // При фильтре по объекту список = только люди с часами / премией / штрафом на этом объекте.
+    // Выплаты без объекта в состав строк не входят.
+    final hasObjectFilter =
+        ref.watch(payrollFilterProvider).selectedObjectIds.isNotEmpty;
+    if (hasObjectFilter) {
+      return grouped;
+    }
+
     for (final employee in widget.employees) {
       final empId = employee.id;
       final balance = widget.aggregatedBalance[empId] ?? 0;

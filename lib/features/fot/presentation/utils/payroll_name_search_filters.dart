@@ -4,7 +4,6 @@ import 'package:projectgt/presentation/state/employee_state.dart';
 import '../../data/models/payroll_payout_model.dart';
 import '../../domain/entities/payroll_calculation.dart';
 import '../../domain/entities/payroll_transaction.dart';
-import '../providers/payroll_filter_providers.dart';
 
 /// Фильтрует расчёты ФОТ по ФИО сотрудника.
 List<PayrollCalculation> filterPayrollsByEmployeeName(
@@ -39,7 +38,10 @@ List<PayrollCalculation> filterPayrollsByEmployeeName(
   return filteredPayrolls;
 }
 
-/// Фильтрует транзакции (премии/штрафы) по ФИО и объектам.
+/// Фильтрует транзакции (премии/штрафы) по ФИО.
+///
+/// Фильтр объектов применяется при загрузке (`bonusesByFilterProvider` /
+/// `penaltiesByFilterProvider`), здесь не дублируется.
 List<PayrollTransaction> filterTransactionsByEmployeeName(
   List<PayrollTransaction> transactions,
   String query,
@@ -48,7 +50,6 @@ List<PayrollTransaction> filterTransactionsByEmployeeName(
   final searchQuery = query.trim().toLowerCase();
   final employeeState = ref.watch(employeeProvider);
   final employees = employeeState.employees;
-  final filterState = ref.watch(payrollFilterProvider);
 
   var filteredTransactions = transactions;
 
@@ -68,16 +69,6 @@ List<PayrollTransaction> filterTransactionsByEmployeeName(
 
       return fullName.contains(searchQuery);
     }).toList();
-  }
-
-  if (filterState.selectedObjectIds.isNotEmpty) {
-    filteredTransactions = filteredTransactions
-        .where(
-          (transaction) =>
-              transaction.objectId != null &&
-              filterState.selectedObjectIds.contains(transaction.objectId),
-        )
-        .toList();
   }
 
   return filteredTransactions;

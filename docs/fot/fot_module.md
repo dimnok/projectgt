@@ -1,7 +1,11 @@
 # Модуль ФОТ (Фонд оплаты труда, Payroll)
 
-**Дата актуализации:** 18 июля 2026 года
+**Дата актуализации:** 23 августа 2026 года
 **Статус:** Актуально (Clean Architecture, Cumulative FIFO Balance, Parallel Batch Processing, Unified Reporting, Hardened Rate Periods, Excel Import/Export Payouts, Timesheet-aligned UI Shell, Stale-while-revalidate Table UX, Collapsible Toolbar Segments)
+
+> **Изменения 23.08.2026 (фильтр объектов):**
+> - При выборе объекта в ФОТ премии и штрафы без `object_id` не входят в срез. Правило едино: RPC `calculate_payroll_for_month`, вкладки «Премии» / «Штрафы». При «Все объекты» поведение прежнее.
+> - Список вкладки ФОТ при выбранном объекте больше не дополняется всем штатом без начислений (`_groupPayrolls` / `export-payroll`).
 
 > **Изменения 18.07.2026 (сворачиваемые сегменты панели):**
 > - На **desktop** (`ResponsiveUtils.isDesktop`, ширина ≥ `900` px) вкладки (`PayrollTabSegment`) и фильтр статуса (`PayrollEmployeeStatusFilterSegment`) показывают только активную опцию; при наведении мыши раскрываются через `PayrollToolbarCollapsibleSegmentTrack` в `payroll_toolbar_metrics.dart`.
@@ -185,17 +189,18 @@
 ## ⚙ Бизнес-логика (Audit)
 
 ### RPC `calculate_payroll_for_month` (начисления за месяц)
-Строка попадает в результат, если за выбранный месяц (с учётом `p_company_id` и опционально `p_object_ids`) есть **часы** в базовом расчёте **или** **премия** **или** **штраф** **или** **выплата** (`payroll_payout` с датой в этом месяце; без привязки к объекту). Колонка `net_salary` по-прежнему только начисления; выплаты отображаются через FIFO. Подробнее: `docs/fot/calculations.md`.
+Строка попадает в результат, если за выбранный месяц есть **часы**, **премия** или **штраф** (при фильтре объектов — только выбранные объекты). **Выплата** добавляет строку только без фильтра объектов. Колонка `net_salary` — только начисления; выплаты отображаются через FIFO. Подробнее: `docs/fot/calculations.md`.
 
-**Важно:** RPC **не** возвращает сотрудников «в штате без операций за месяц». Такие строки добавляются на **клиенте** (`_groupPayrolls`) и на **сервере при экспорте** (`mergeZeroActivityRows` в `export-payroll`).
+**Важно:** RPC **не** возвращает сотрудников «в штате без операций за месяц». Такие строки добавляются на **клиенте** (`_groupPayrolls`) и на **сервере при экспорте** (`mergeZeroActivityRows` в `export-payroll`) **только если объекты не выбраны**. При фильтре по объекту список = результат RPC.
 
 ### Состав таблицы ФОТ на экране (`_groupPayrolls`)
 1. Все строки из `filteredPayrollsProvider` (RPC / fallback).
-2. Плюс сотрудники из отфильтрованного справочника (`employees`), если:
+2. Если фильтр объектов **пустой**: плюс сотрудники из справочника (`employees`), если:
    - `employment_date` не позже последнего дня выбранного месяца;
    - **не уволен** (`status != fired`) **или** `|balance на конец месяца| > 0.01` (FIFO);
    - ещё не попали в п.1.
-3. Для дополнительных строк: нулевые начисления, ставка из `currentHourlyRate`, выплаты и баланс — из `payoutsByEmployeeAndMonthFIFOProvider`.
+3. Если выбран объект — шаг 2 не выполняется.
+4. Для дополнительных строк: нулевые начисления, ставка из `currentHourlyRate`, выплаты и баланс — из `payoutsByEmployeeAndMonthFIFOProvider`.
 
 ### Экспорт ведомости в Excel (Edge Function `export-payroll`)
 **Триггер UI:** `PayrollExportAction` в **шапке** экрана (`PermissionGuard`: `payroll` / `export`). Скрыт на вкладке «Выплаты». Параметры запроса: `year`, `month`, `companyId`, опционально `objectIds`, `searchQuery`, `employeeIds`.
