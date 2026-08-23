@@ -1,13 +1,14 @@
 # 🗑 Удаление модуля «ИИ-план по договору» (AiContractPlan)
 
-**Дата удаления:** 2 августа 2026
-**Статус:** ⛔ Удалён из приложения / ⚠️ Функция ещё развёрнута на сервере
+**Дата удаления из приложения:** 2 августа 2026  
+**Дата удаления с сервера:** 23 августа 2026  
+**Статус:** ⛔ Удалён из приложения и с сервера
 
 ---
 
 ## 📌 Что было удалено
 
-Из клиентской части (Flutter) полностью вычищены все файлы и ссылки:
+Из клиентской части (Flutter) полностью вычищены все файлы и ссылки (2 августа 2026):
 
 - `lib/features/home/presentation/widgets/ai_contract_plan_widget.dart` — виджет центрального блока.
 - `lib/features/home/presentation/providers/ai_contract_plan_provider.dart` — Riverpod-провайдер.
@@ -16,36 +17,19 @@
 - `supabase/functions/analyze-contract-plan/index.ts` — локальная копия Edge Function.
 - Прежняя документация `docs/infrastructure/ai_contract_plan.md` (заменена этим файлом-уведомлением).
 
+С self-hosted Supabase (`api.progt.ru`) 23 августа 2026 удалена папка Edge Function `analyze-contract-plan`. Сервис `functions` перезапущен.
+
 Причина удаления: блок больше не нужен бизнесу; кроме того, Edge Function падала с ошибкой `OpenRouter API Error: "Access denied by security policy."`.
 
 ---
 
-## ⚠️ ВАЖНО: остаток на сервере (требует ручной очистки)
+## Чек-лист очистки
 
-Локально файл функции удалён, **но на self-hosted Supabase (`api.progt.ru`) Edge Function `analyze-contract-plan` всё ещё развёрнута и продолжает работать** при прямом обращении. Её нужно удалить с сервера.
-
-### Что нужно сделать
-
-Удалить функцию на сервере одним из способов:
-
-- Через Supabase CLI (при наличии доступа к self-hosted инстансу):
-  ```bash
-  supabase functions delete analyze-contract-plan --project-ref <project-ref>
-  ```
-- Либо вручную через админ-панель Supabase → Edge Functions → `analyze-contract-plan` → Delete.
-
-### Дополнительно (опционально)
-
-После удаления функции можно также убрать больше не нужный секрет, **если** им не пользуется другая функция:
-
-- `OPENROUTER_API_KEY` — функция `get-daily-tip` снята с сервера 23.08.2026 (таблица `daily_tips` удалена миграцией 18.08.2026). Секрет можно убрать из окружения functions, если не используется в других местах.
-
-### Чек-лист очистки сервера
-
-- [ ] Удалить Edge Function `analyze-contract-plan` на `api.progt.ru`.
-- [ ] Проверить, что никто больше не обращается к `analyze-contract-plan` (логи Supabase → Edge Functions).
+- [x] Удалить модуль из приложения (2.08.2026).
+- [x] Удалить локальную копию Edge Function (2.08.2026).
+- [x] Удалить Edge Function `analyze-contract-plan` на `api.progt.ru` (23.08.2026).
 - [x] Удалить Edge Function `get-daily-tip` на `api.progt.ru` (23.08.2026).
-- [ ] (Опционально) Удалить секрет `OPENROUTER_API_KEY` — `get-daily-tip` снята с сервера 23.08.2026.
+- [ ] (Опционально) Удалить секрет `OPENROUTER_API_KEY` — после снятия `analyze-contract-plan` и `get-daily-tip` больше ни одна функция на сервере его не читает.
 
 ---
 
@@ -53,3 +37,4 @@
 
 - **12 мая 2026** — модуль реализован (Edge Function + Flutter-виджет на главной).
 - **2 августа 2026** — модуль полностью удалён из приложения; функция на сервере помечена к удалению.
+- **23 августа 2026** — функция удалена с сервера.

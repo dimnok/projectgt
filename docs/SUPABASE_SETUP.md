@@ -37,7 +37,7 @@ class AppConfig {
 
 ### 2. Edge Functions
 - В репозитории (`supabase/functions/`): **26** функций (на 23.08.2026). Служебный `main` и часть функций есть только на сервере.
-- 23.08.2026 с сервера сняты неиспользуемые: `hello`, `get-daily-tip`, `xls_to_xlsx`. Из репозитория удалена тестовая `hello-world`.
+- 23.08.2026 с сервера сняты неиспользуемые: `hello`, `get-daily-tip`, `xls_to_xlsx`, `analyze-contract-plan`. Из репозитория удалена тестовая `hello-world`.
 - Вызов функций происходит через стандартный API Gateway: `https://api.progt.ru/functions/v1/`.
 - **Публикация:** после изменения функции запускать `./scripts/deploy-function.sh <имя>`. Не использовать `supabase functions deploy`. См. [docs/supabase/EDGE_FUNCTIONS_DEPLOY.md](supabase/EDGE_FUNCTIONS_DEPLOY.md).
 - Настроены секреты для интеграций:

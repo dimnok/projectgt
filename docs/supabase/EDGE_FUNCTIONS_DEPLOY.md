@@ -37,6 +37,8 @@
 
 ## Очистка 23.08.2026
 
-С сервера сняты неиспользуемые функции: `hello`, `get-daily-tip`, `xls_to_xlsx`.  
+С сервера сняты неиспользуемые функции: `hello`, `get-daily-tip`, `xls_to_xlsx`, `analyze-contract-plan`.  
 Из репозитория удалена тестовая `hello-world`.  
-`generate_vor` и `generate_vor_pdf` в git приведены к версии с сервера.
+`generate_vor` и `generate_vor_pdf` в git приведены к версии с сервера.  
+`generate_vor_v2` на сервере выровнена с git (пересборка Excel для черновика).  
+`bank_parse` сверена с git: логика совпадает, на сервере рабочая, код не выкладывался.

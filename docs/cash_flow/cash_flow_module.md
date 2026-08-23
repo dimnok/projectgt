@@ -1,7 +1,8 @@
 # Модуль Cash Flow (ДДС)
 
-**Дата последнего обновления:** 9 августа 2026 года  
+**Дата последнего обновления:** 23 августа 2026 года  
 **Список изменений:**
+- **Аудит Edge Function `bank_parse` (23.08.2026):** клиент и сервер используют один контракт (`file`, `companyId`, `bankAccountId`, `targetInn`, `targetAccountNumber`, `mapping.startRow`, `mapping.columnMapping`). Локальный `supabase/functions/bank_parse` совпадает с сервером по логике. Функция на сервере рабочая, код не менялся.
 - **Автосопоставление и пакетная обработка выписки:** правила по ключевым словам (`cash_flow_category_rules`), сервис `BankStatementMatchingService`, координатор `BankStatementAutoProcessService`, RPC `get_bank_statement_matching_context` и `batch_process_bank_statement_entries`. Кнопка «Обработать готовые (N)» в `BankStatementView`. Индикаторы уверенности в `BankStatementTable` (high / medium / low).
 - **Режим «только статья»:** поле `requires_contract_binding` в правилах. Для налогов и прочих общих платежей операция может автоматически переноситься в реестр без договора, объекта и контрагента. UI: чекбокс в `CategoryRulesPanel`.
 - **Настройки выписки:** `BankStatementSettingsDialog` — две вкладки: «Шаблоны Excel» и «Правила автосопоставления».
@@ -252,6 +253,10 @@ supabase/migrations/ (релевантные):
 2. **Поиск шаблона** по названию банка счёта.
 3. **BankImportService:** дедупликация по `operation_hash`, вызов `BankStatementParser`.
 4. **Edge Function `bank_parse`:** парсинг Excel, валидация ИНН/счёта, генерация хешей.
+   - Запрос: `file` (base64), `companyId`, `bankAccountId`, `targetInn`, `targetAccountNumber`, `mapping.startRow`, `mapping.columnMapping`, `mapping.dateFormat` (на сервере не используется).
+   - Колонки шаблона, которые читает функция: `date`, `amount`, `amount_credit`, `amount_debit`, `type`, `contractor_name`, `contractor_inn`, `comment`, `transaction_number`.
+   - Ответ: `{ items: [{ date, amount, type, contractor_name, contractor_inn, comment, transaction_number, operation_hash }] }`. `type`: `income` | `expense`. Дата в формате `dd.MM.yyyy`.
+   - Функция только разбирает файл и возвращает JSON, в БД не пишет.
 5. **Staging:** upsert в `bank_statement_entries` (`UNIQUE (company_id, operation_hash)`).
 6. **Отображение** в `BankStatementTable` через `filteredBankStatementEntries`.
 7. **Автосопоставление** (после загрузки записей): `computeBankStatementMatches` → `BankStatementAutoProcessService` → `BankStatementMatchingService`.

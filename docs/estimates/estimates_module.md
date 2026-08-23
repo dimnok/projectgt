@@ -1,7 +1,7 @@
 # Модуль Сметы (Estimates)
 
 **Дата актуализации:** 23 августа 2026 года  
-**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены. Неиспользуемая Edge Function `xls_to_xlsx` удалена с сервера (в репозитории её не было). `generate_vor` и `generate_vor_pdf` в репозитории выровнены с сервером.
+**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены. Неиспользуемая Edge Function `xls_to_xlsx` удалена с сервера (в репозитории её не было). `generate_vor` и `generate_vor_pdf` в репозитории выровнены с сервером. `generate_vor_v2` на сервере выровнена с git: для черновика ВОР Excel пересобирается (`forceRegenerate`). Edge Function `analyze-contract-plan` удалена с сервера.
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
@@ -456,8 +456,9 @@ END
 ### Excel flow
 1. Excel ВОР генерируется через Edge Function `generate_vor_v2`.
 2. Шаблон LC / ДС генерируется через Edge Function `generate_estimate_addendum_template` с форматированием Times New Roman 12.
-3. Если `vors.excel_url` уже заполнен, клиент сначала пытается скачать готовый файл из `vor_documents`.
-4. Если скачать не удалось, выполняется повторная серверная генерация.
+3. Если ВОР не черновик и `vors.excel_url` уже заполнен, клиент сначала пытается скачать готовый файл из `vor_documents`.
+4. Для черновика клиент вызывает `generate_vor_v2` с `forceRegenerate: true` — сервер пересобирает Excel из актуальных `vor_items`.
+5. Если скачать готовый файл не удалось, выполняется повторная серверная генерация.
 
 ### Signed PDF flow
 1. При подписании пользователь может сразу выбрать signed PDF в `vor_approve_dialog.dart` (`FilePicker.pickFiles`, `withData: kIsWeb` на Web).
@@ -509,6 +510,7 @@ END
 **Не относятся к импорту смет:**
 - `excel_parse` — парсинг Excel приходов (модуль материалов); каталога в `supabase/functions/` репозитория нет, функция есть только на сервере.
 - `xls_to_xlsx` — удалена с сервера 23.08.2026 (вызовов в клиенте не было).
+- `analyze-contract-plan` — удалена с сервера 23.08.2026 (из клиента снята 02.08.2026).
 
 ### Storage
 - bucket `vor_documents` — Excel и signed PDF ВОР; загрузка PDF: `uploadBinary` (`Uint8List`, `application/pdf`); чтение PDF — signed URL
