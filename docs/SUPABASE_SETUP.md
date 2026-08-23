@@ -35,8 +35,9 @@ class AppConfig {
 - Все политики Row Level Security (RLS) активны и настроены для изоляции данных по `company_id`.
 - Для управления доступом используется функция `get_my_company_ids()`.
 
-### 2. Edge Functions (26 функций)
-- Все функции перенесены на новый сервер.
+### 2. Edge Functions
+- В репозитории (`supabase/functions/`): **26** функций (на 23.08.2026). Служебный `main` и часть функций есть только на сервере.
+- 23.08.2026 с сервера сняты неиспользуемые: `hello`, `get-daily-tip`, `xls_to_xlsx`. Из репозитория удалена тестовая `hello-world`.
 - Вызов функций происходит через стандартный API Gateway: `https://api.progt.ru/functions/v1/`.
 - **Публикация:** после изменения функции запускать `./scripts/deploy-function.sh <имя>`. Не использовать `supabase functions deploy`. См. [docs/supabase/EDGE_FUNCTIONS_DEPLOY.md](supabase/EDGE_FUNCTIONS_DEPLOY.md).
 - Настроены секреты для интеграций:
@@ -82,4 +83,4 @@ class AppConfig {
 - [Стандарт документации модулей](development_guide.md)
 
 ---
-*Последнее обновление: 15 марта 2026 г.*
+*Последнее обновление: 23 августа 2026 г.*

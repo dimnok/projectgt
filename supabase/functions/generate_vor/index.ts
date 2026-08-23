@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -307,6 +307,13 @@ serve(async (req) => {
       const mainFont = { name: 'PT Serif', size: 10 };
       const boldFont = { name: 'PT Serif', size: 10, bold: true };
 
+      const borderStyle: any = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
+      };
+
       // --- Шапка ---
       const titleRow = worksheet.getRow(9);
       worksheet.mergeCells('A9:G9'); // Увеличено до G
@@ -392,7 +399,7 @@ serve(async (req) => {
       headerRow.eachCell((cell) => {
         cell.font = { name: 'PT Serif', size: 10, bold: true };
         cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-        cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+        cell.border = borderStyle;
       });
 
       let currentRowIdx = 12;
@@ -412,7 +419,7 @@ serve(async (req) => {
           for (let i = 1; i <= 7; i++) { // Увеличено до 7
              const cell = excelRow.getCell(i);
              cell.font = mainFont;
-             cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+             cell.border = borderStyle;
           }
           excelRow.getCell(1).alignment = { horizontal: "center", vertical: 'top' };
           excelRow.getCell(2).alignment = { horizontal: "center", vertical: 'top' };
@@ -445,7 +452,7 @@ serve(async (req) => {
         separatorCell.font = boldFont;
         separatorCell.alignment = { horizontal: "center", vertical: "middle" };
         separatorCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
-        separatorCell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+        separatorCell.border = borderStyle;
         separatorRow.height = 25;
         currentRowIdx++;
 
@@ -504,7 +511,7 @@ serve(async (req) => {
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const base64File = encode(buffer);
+    const base64File = encode(new Uint8Array(buffer));
 
     return new Response(JSON.stringify({ 
       file: base64File,
@@ -513,7 +520,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

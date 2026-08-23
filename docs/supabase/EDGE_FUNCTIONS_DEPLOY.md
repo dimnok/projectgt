@@ -34,3 +34,9 @@
 
 Официальная схема Supabase: скопировать папку функции в `volumes/functions` и перезапустить сервис `functions`.  
 Документ: [Self-Hosted Functions](https://supabase.com/docs/guides/self-hosting/self-hosted-functions).
+
+## Очистка 23.08.2026
+
+С сервера сняты неиспользуемые функции: `hello`, `get-daily-tip`, `xls_to_xlsx`.  
+Из репозитория удалена тестовая `hello-world`.  
+`generate_vor` и `generate_vor_pdf` в git приведены к версии с сервера.

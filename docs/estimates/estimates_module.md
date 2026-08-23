@@ -1,7 +1,7 @@
 # Модуль Сметы (Estimates)
 
 **Дата актуализации:** 23 августа 2026 года  
-**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены.
+**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены. Неиспользуемая Edge Function `xls_to_xlsx` удалена с сервера (в репозитории её не было). `generate_vor` и `generate_vor_pdf` в репозитории выровнены с сервером.
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
@@ -372,7 +372,7 @@ lib/features/estimates/
 3. В блоке «История изменений» события идут по времени (сначала ранние): `Добавление`, затем каждое поле отдельной строкой `Изменение · количество 10 → 33 · дата · автор`.
 4. Импорт Excel и «Обновить Excel» в этот журнал не пишутся.
 
-> Аудит 22.08.2026: в текущем feature-flow модуля «Сметы» **нет** вызовов Edge Functions `excel_parse` и `xls_to_xlsx`. `excel_parse` используется модулем материалов (`receipts_remote_parser.dart`), не импортом смет.
+> Аудит 23.08.2026: в текущем feature-flow модуля «Сметы» **нет** вызова Edge Function `excel_parse` (`receipts_remote_parser.dart`, модуль материалов). Неиспользуемая `xls_to_xlsx` удалена с сервера 23.08.2026.
 
 ### Процент выполнения на карточке сметы (desktop Sidebar)
 1. `estimateGroupsProvider` вызывает RPC `get_estimate_groups(p_company_id)`.
@@ -507,8 +507,8 @@ END
 - `generate_vor` — предыдущая версия генерации Excel ВОР.
 
 **Не относятся к импорту смет:**
-- `excel_parse` — парсинг Excel приходов (модуль материалов).
-- `xls_to_xlsx` — в `supabase/functions/` репозитория нет.
+- `excel_parse` — парсинг Excel приходов (модуль материалов); каталога в `supabase/functions/` репозитория нет, функция есть только на сервере.
+- `xls_to_xlsx` — удалена с сервера 23.08.2026 (вызовов в клиенте не было).
 
 ### Storage
 - bucket `vor_documents` — Excel и signed PDF ВОР; загрузка PDF: `uploadBinary` (`Uint8List`, `application/pdf`); чтение PDF — signed URL

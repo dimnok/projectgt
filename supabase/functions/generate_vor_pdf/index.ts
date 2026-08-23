@@ -66,7 +66,7 @@ async function loadFontToBase64(url: string): Promise<string> {
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -226,6 +226,7 @@ serve(async (req) => {
         
         let contractKey = "no_contract";
         let contractLabel = "Без договора";
+        let contractDateStr = "";
         let contractSignatories = null;
 
         if (contract) {
@@ -275,7 +276,7 @@ serve(async (req) => {
         loadFontToBase64(fontUrls.bold)
       ]);
       
-      vfs = pdfMake.vfs || {};
+      vfs = (pdfMake as any).vfs || {};
       vfs["PTSerif-Regular.ttf"] = fontRegularBase64;
       vfs["PTSerif-Bold.ttf"] = fontBoldBase64;
       
@@ -289,7 +290,7 @@ serve(async (req) => {
       };
     } catch (e) {
       console.error("Failed to load custom fonts, falling back to default:", e);
-      vfs = pdfMake.vfs || {};
+      vfs = (pdfMake as any).vfs || {};
       fontConfig = {
         Roboto: {
           normal: 'Roboto-Regular.ttf',
@@ -300,11 +301,11 @@ serve(async (req) => {
       };
     }
 
-    pdfMake.vfs = vfs;
-    pdfMake.fonts = fontConfig;
+    (pdfMake as any).vfs = vfs;
+    (pdfMake as any).fonts = fontConfig;
 
     // --- 3. Генерация PDF (Multidoc) ---
-    const fontName = fontConfig['PTSerif'] ? 'PTSerif' : 'Roboto';
+    const fontName = (fontConfig as any)['PTSerif'] ? 'PTSerif' : 'Roboto';
     const sortedContractKeys = Array.from(contractsMap.keys());
     const formatDate = (dateStr: string) => {
         try {
@@ -406,7 +407,7 @@ serve(async (req) => {
         normalRows.sort(sortFn);
         overrunRows.sort(sortFn);
 
-        const tableBody = [
+        const tableBody: any[] = [
             [
             { text: '№ п/п', style: 'tableHeader' },
             { text: '№ по ЛСР', style: 'tableHeader' },
@@ -463,7 +464,7 @@ serve(async (req) => {
             });
         }
 
-        const content = [
+        const content: any[] = [
             {
             columns: [
                 { width: 'auto', text: 'Объект:', style: 'label' },
@@ -514,7 +515,7 @@ serve(async (req) => {
             }
         ];
 
-        const docDefinition = {
+        const docDefinition: any = {
             content: content,
             footer: function(currentPage: number, pageCount: number) {
               return {
@@ -598,7 +599,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Global error handler:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
