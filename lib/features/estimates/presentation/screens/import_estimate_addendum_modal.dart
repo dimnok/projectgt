@@ -353,6 +353,7 @@ class _ImportEstimateAddendumModalState
         await FileSaver.instance.saveFile(
           name: fileName.replaceAll('.xlsx', ''),
           bytes: bytes,
+          ext: 'xlsx',
           mimeType: MimeType.microsoftExcel,
         );
       } else {
@@ -409,6 +410,7 @@ class _ImportEstimateAddendumModalState
         await FileSaver.instance.saveFile(
           name: fileName.replaceAll('.xlsx', ''),
           bytes: bytes,
+          ext: 'xlsx',
           mimeType: MimeType.microsoftExcel,
         );
       } else {

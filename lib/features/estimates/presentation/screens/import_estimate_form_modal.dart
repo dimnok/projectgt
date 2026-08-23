@@ -258,6 +258,7 @@ class _ImportEstimateFormModalState
         await FileSaver.instance.saveFile(
           name: outFileName.replaceAll('.xlsx', ''),
           bytes: bytes,
+          ext: 'xlsx',
           mimeType: MimeType.microsoftExcel,
         );
       } else {
