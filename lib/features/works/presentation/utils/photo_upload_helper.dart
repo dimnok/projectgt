@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projectgt/core/di/providers.dart';
@@ -23,12 +23,12 @@ class PhotoUploadHelper {
   ///
   /// [context] используется для показа диалогов и уведомлений.
   /// [ref] необходим для доступа к провайдерам Riverpod.
-  PhotoUploadHelper({
-    required this.context,
-    required this.ref,
-  });
+  PhotoUploadHelper({required this.context, required this.ref});
 
-  /// Загружает фото с отображением прогресса и диалогов успеха/ошибки.
+  /// Загружает фото с индикатором и диалогами успеха/ошибки.
+  ///
+  /// Индикатор крутится, пока идёт сжатие и отправка файла. Процент не
+  /// имитируется: клиент хранилища не сообщает долю загруженных байт.
   ///
   /// [photoType] - тип фото (утреннее или вечернее)
   /// [entity] - сущность для Supabase ('work', 'shift')
@@ -37,7 +37,7 @@ class PhotoUploadHelper {
   /// [photoBytes] - байты фото (для web)
   /// [photoFile] - файл фото (для mobile)
   /// [workDate] - дата смены (опционально, для path в Supabase)
-  /// [onLoadingComplete] - callback когда загрузка завершена (100%)
+  /// [onLoadingComplete] - callback после успешной отправки файла
   /// [onSuccess] - callback после нажатия "Готово"
   ///
   /// Возвращает URL загруженного фото или null при ошибке.
@@ -52,83 +52,15 @@ class PhotoUploadHelper {
     Function(String)? onLoadingComplete,
     Function(String)? onSuccess,
   }) async {
+    var overlayShown = false;
     try {
       final photoService = ref.read(photoServiceProvider);
 
-      // ✅ Используем ValueNotifier для отслеживания прогресса
-      final progressNotifier = ValueNotifier<double>(0.0);
-
       if (!context.mounted) return null;
 
-      // ✅ Показываем диалог загрузки (на мобильном — bottom sheet как в модуле сотрудников)
-      Future.microtask(() {
-        if (!context.mounted) return;
-        final useSheet = ResponsiveUtils.isMobile(context);
-        if (useSheet) {
-          final screenWidth = MediaQuery.sizeOf(context).width;
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            useRootNavigator: true,
-            backgroundColor: Colors.transparent,
-            constraints: BoxConstraints(maxWidth: screenWidth),
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            isDismissible: false,
-            enableDrag: false,
-            builder: (sheetContext) {
-              return ValueListenableBuilder<double>(
-                valueListenable: progressNotifier,
-                builder: (_, progress, __) {
-                  return PhotoLoadingDialog(
-                    useBottomSheet: true,
-                    progress: progress,
-                    isComplete: false,
-                    photoType: photoType,
-                    onDone: () {
-                      if (sheetContext.mounted) {
-                        Navigator.of(sheetContext, rootNavigator: true).pop();
-                      }
-                    },
-                  );
-                },
-              );
-            },
-          );
-        } else {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (dialogContext) {
-              return ValueListenableBuilder<double>(
-                valueListenable: progressNotifier,
-                builder: (context, progress, child) {
-                  return PhotoLoadingDialog(
-                    useBottomSheet: false,
-                    progress: progress,
-                    isComplete: false,
-                    photoType: photoType,
-                    onDone: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
-                  );
-                },
-              );
-            },
-          );
-        }
-      });
+      _presentLoadingOverlay(photoType);
+      overlayShown = true;
 
-      // ✅ Имитируем прогресс загрузки (0-95%)
-      for (int i = 0; i < 95; i++) {
-        await Future.delayed(const Duration(milliseconds: 20));
-        if (context.mounted) {
-          progressNotifier.value = (i + 1) / 100;
-        }
-      }
-
-      // ✅ Загружаем фото на сервер
       String? uploadedUrl;
       if (photoBytes != null) {
         uploadedUrl = await photoService.uploadPhotoBytes(
@@ -147,11 +79,12 @@ class PhotoUploadHelper {
         );
       }
 
-      // ✅ Проверяем что фото успешно загружено
       if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        if (overlayShown) {
+          _dismissLoadingOverlay();
+          overlayShown = false;
+        }
         if (context.mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
-          progressNotifier.dispose();
           AppSnackBar.show(
             context: context,
             message: 'Не удалось загрузить фото. Пожалуйста, попробуйте снова.',
@@ -161,26 +94,20 @@ class PhotoUploadHelper {
         return null;
       }
 
-      // ✅ Завершаем прогресс до 100%
-      if (context.mounted) {
-        progressNotifier.value = 1.0;
+      if (!context.mounted) {
+        if (overlayShown) {
+          _dismissLoadingOverlay();
+        }
+        return null;
       }
 
-      if (!context.mounted) return null;
-
-      // ✅ Вызываем callback для длительных операций
-      // Это происходит ДО закрытия диалога загрузки
       await onLoadingComplete?.call(uploadedUrl);
 
-      if (!context.mounted) return null;
+      if (overlayShown) {
+        _dismissLoadingOverlay();
+        overlayShown = false;
+      }
 
-      // ✅ Закрываем диалог загрузки
-      Navigator.of(context, rootNavigator: true).pop();
-
-      // ✅ Очищаем ValueNotifier
-      progressNotifier.dispose();
-
-      // ✅ Показываем диалог успеха
       if (!context.mounted) {
         return null;
       }
@@ -244,11 +171,10 @@ class PhotoUploadHelper {
 
       return uploadedUrl;
     } catch (e) {
+      if (overlayShown) {
+        _dismissLoadingOverlay();
+      }
       if (!context.mounted) return null;
-
-      try {
-        Navigator.of(context, rootNavigator: true).pop();
-      } catch (_) {}
 
       AppSnackBar.show(
         context: context,
@@ -257,5 +183,55 @@ class PhotoUploadHelper {
       );
       return null;
     }
+  }
+
+  /// Показывает окно загрузки. Вызывать до отправки файла, чтобы закрытие
+  /// не сняло форму смены.
+  void _presentLoadingOverlay(PhotoType photoType) {
+    final useSheet = ResponsiveUtils.isMobile(context);
+    if (useSheet) {
+      final screenWidth = MediaQuery.sizeOf(context).width;
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        useRootNavigator: true,
+        backgroundColor: Colors.transparent,
+        constraints: BoxConstraints(maxWidth: screenWidth),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        isDismissible: false,
+        enableDrag: false,
+        builder: (sheetContext) {
+          return PhotoLoadingDialog(
+            useBottomSheet: true,
+            progress: null,
+            isComplete: false,
+            photoType: photoType,
+          );
+        },
+      );
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PhotoLoadingDialog(
+          useBottomSheet: false,
+          progress: null,
+          isComplete: false,
+          photoType: photoType,
+        );
+      },
+    );
+  }
+
+  /// Закрывает окно загрузки, если контекст ещё жив.
+  void _dismissLoadingOverlay() {
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
   }
 }

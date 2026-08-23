@@ -1,5 +1,13 @@
 # Модуль Works (Shifts & Work Plans)
-**Дата актуализации:** 18 августа 2026 года — KPI сводки месяца разделяет общую и нашу сумму:
+**Дата актуализации:** 23 августа 2026 года — индикатор загрузки фото смены:
+- **`PhotoUploadHelper`:** убрана имитация прогресса 0–95% (цикл `95 × 20 мс` ≈ 1,9 с **до** сжатия и `uploadBinary`). Окно загрузки открывается сразу; полоска — неопределённый `LinearProgressIndicator` (`value: null`), без процента (клиент `storage_client` 2.5.2 не отдаёт долю байт).
+- **Корректность закрытия:** оверлей помечается показанным до отправки файла; `Navigator.pop` только если окно реально открыто — ошибка загрузки не снимает форму смены.
+- **Вызовы без смены API:** открытие смены (`work_form_screen`), вечернее фото (`work_data_tab`), замена снимка (`work_photo_view`). После успешного upload по-прежнему `onLoadingComplete` (запись смены / `photo_url`), затем диалог «Загружено!» / «Готово».
+- **Виджет:** `PhotoLoadingDialog.progress` стал `double?` (`null` = неопределённый индикатор).
+- Миграций и изменений схемы БД нет.
+- **Аудит 23.08.2026:** RLS ✅ на `works`, `work_items`, `work_hours`, `work_plans`, `work_plan_blocks`, `work_plan_items`, `telegram_outbox`. Live (approx. `pg_stat_user_tables` / точный COUNT outbox): `works` 1034, `work_items` 27815, `work_hours` 9382, `telegram_outbox` 912 (`failed` 903, `pending` 9, `sent` 0); `works.telegram_message_id` заполнен у 414 из 1034; таблицы планов пустые. MCP `list_edge_functions` в проекте нет — список Edge Functions сверен по `supabase/functions/`.
+
+Предыдущая запись: 18 августа 2026 года — KPI сводки месяца разделяет общую и нашу сумму:
 - **«Общая сумма»** = `SUM(works.total_amount)` — все строки смены (свои работы + подрядчики).
 - **«Наша сумма»** = `SUM(works.own_total_amount)` — только строки `work_items` с `contractor_id IS NULL`.
 - **«Выработка / чел.»** = наша сумма / число выходов (`get_month_employees_summary`). Подрядчики в числитель не входят.
@@ -112,6 +120,7 @@
 - `MonthDetailsPanel` / `MonthDetailsMobileScreen` — KPI и график месяца. Карточки: **Общая сумма**, **Наша сумма**, смены, специалисты, часы, средняя смена, выработка / чел. Клик по объекту в «По объектам» задаёт фильтр сводки (локальный `_selectedObjectId`); сброс — повторный клик, `GTTextButton` «Все объекты», смена месяца или уход с панели. Список смен слева не затрагивается.
 - `WorkPlanDetailsScreen`, `WorkPlanFormModal` / `WorkPlanFormContent` — планы (`features/work_plans`).
 - `NewMaterialModal` — **не** материалы смены: добавление позиции в **смету** из формы работ.
+- `PhotoUploadHelper` + `PhotoLoadingDialog` — утро/вечер/замена фото: индикатор крутится на время сжатия и отправки в Storage (без фальшивого %).
 - Design System: `GTTextField`, `GTDropdown`, `GTPrimaryButton` / `GTSecondaryButton` / `GTTextButton`, `AppSnackBar`.
 
 **Провайдеры (Riverpod):**
@@ -150,7 +159,7 @@ lib/features/
 │       │   ├── new_material_modal.dart   # смета, не work_materials
 │       │   ├── tabs/ work_data_tab.dart, work_hours_tab.dart
 │       │   └── desktop/ works_master_detail_desktop_view.dart
-│       ├── widgets/       # month_details_panel, validation, stats, lists, photos, charts
+│       ├── widgets/       # month_details_panel, validation, stats, lists, photo_loading_dialog, work_photo_view, charts
 │       └── utils/         # works_strings, photo_upload_helper
 └── work_plans/
     ├── data/models/       # WorkPlanMonthGroup
@@ -260,13 +269,14 @@ SUM(w.own_total_amount)  -- наша: work_items.contractor_id IS NULL
 
 ## Бизнес-логика
 1. **Жизненный цикл смены:** Open → Items + Hours + Photos → Validation → Closed.
-2. **Добавление сотрудника:** часы можно не указывать — запись создаётся с `hours = 0` (сценарий: добавили утром, проставили часы позже). Часы проставляются через редактирование записи или массовые пресеты 8/10/12 ч.
-3. **Закрытие запрещено, если:** нет работ; нет сотрудников; quantity ≤ 0; hours ≤ 0; нет вечернего фото; уже closed.
-4. **Доступ:** объекты из `profile.object_ids`; Owner компании — все объекты.
-5. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
-6. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
-7. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId` (столбцы — `totalAmount`, мы + подрядчики). Суммы и число смен — из выбранного `ObjectSummary` (`totalAmount` / `ownTotalAmount` / `worksCount`); системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
-8. **KPI месяца (формулы):**
+2. **Фото (Storage bucket `works`):** обязательны утро при открытии и вечер для закрытия. `PhotoUploadHelper` показывает окно сразу и ждёт `PhotoService` (сжатие + `uploadBinary`); путь файла — папка объекта (`entityId` = `object_id`), не id смены. Процент загрузки не рисуется. После URL — `onLoadingComplete` (создание/обновление `works.photo_url` / `evening_photo_url`).
+3. **Добавление сотрудника:** часы можно не указывать — запись создаётся с `hours = 0` (сценарий: добавили утром, проставили часы позже). Часы проставляются через редактирование записи или массовые пресеты 8/10/12 ч.
+4. **Закрытие запрещено, если:** нет работ; нет сотрудников; quantity ≤ 0; hours ≤ 0; нет вечернего фото; уже closed.
+5. **Доступ:** объекты из `profile.object_ids`; Owner компании — все объекты.
+6. **Удаление:** Owner — любые; пользователь — свои open + RBAC `works.delete` / `work_plans.delete`.
+7. **Итоги:** `work_items.total` на клиенте; header-агрегаты — триггеры БД.
+8. **Сводка месяца по объекту:** выбор объекта в «По объектам» не меняет список смен. График фильтруется по `LightWork.objectId` (столбцы — `totalAmount`, мы + подрядчики). Суммы и число смен — из выбранного `ObjectSummary` (`totalAmount` / `ownTotalAmount` / `worksCount`); системы/часы/специалисты — RPC с `p_object_id`. Сброс: повторный клик или «Все объекты».
+9. **KPI месяца (формулы):**
    - **Общая сумма** = `SUM(works.total_amount)` — все `work_items`.
    - **Наша сумма** = `SUM(works.own_total_amount)` — `work_items` с `contractor_id IS NULL`.
    - **Специалистов** = `COUNT(work_hours.employee_id)` за месяц (каждый выход в смену; люди подрядчиков не входят).
@@ -281,11 +291,12 @@ SUM(w.own_total_amount)  -- наша: work_items.contractor_id IS NULL
 - `send_work_opening_report_to_telegram`, `update_work_opening_report_to_telegram`, `send_work_report_to_telegram`.
 - `export-work-search-pto`, `export-work-search-all`.
 
-**Поток Telegram:** после часов → RPC `enqueue_telegram_outbox_opening` + `kickProcessTelegramOutbox` (async). При `closed` — триггер `work_close_telegram`.
+**Поток Telegram:** после часов → RPC `enqueue_telegram_outbox_opening` + `kickProcessTelegramOutbox` (async, клиент не ждёт). При `closed` — триггер `works_enqueue_telegram_close`. Воркер `process_telegram_outbox` вызывает соседние функции по `http://localhost:9999/<name>`. Live 23.08.2026: **`sent` 0**, `failed` 903, `pending` 9; `last_error` — connection refused на localhost:9999. Поле `works.telegram_message_id` заполнено у 414 из 1034 (исторические доставки до текущей очереди). pg_cron нет — повтор только при следующем kick (открытие/закрытие).
 
 **Прочее:** Storage bucket `works`; ФОТ/табель читают часы смен; договоры — `calculate_contract_works` / `contract_act_id`.
 
 ## Roadmap
+- ✅ **Завершено (23.08.2026, индикатор фото):** `PhotoUploadHelper` не имитирует 0–95%; окно крутится на время сжатия и отправки. Миграций нет.
 - ✅ **Завершено (18.08.2026, наша сумма / выработка):** сводка месяца показывает «Общая сумма» (мы + подрядчики) и «Наша сумма» (без подрядчиков). «Выработка / чел.» делится на нашу сумму. RPC `get_months_summary` / `get_month_objects_summary` отдают `own_total_amount(_sum)`. Миграция `20260818223000_month_summary_own_total.sql` применена на сервере (`20260818192909`).
 - ✅ **Завершено (18.08.2026, специалисты — все выходы):** `get_month_employees_summary` считает `COUNT(work_hours.employee_id)` без `DISTINCT`. KPI «Специалистов» — знаменатель выработки. Миграция `20260818220000_month_employees_total_not_unique.sql`.
 - ✅ **Завершено (18.08.2026, фильтр сводки по объекту):** клик по объекту в `MonthDetailsPanel` фильтрует график, KPI и системы. Список смен слева не меняется. RPC `get_month_systems_summary` / `get_month_hours_summary` / `get_month_employees_summary` — опциональный `p_object_id`. Миграция `20260818210000_month_summary_object_filter.sql` применена на сервере.
@@ -299,4 +310,4 @@ SUM(w.own_total_amount)  -- наша: work_items.contractor_id IS NULL
 - ✅ Редактирование/удаление планов на desktop; склонения специалистов; унификация модалок; оптимизация `MonthDetailsPanel`.
 - 🔴 **Приоритет:** синхронизация `actual_quantity` в планах из данных смен.
 - 🟡 Интеграция стоимости работ с финансами.
-- 🟡 Мониторинг/очистка `telegram_outbox` (live 18.08.2026: `failed` 859, `pending` 9).
+- 🟡 Мониторинг/очистка `telegram_outbox` (live 23.08.2026: `failed` 903, `pending` 9, `sent` 0; ошибка `localhost:9999`). Чинить URL вызова соседних Edge Functions или снять постановку в очередь.

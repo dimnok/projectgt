@@ -21,8 +21,10 @@ enum PhotoType {
 /// содержимое для [MobileBottomSheetContent] (вызывающий код открывает
 /// [showModalBottomSheet] с тем же паттерном, что в модуле сотрудников).
 class PhotoLoadingDialog extends StatefulWidget {
-  /// Значение прогресса загрузки (0.0 - 1.0)
-  final double progress;
+  /// Прогресс полоски: `0.0`–`1.0`.
+  ///
+  /// `null` — неопределённый индикатор: загрузка идёт, точный процент неизвестен.
+  final double? progress;
 
   /// Флаг завершения загрузки
   final bool isComplete;
@@ -80,17 +82,19 @@ class _PhotoLoadingDialogState extends State<PhotoLoadingDialog>
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-    _fadeOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
-    );
+    _fadeOutAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
     _scaleController = AnimationController(
       duration: _animationDuration,
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.easeOut));
 
     if (widget.isComplete) {
       _showSuccess();
@@ -146,7 +150,7 @@ class _PhotoLoadingDialogState extends State<PhotoLoadingDialog>
     return widget.isComplete ? 'Загружено!' : 'Загрузка…';
   }
 
-  Widget _buildProgressBar(BuildContext context, double progress) {
+  Widget _buildProgressBar(BuildContext context, double? progress) {
     if (widget.useBottomSheet) {
       final scheme = Theme.of(context).colorScheme;
       return SizedBox(
@@ -219,17 +223,10 @@ class _PhotoLoadingDialogState extends State<PhotoLoadingDialog>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: const Color(0x1900C34E),
-          border: Border.all(
-            color: _colorGreen,
-            width: _successBorderWidth,
-          ),
+          border: Border.all(color: _colorGreen, width: _successBorderWidth),
         ),
         child: const Center(
-          child: Icon(
-            Icons.check,
-            color: _colorGreen,
-            size: _successCheckSize,
-          ),
+          child: Icon(Icons.check, color: _colorGreen, size: _successCheckSize),
         ),
       ),
     );
@@ -273,12 +270,14 @@ class _PhotoLoadingDialogState extends State<PhotoLoadingDialog>
         ),
         const SizedBox(height: 12),
         if (!widget.isComplete) ...[
-          AnimatedDefaultTextStyle(
-            duration: _animationDuration,
-            style: secondaryStyle,
-            child: Text('${(widget.progress * 100).toStringAsFixed(0)}%'),
-          ),
-          const SizedBox(height: 8),
+          if (widget.progress != null) ...[
+            AnimatedDefaultTextStyle(
+              duration: _animationDuration,
+              style: secondaryStyle,
+              child: Text('${(widget.progress! * 100).toStringAsFixed(0)}%'),
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
             _getLoadingMessage(),
             style: captionStyle,
@@ -359,9 +358,7 @@ class _PhotoLoadingDialogState extends State<PhotoLoadingDialog>
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: _buildMainColumn(context),
         ),
-        actions: [
-          if (widget.isComplete) _buildCupertinoDoneButton(),
-        ],
+        actions: [if (widget.isComplete) _buildCupertinoDoneButton()],
       ),
     );
   }
