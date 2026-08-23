@@ -1,7 +1,7 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 22 августа 2026 года  
-**Изменения:** В деталях позиции журнал «История изменений»: добавление (`created_at` / `created_by`) и ручные правки формы (`estimate_item_history.changes`). Триггер `set_estimates_created_by` заполняет автора при INSERT. На карточке сметы в desktop Sidebar (`_EstimateListTile`) отображается процент выполнения по объёму. Значение приходит из RPC `get_estimate_groups` (`completion_percent`) в поле `EstimateFile.completionPercent`. Формула совпадает с бейджем в шапке открытой сметы: `SUM(факт work_items.quantity) / SUM(план estimates.quantity) × 100`. Миграция `get_estimate_groups_completion_percent` (сервер: `20260822182303`).
+**Дата актуализации:** 23 августа 2026 года  
+**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены.
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
@@ -74,7 +74,8 @@
 Модуль реализован в стиле **Clean Architecture**, но часть VOR-сервисов организационно находится в `presentation/services`, а доменные сущности и репозиторные контракты расположены в общих слоях `lib/domain` и `lib/data`.
 
 ### Слой Presentation
-- `lib/features/estimates/presentation/screens/estimates_list_screen.dart` — реестр смет, вход в модуль, refresh-target.
+- `lib/features/estimates/presentation/screens/estimates_list_screen.dart` — реестр смет, вход в модуль, refresh-target. На mobile: секции по объекту (свёрнуты по умолчанию), карточка сметы показывает название, процент выполнения, договор и сумму.
+- `lib/features/estimates/presentation/widgets/estimate_mobile_object_header.dart` — заголовок секции объекта в мобильном реестре (название, число смет, сумма, раскрытие).
 - `lib/features/estimates/presentation/screens/estimate_desktop_view.dart` — основной desktop-экран смет и табов; состояние фильтра подсистемы, комбинирование с поиском и фильтрами выполнения. `_EstimateListTile` показывает `formatPercentage(file.completionPercent, decimalDigits: 1)` рядом с названием сметы.
 - `lib/features/estimates/presentation/widgets/estimate_subsystem_filter_bar.dart` — текстовые переключатели подсистем над таблицей; утилиты `estimateSubsystemFilterLabel`, `collectEstimateSubsystemLabels`.
 - `lib/features/estimates/presentation/widgets/estimate_table_view.dart` — таблица позиций (колонки «Система», «Подсистема»), режимы «Смета» / «Выполнение».
@@ -89,7 +90,7 @@
 - `lib/features/estimates/presentation/widgets/vor_create_dialog.dart` — создание ВОР по периоду и системам.
 - `lib/features/estimates/presentation/widgets/vor_approve_dialog.dart` — подтверждение подписания и предварительный выбор PDF (`FilePicker` с `withData: kIsWeb`).
 - `lib/features/estimates/presentation/widgets/vor_tab_table_view.dart` — таб `ВОР` с динамическими колонками.
-- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions` (`uploadPdf` принимает `Uint8List bytes`), `estimateCompletionHistoryProvider`. `EstimateFile.completionPercent` заполняется из `estimateGroupsProvider` (`g['completion_percent']`).
+- `lib/features/estimates/presentation/providers/estimate_providers.dart` — Riverpod-провайдеры, TTL cache, invalidation, `VorActions` (`uploadPdf` принимает `Uint8List bytes`), `estimateCompletionHistoryProvider`. `EstimateFile.completionPercent` заполняется из `estimateGroupsProvider` (`g['completion_percent']`). `estimateFilesByObjectProvider` схлопывает `groupedEstimateFilesProvider` до групп по объекту для мобильного реестра.
 - `lib/features/estimates/presentation/utils/vor_pdf_actions.dart` — upload/open signed PDF: Web — `PlatformFile.bytes` + `VorActions.uploadPdf(bytes)`; mobile/desktop — `File.readAsBytes()`; открытие через signed URL и `url_launcher`.
 
 ### Слой Application / Services
@@ -147,6 +148,7 @@ lib/features/estimates/
 │       ├── estimate_item_card.dart
 │       ├── estimate_item_details_dialog.dart
 │       ├── estimate_mobile_header.dart
+│       ├── estimate_mobile_object_header.dart
 │       ├── estimate_search_field.dart
 │       ├── estimate_table_view.dart
 │       ├── export_cumulative_vor_button.dart
@@ -544,7 +546,8 @@ END
 - 🟢 Процент выполнения на карточке сметы в desktop Sidebar (`get_estimate_groups.completion_percent`) — **Done** (22.08.2026)
 - 🟢 Дата и автор в деталях позиции (`created_at`, `created_by`) — **Done** (22.08.2026)
 - 🟢 Журнал ручных правок позиции в деталях (`estimate_item_history`) — **Done** (22.08.2026)
-- 🟡 Процент выполнения на карточке сметы в мобильном реестре — **Planned**
+- 🟢 Процент выполнения на карточке сметы в мобильном реестре — **Done** (23.08.2026)
+- 🟢 Группировка мобильного реестра смет по объектам — **Done** (23.08.2026)
 - 🟡 ФИО открывшего смену в мобильной истории выполнения (`estimate_details_modal`) — **Planned**
 - 🟡 Фильтр по подсистеме на mobile — **Planned**
 - 🟡 Интерфейс просмотра и утверждения ревизий — **Planned**

@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,10 +10,10 @@ import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_backdrop.dart';
 import 'package:projectgt/core/widgets/mobile_atmosphere_screen_header.dart';
-import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/estimates/presentation/screens/estimate_details_screen.dart';
 import 'package:projectgt/features/estimates/presentation/providers/estimate_providers.dart';
 import 'package:projectgt/features/estimates/presentation/screens/import_estimate_form_modal.dart';
+import 'package:projectgt/features/estimates/presentation/widgets/estimate_mobile_object_header.dart';
 import 'package:projectgt/core/refresh/refresh_models.dart';
 import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
@@ -34,15 +33,14 @@ class EstimatesListScreen extends ConsumerStatefulWidget {
 }
 
 class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
-  EstimateFile? selectedEstimateFile;
   late final AppFocusRefreshCoordinator _refreshCoordinator;
+  final Map<String, bool> _expandedObjects = {};
 
   @override
   void initState() {
     super.initState();
     _refreshCoordinator = ref.read(appFocusRefreshProvider.notifier);
-    
-    // Регистрация цели автоматического обновления для модуля смет
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _refreshCoordinator.registerTarget(
@@ -50,7 +48,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
             id: 'estimates',
             callback: (ref) async {
               ref.invalidate(estimateGroupsProvider);
-              // Также инвалидируем детали, если они открыты
               ref.invalidate(estimateItemsProvider);
             },
           ),
@@ -77,10 +74,9 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     );
   }
 
-  void _deleteEstimateFile(EstimateFile file) async {
+  Future<void> _deleteEstimateFile(EstimateFile file) async {
     final notifier = ref.read(estimateNotifierProvider.notifier);
 
-    // Сначала загружаем элементы, чтобы узнать их ID для удаления
     try {
       final items = await ref.read(
         estimateItemsProvider(
@@ -99,12 +95,6 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
       ref.invalidate(estimateGroupsProvider);
 
       if (!mounted) return;
-      if (selectedEstimateFile?.estimateTitle == file.estimateTitle) {
-        setState(() {
-          selectedEstimateFile = null;
-        });
-      }
-
       SnackBarUtils.showSuccess(
         context,
         'Смета "${file.estimateTitle}" удалена',
@@ -117,8 +107,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final groupsAsync = ref.watch(estimateGroupsProvider);
-    final objects = ref.watch(objectProvider).objects;
+    final groupsAsync = ref.watch(estimateFilesByObjectProvider);
     final permissionService = ref.watch(permissionServiceProvider);
     final canDelete = permissionService.can('estimates', 'delete');
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -163,12 +152,12 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                                 Builder(
                                   builder: (ctx) =>
                                       MobileAtmosphereChromeCircleButton(
-                                    appearance: appearance,
-                                    tooltip: 'Меню',
-                                    icon: Icons.menu_rounded,
-                                    onTap: () =>
-                                        Scaffold.of(ctx).openDrawer(),
-                                  ),
+                                        appearance: appearance,
+                                        tooltip: 'Меню',
+                                        icon: Icons.menu_rounded,
+                                        onTap: () =>
+                                            Scaffold.of(ctx).openDrawer(),
+                                      ),
                                 ),
                                 const SizedBox(width: 4),
                                 MobileAtmosphereChromeCircleButton(
@@ -181,8 +170,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                                       : Icons.view_sidebar,
                                   onTap: () => ref
                                       .read(
-                                        estimateSidebarVisibleProvider
-                                            .notifier,
+                                        estimateSidebarVisibleProvider.notifier,
                                       )
                                       .update((state) => !state),
                                 ),
@@ -191,11 +179,11 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                           : Builder(
                               builder: (ctx) =>
                                   MobileAtmosphereChromeCircleButton(
-                                appearance: appearance,
-                                tooltip: 'Меню',
-                                icon: Icons.menu_rounded,
-                                onTap: () => Scaffold.of(ctx).openDrawer(),
-                              ),
+                                    appearance: appearance,
+                                    tooltip: 'Меню',
+                                    icon: Icons.menu_rounded,
+                                    onTap: () => Scaffold.of(ctx).openDrawer(),
+                                  ),
                             ),
                       trailing: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -210,9 +198,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                               onTap: () {
                                 ref.invalidate(estimateGroupsProvider);
                                 ref.invalidate(estimateItemsProvider);
-                                ref.invalidate(
-                                  estimateCompletionByIdsProvider,
-                                );
+                                ref.invalidate(estimateCompletionByIdsProvider);
                               },
                             ),
                             if (!isDesktop) ...[
@@ -220,8 +206,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                               PermissionGuard(
                                 module: 'estimates',
                                 permission: 'import',
-                                child:
-                                    MobileAtmosphereChromeCircleButton(
+                                child: MobileAtmosphereChromeCircleButton(
                                   appearance: appearance,
                                   tooltip: 'Импорт сметы',
                                   icon: Icons.add_rounded,
@@ -234,9 +219,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                             const SizedBox(width: 4),
                             MobileAtmosphereChromeCircleButton(
                               appearance: appearance,
-                              tooltip: isDark
-                                  ? 'Светлая тема'
-                                  : 'Тёмная тема',
+                              tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
                               icon: isDark
                                   ? Icons.light_mode_outlined
                                   : Icons.dark_mode_outlined,
@@ -244,9 +227,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                                 ref
                                     .read(themeSettingsProvider.notifier)
                                     .setThemeMode(
-                                      isDark
-                                          ? ThemeMode.light
-                                          : ThemeMode.dark,
+                                      isDark ? ThemeMode.light : ThemeMode.dark,
                                     );
                               },
                             ),
@@ -266,26 +247,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Center(child: Text('Ошибка: $e')),
                       ),
-                      data: (estimateFiles) {
-                        if (selectedEstimateFile != null &&
-                            !estimateFiles.any(
-                              (f) =>
-                                  f.estimateTitle ==
-                                      selectedEstimateFile!.estimateTitle &&
-                                  f.objectId ==
-                                      selectedEstimateFile!.objectId &&
-                                  f.contractId ==
-                                      selectedEstimateFile!.contractId,
-                            )) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              setState(() {
-                                selectedEstimateFile = null;
-                              });
-                            }
-                          });
-                        }
-
+                      data: (objectGroups) {
                         return LayoutBuilder(
                           builder: (context, constraints) {
                             if (isDesktop) {
@@ -296,8 +258,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                             return Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: _buildMobileLayout(
-                                estimateFiles,
-                                objects,
+                                objectGroups,
                                 canDelete,
                               ),
                             );
@@ -316,21 +277,55 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
   }
 
   Widget _buildMobileLayout(
-    List<EstimateFile> estimateFiles,
-    List<ObjectEntity> objects,
+    List<EstimateObjectGroup> objectGroups,
     bool canDelete,
   ) {
+    if (objectGroups.isEmpty) {
+      return const Center(child: Text('Сметы не найдены'));
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 4),
-      itemCount: estimateFiles.length,
+      itemCount: objectGroups.length,
       itemBuilder: (context, index) {
-        final file = estimateFiles[index];
-        return _buildEstimateCard(
-          file: file,
-          objects: objects,
-          canDelete: canDelete,
-          isSelected: false,
-          onTap: () => context.go(estimateDetailAppPath(file)),
+        final group = objectGroups[index];
+        final isExpanded = _expandedObjects[group.name] ?? false;
+
+        return Column(
+          key: ValueKey(group.name),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            EstimateMobileObjectHeader(
+              name: group.name,
+              estimatesCount: group.files.length,
+              total: group.total,
+              isExpanded: isExpanded,
+              onTap: () {
+                setState(() {
+                  _expandedObjects[group.name] = !isExpanded;
+                });
+              },
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: isExpanded
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final file in group.files)
+                          _buildEstimateCard(
+                            file: file,
+                            canDelete: canDelete,
+                            onTap: () =>
+                                context.go(estimateDetailAppPath(file)),
+                          ),
+                      ],
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
         );
       },
     );
@@ -338,16 +333,11 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
 
   Widget _buildEstimateCard({
     required EstimateFile file,
-    required List<ObjectEntity> objects,
     required bool canDelete,
-    required bool isSelected,
     required VoidCallback onTap,
   }) {
-    // Номер договора теперь берем напрямую из файла (через View)
-    final contractNumber = file.contractNumber ?? '—';
-    final object = objects.firstWhereOrNull((o) => o.id == file.objectId);
-    final objectName = object?.name ?? '—';
     final theme = Theme.of(context);
+    final contractNumber = file.contractNumber ?? '—';
 
     return Dismissible(
       key: Key(
@@ -357,7 +347,7 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           ? DismissDirection.endToStart
           : DismissDirection.none,
       confirmDismiss: (direction) async {
-        return await CupertinoDialogs.showDeleteConfirmDialog<bool>(
+        return CupertinoDialogs.showDeleteConfirmDialog<bool>(
           context: context,
           title: 'Удаление сметы',
           message:
@@ -365,33 +355,32 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
           onConfirm: () {
             _deleteEstimateFile(file);
           },
-          onCancel: () {},
         );
       },
       background: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20.0),
-        color: Colors.red,
-        child: const Icon(CupertinoIcons.trash, color: Colors.white),
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.error,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(CupertinoIcons.trash, color: theme.colorScheme.onError),
       ),
       child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        elevation: isSelected ? 2 : 0,
-        color: isSelected ? theme.colorScheme.surfaceContainerHighest : null,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.1),
-            width: isSelected ? 2 : 1,
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -402,20 +391,23 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
                         file.estimateTitle,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? theme.colorScheme.primary : null,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const AppBadge(text: 'Загружена', color: Colors.green),
+                    AppBadge(
+                      text: formatPercentage(
+                        file.completionPercent,
+                        decimalDigits: 1,
+                      ),
+                      color: theme.colorScheme.primary,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 _buildInfoRow(theme, 'Договор:', contractNumber),
-                const SizedBox(height: 4),
-                _buildInfoRow(theme, 'Объект:', objectName),
                 const SizedBox(height: 4),
                 _buildInfoRow(theme, 'Сумма:', formatCurrency(file.total)),
               ],
@@ -450,7 +442,3 @@ class _EstimatesListScreenState extends ConsumerState<EstimatesListScreen> {
     );
   }
 }
-
-// Класс EstimateFile и функция groupEstimatesByFile удалены,
-// так как они теперь определены в estimate_providers.dart (класс EstimateFile)
-// и группировка происходит на сервере.

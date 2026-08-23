@@ -123,6 +123,46 @@ final groupedEstimateFilesProvider =
       });
     });
 
+/// Группа смет одного объекта для мобильного реестра.
+class EstimateObjectGroup {
+  /// Название объекта.
+  final String name;
+
+  /// Сметы объекта, отсортированные по названию.
+  final List<EstimateFile> files;
+
+  /// Сумма всех смет группы.
+  final double total;
+
+  /// Создаёт группу смет объекта.
+  const EstimateObjectGroup({
+    required this.name,
+    required this.files,
+    required this.total,
+  });
+}
+
+/// Плоская группировка смет по объекту для мобильного списка.
+///
+/// Берёт уже посчитанные группы [groupedEstimateFilesProvider] и убирает
+/// вложенность договоров: на телефоне договор остаётся в карточке сметы.
+final estimateFilesByObjectProvider =
+    Provider.autoDispose<AsyncValue<List<EstimateObjectGroup>>>((ref) {
+      final groupedAsync = ref.watch(groupedEstimateFilesProvider);
+      return groupedAsync.whenData((grouped) {
+        final groups = grouped.entries.map((entry) {
+          final files = entry.value.values.expand((e) => e).toList()
+            ..sort((a, b) => a.estimateTitle.compareTo(b.estimateTitle));
+          return EstimateObjectGroup(
+            name: entry.key,
+            files: files,
+            total: files.fold<double>(0, (sum, file) => sum + file.total),
+          );
+        }).toList()..sort((a, b) => a.name.compareTo(b.name));
+        return groups;
+      });
+    });
+
 /// Провайдер состояния видимости боковой панели (Sidebar) в десктопной версии.
 final estimateSidebarVisibleProvider = StateProvider.autoDispose<bool>(
   (ref) => true,
