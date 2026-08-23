@@ -52,6 +52,8 @@ _EmployeeModel _$EmployeeModelFromJson(Map<String, dynamic> json) =>
       registrationAddress: json['registration_address'] as String?,
       inn: json['inn'] as String?,
       snils: json['snils'] as String?,
+      kig: json['kig'] as String?,
+      patentNumber: json['patent_number'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -89,6 +91,8 @@ Map<String, dynamic> _$EmployeeModelToJson(_EmployeeModel instance) =>
       'registration_address': instance.registrationAddress,
       'inn': instance.inn,
       'snils': instance.snils,
+      'kig': instance.kig,
+      'patent_number': instance.patentNumber,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

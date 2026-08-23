@@ -132,6 +132,12 @@ abstract class Employee with _$Employee {
     /// СНИЛС.
     String? snils,
 
+    /// КИГ иностранного гражданина.
+    String? kig,
+
+    /// Номер патента на работу.
+    String? patentNumber,
+
     /// Дата создания записи.
     DateTime? createdAt,
 
@@ -147,8 +153,10 @@ abstract class Employee with _$Employee {
 
   /// Возвращает полное имя (Фамилия Имя [Отчество]).
   String get fullName {
-    return [lastName, firstName, middleName]
-        .where((e) => e != null && e.isNotEmpty)
-        .join(' ');
+    return [
+      lastName,
+      firstName,
+      middleName,
+    ].where((e) => e != null && e.isNotEmpty).join(' ');
   }
 }

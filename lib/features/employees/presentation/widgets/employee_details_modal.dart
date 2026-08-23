@@ -842,6 +842,20 @@ class _EmployeeDetailsModalState extends ConsumerState<EmployeeDetailsModal> {
                 isEditing: false,
               ),
               _buildDivider(),
+              EditableInlineTextRow(
+                label: 'КИГ',
+                value: _employee.kig?.isNotEmpty == true ? _employee.kig! : '—',
+                isEditing: false,
+              ),
+              _buildDivider(),
+              EditableInlineTextRow(
+                label: 'Номер патента',
+                value: _employee.patentNumber?.isNotEmpty == true
+                    ? _employee.patentNumber!
+                    : '—',
+                isEditing: false,
+              ),
+              _buildDivider(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(

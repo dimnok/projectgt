@@ -542,9 +542,8 @@ class _EmployeeMobileProfileEditorSheetState
             label:
                 'Учитывать в табеле. Без часов за период сотрудник не отображается в табеле',
             child: InkWell(
-              onTap: () => setState(
-                () => _includeInTimesheet = !_includeInTimesheet,
-              ),
+              onTap: () =>
+                  setState(() => _includeInTimesheet = !_includeInTimesheet),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -591,10 +590,7 @@ class _EmployeeMobileProfileEditorSheetState
               setState(() => _objectIds = items);
             },
             itemDisplayBuilder: (id) => widget.objects
-                .firstWhere(
-                  (o) => o.id == id,
-                  orElse: () => _objectFallback,
-                )
+                .firstWhere((o) => o.id == id, orElse: () => _objectFallback)
                 .name,
             labelText: 'Объекты',
             hintText: 'Выберите объекты',
@@ -638,6 +634,9 @@ class _EmployeeMobileDocumentsEditorSheetState
       TextEditingController();
   late final TextEditingController _innController = TextEditingController();
   late final TextEditingController _snilsController = TextEditingController();
+  late final TextEditingController _kigController = TextEditingController();
+  late final TextEditingController _patentNumberController =
+      TextEditingController();
   DateTime? _passportIssueDate;
   bool _loading = false;
   late Employee _baseline;
@@ -669,6 +668,8 @@ class _EmployeeMobileDocumentsEditorSheetState
     _registrationAddressController.text = e.registrationAddress ?? '';
     _innController.text = e.inn ?? '';
     _snilsController.text = e.snils ?? '';
+    _kigController.text = e.kig ?? '';
+    _patentNumberController.text = e.patentNumber ?? '';
     _passportIssueDate = e.passportIssueDate;
   }
 
@@ -681,6 +682,8 @@ class _EmployeeMobileDocumentsEditorSheetState
     _registrationAddressController.dispose();
     _innController.dispose();
     _snilsController.dispose();
+    _kigController.dispose();
+    _patentNumberController.dispose();
     super.dispose();
   }
 
@@ -702,7 +705,9 @@ class _EmployeeMobileDocumentsEditorSheetState
         ) ||
         _isStr(e.registrationAddress, _registrationAddressController.text) ||
         _digitsChanged(e.inn, _innController.text) ||
-        _digitsChanged(e.snils, _snilsController.text);
+        _digitsChanged(e.snils, _snilsController.text) ||
+        _isStr(e.kig, _kigController.text) ||
+        _isStr(e.patentNumber, _patentNumberController.text);
   }
 
   bool _isStr(String? orig, String cur) => (orig?.trim() ?? '') != cur.trim();
@@ -740,6 +745,12 @@ class _EmployeeMobileDocumentsEditorSheetState
               : _registrationAddressController.text.trim(),
           inn: innRaw.trim().isEmpty ? null : innRaw.trim(),
           snils: snilsRaw.trim().isEmpty ? null : snilsRaw.trim(),
+          kig: _kigController.text.trim().isEmpty
+              ? null
+              : _kigController.text.trim(),
+          patentNumber: _patentNumberController.text.trim().isEmpty
+              ? null
+              : _patentNumberController.text.trim(),
         );
       },
     );
@@ -943,6 +954,26 @@ class _EmployeeMobileDocumentsEditorSheetState
             hintText: 'XXX-XXX-XXX XX',
             keyboardType: TextInputType.number,
             inputFormatters: [snilsFormatter()],
+            borderRadius: 12,
+            textInputAction: TextInputAction.done,
+            onEditingComplete: _employeeMobileUnfocusInput,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          GTTextField(
+            controller: _kigController,
+            labelText: 'КИГ',
+            hintText: 'КИГ',
+            borderRadius: 12,
+            textInputAction: TextInputAction.done,
+            onEditingComplete: _employeeMobileUnfocusInput,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          GTTextField(
+            controller: _patentNumberController,
+            labelText: 'Номер патента',
+            hintText: 'Номер патента',
             borderRadius: 12,
             textInputAction: TextInputAction.done,
             onEditingComplete: _employeeMobileUnfocusInput,

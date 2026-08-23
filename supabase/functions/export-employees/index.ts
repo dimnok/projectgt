@@ -68,6 +68,8 @@ interface EmployeeRow {
   registration_address: string | null;
   inn: string | null;
   snils: string | null;
+  kig: string | null;
+  patent_number: string | null;
   current_hourly_rate?: number | null;
 }
 
@@ -157,6 +159,8 @@ serve(async (req) => {
       "Адрес регистрации",
       "ИНН",
       "СНИЛС",
+      "КИГ",
+      "Номер патента",
     ];
 
     const headerRow = sheet.addRow(headers);
@@ -205,6 +209,8 @@ serve(async (req) => {
         emp.registration_address ?? "",
         emp.inn ?? "",
         emp.snils ?? "",
+        emp.kig ?? "",
+        emp.patent_number ?? "",
       ]);
 
       row.eachCell((cell) => {
@@ -236,6 +242,8 @@ serve(async (req) => {
       { width: 36 },
       { width: 14 },
       { width: 16 },
+      { width: 16 },
+      { width: 18 },
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -299,7 +307,7 @@ async function loadEmployees(
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "id, last_name, first_name, middle_name, birth_date, birth_place, citizenship, phone, clothing_size, shoe_size, height, employment_date, employment_type, position, status, object_ids, passport_series, passport_number, passport_issued_by, passport_issue_date, passport_department_code, registration_address, inn, snils",
+      "id, last_name, first_name, middle_name, birth_date, birth_place, citizenship, phone, clothing_size, shoe_size, height, employment_date, employment_type, position, status, object_ids, passport_series, passport_number, passport_issued_by, passport_issue_date, passport_department_code, registration_address, inn, snils, kig, patent_number",
     )
     .eq("company_id", companyId);
 

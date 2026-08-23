@@ -9,20 +9,21 @@ import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/features/employees/presentation/widgets/editable_inline_text_row.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
-import 'package:projectgt/presentation/state/employee_state.dart' as employee_state;
+import 'package:projectgt/presentation/state/employee_state.dart'
+    as employee_state;
 import 'package:projectgt/core/di/providers.dart';
 
 /// Виджет формы редактирования данных сотрудника.
 class EmployeeEditForm extends ConsumerStatefulWidget {
   /// Сотрудник для редактирования.
   final Employee employee;
-  
+
   /// Список доступных объектов для привязки.
   final List<ObjectEntity> objects;
-  
+
   /// Callback для отмены редактирования.
   final VoidCallback onCancel;
-  
+
   /// Callback для сохранения изменений.
   final Function(Employee) onSaved;
 
@@ -57,6 +58,8 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
   late TextEditingController _passportDepartmentCodeController;
   late TextEditingController _innController;
   late TextEditingController _snilsController;
+  late TextEditingController _kigController;
+  late TextEditingController _patentNumberController;
 
   // Контроллеры для рабочих данных
   late TextEditingController _positionController;
@@ -75,13 +78,36 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
   List<String> _objectIds = [];
 
   static const List<String> _clothingSizes = [
-    '40-42(S)', '44-46(M)', '48-50(L)', '50-52(XL)', '54-56(2XL)', '56-58(3XL)', '60-62(4XL)', '64-66(5XL)',
+    '40-42(S)',
+    '44-46(M)',
+    '48-50(L)',
+    '50-52(XL)',
+    '54-56(2XL)',
+    '56-58(3XL)',
+    '60-62(4XL)',
+    '64-66(5XL)',
   ];
   static const List<String> _shoeSizes = [
-    '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42',
+    '43',
+    '44',
+    '45',
+    '46',
+    '47',
+    '48',
   ];
   static const List<String> _heightRanges = [
-    '150-160', '160-170', '170-180', '180-190', '190-200',
+    '150-160',
+    '160-170',
+    '170-180',
+    '180-190',
+    '190-200',
   ];
 
   List<String> _positions = [];
@@ -112,7 +138,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
   Future<void> _loadPositions() async {
     setState(() => _positionsLoading = true);
     try {
-      final positions = await ref.read(employeeRepositoryProvider).getPositions();
+      final positions = await ref
+          .read(employeeRepositoryProvider)
+          .getPositions();
       if (mounted) {
         setState(() {
           _positions = positions;
@@ -135,17 +163,31 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
     _middleNameController = TextEditingController(text: emp.middleName ?? '');
     _birthPlaceController = TextEditingController(text: emp.birthPlace ?? '');
     _citizenshipController = TextEditingController(text: emp.citizenship ?? '');
-    _registrationAddressController = TextEditingController(text: emp.registrationAddress ?? '');
-    _passportSeriesController = TextEditingController(text: emp.passportSeries ?? '');
-    _passportNumberController = TextEditingController(text: emp.passportNumber ?? '');
-    _passportIssuedByController = TextEditingController(text: emp.passportIssuedBy ?? '');
+    _registrationAddressController = TextEditingController(
+      text: emp.registrationAddress ?? '',
+    );
+    _passportSeriesController = TextEditingController(
+      text: emp.passportSeries ?? '',
+    );
+    _passportNumberController = TextEditingController(
+      text: emp.passportNumber ?? '',
+    );
+    _passportIssuedByController = TextEditingController(
+      text: emp.passportIssuedBy ?? '',
+    );
     _passportDepartmentCodeController = TextEditingController(
       text: emp.passportDepartmentCode == null
           ? ''
-          : GtFormatters.formatPassportDepartmentCode(emp.passportDepartmentCode),
+          : GtFormatters.formatPassportDepartmentCode(
+              emp.passportDepartmentCode,
+            ),
     );
     _innController = TextEditingController(text: emp.inn ?? '');
     _snilsController = TextEditingController(text: emp.snils ?? '');
+    _kigController = TextEditingController(text: emp.kig ?? '');
+    _patentNumberController = TextEditingController(
+      text: emp.patentNumber ?? '',
+    );
     _positionController = TextEditingController(text: emp.position ?? '');
     _phoneController = TextEditingController(text: emp.phone ?? '');
 
@@ -188,13 +230,30 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         isStringChanged(_employee.middleName, _middleNameController.text) ||
         isStringChanged(_employee.birthPlace, _birthPlaceController.text) ||
         isStringChanged(_employee.citizenship, _citizenshipController.text) ||
-        isStringChanged(_employee.registrationAddress, _registrationAddressController.text) ||
-        isStringChanged(_employee.passportSeries, _passportSeriesController.text) ||
-        isStringChanged(_employee.passportNumber, _passportNumberController.text) ||
-        isStringChanged(_employee.passportIssuedBy, _passportIssuedByController.text) ||
-        isDigitsChanged(_employee.passportDepartmentCode, _passportDepartmentCodeController.text) ||
+        isStringChanged(
+          _employee.registrationAddress,
+          _registrationAddressController.text,
+        ) ||
+        isStringChanged(
+          _employee.passportSeries,
+          _passportSeriesController.text,
+        ) ||
+        isStringChanged(
+          _employee.passportNumber,
+          _passportNumberController.text,
+        ) ||
+        isStringChanged(
+          _employee.passportIssuedBy,
+          _passportIssuedByController.text,
+        ) ||
+        isDigitsChanged(
+          _employee.passportDepartmentCode,
+          _passportDepartmentCodeController.text,
+        ) ||
         isDigitsChanged(_employee.inn, _innController.text) ||
         isDigitsChanged(_employee.snils, _snilsController.text) ||
+        isStringChanged(_employee.kig, _kigController.text) ||
+        isStringChanged(_employee.patentNumber, _patentNumberController.text) ||
         isStringChanged(_employee.position, _positionController.text) ||
         isStringChanged(_employee.phone, _phoneController.text) ||
         _birthDate != _employee.birthDate ||
@@ -227,6 +286,8 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
     _passportDepartmentCodeController.dispose();
     _innController.dispose();
     _snilsController.dispose();
+    _kigController.dispose();
+    _patentNumberController.dispose();
     _positionController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -252,23 +313,52 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         photoUrl: photoUrlToPersist,
         lastName: _lastNameController.text.trim(),
         firstName: _firstNameController.text.trim(),
-        middleName: _middleNameController.text.trim().isEmpty ? null : _middleNameController.text.trim(),
-        birthPlace: _birthPlaceController.text.trim().isEmpty ? null : _birthPlaceController.text.trim(),
-        citizenship: _citizenshipController.text.trim().isEmpty ? null : _citizenshipController.text.trim(),
-        registrationAddress: _registrationAddressController.text.trim().isEmpty ? null : _registrationAddressController.text.trim(),
-        passportSeries: _passportSeriesController.text.trim().isEmpty ? null : _passportSeriesController.text.trim(),
-        passportNumber: _passportNumberController.text.trim().isEmpty ? null : _passportNumberController.text.trim(),
-        passportIssuedBy: _passportIssuedByController.text.trim().isEmpty ? null : _passportIssuedByController.text.trim(),
-        passportDepartmentCode: _passportDepartmentCodeController.text.replaceAll(RegExp(r'\D'), '').trim().isEmpty
+        middleName: _middleNameController.text.trim().isEmpty
             ? null
-            : _passportDepartmentCodeController.text.replaceAll(RegExp(r'\D'), '').trim(),
+            : _middleNameController.text.trim(),
+        birthPlace: _birthPlaceController.text.trim().isEmpty
+            ? null
+            : _birthPlaceController.text.trim(),
+        citizenship: _citizenshipController.text.trim().isEmpty
+            ? null
+            : _citizenshipController.text.trim(),
+        registrationAddress: _registrationAddressController.text.trim().isEmpty
+            ? null
+            : _registrationAddressController.text.trim(),
+        passportSeries: _passportSeriesController.text.trim().isEmpty
+            ? null
+            : _passportSeriesController.text.trim(),
+        passportNumber: _passportNumberController.text.trim().isEmpty
+            ? null
+            : _passportNumberController.text.trim(),
+        passportIssuedBy: _passportIssuedByController.text.trim().isEmpty
+            ? null
+            : _passportIssuedByController.text.trim(),
+        passportDepartmentCode:
+            _passportDepartmentCodeController.text
+                .replaceAll(RegExp(r'\D'), '')
+                .trim()
+                .isEmpty
+            ? null
+            : _passportDepartmentCodeController.text
+                  .replaceAll(RegExp(r'\D'), '')
+                  .trim(),
         inn: _innController.text.replaceAll(RegExp(r'\D'), '').trim().isEmpty
             ? null
             : _innController.text.replaceAll(RegExp(r'\D'), '').trim(),
-        snils: _snilsController.text.replaceAll(RegExp(r'\D'), '').trim().isEmpty
+        snils:
+            _snilsController.text.replaceAll(RegExp(r'\D'), '').trim().isEmpty
             ? null
             : _snilsController.text.replaceAll(RegExp(r'\D'), '').trim(),
-        position: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
+        kig: _kigController.text.trim().isEmpty
+            ? null
+            : _kigController.text.trim(),
+        patentNumber: _patentNumberController.text.trim().isEmpty
+            ? null
+            : _patentNumberController.text.trim(),
+        position: _positionController.text.trim().isEmpty
+            ? null
+            : _positionController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
             ? null
             : normalizeRuPhoneForStorage(_phoneController.text),
@@ -284,7 +374,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         objectIds: _objectIds,
       );
 
-      await ref.read(employee_state.employeeProvider.notifier).updateEmployee(updatedEmployee);
+      await ref
+          .read(employee_state.employeeProvider.notifier)
+          .updateEmployee(updatedEmployee);
 
       if (mounted) {
         AppSnackBar.show(
@@ -402,7 +494,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                 SizedBox(
                   height: 32,
                   child: ElevatedButton(
-                    onPressed: (_isLoading || !_hasChanges) ? null : _saveChanges,
+                    onPressed: (_isLoading || !_hasChanges)
+                        ? null
+                        : _saveChanges,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -434,7 +528,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: theme.colorScheme.primary.withValues(alpha: 0.5),
@@ -467,22 +563,36 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _lastNameController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Фамилия',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -495,22 +605,36 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _firstNameController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Имя',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -523,22 +647,36 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _middleNameController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Отчество',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -573,75 +711,100 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                           flex: 5,
                           child: Row(
                             children: [
-                          Expanded(
-                            flex: 2,
-                            child: SizedBox(
-                              height: 32,
-                              child: GTStringDropdown(
-                                items: _positions,
-                                selectedItem: _positionController.text.isEmpty ? null : _positionController.text,
-                                onSelectionChanged: (value) {
-                                  setState(() {
-                                    _positionController.text = value ?? '';
-                                  });
-                                  _checkForChanges();
-                                },
-                                labelText: '',
-                                hintText: 'Должность',
-                                allowCustomInput: true,
-                                showAddNewOption: true,
-                                isLoading: _positionsLoading,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 32,
+                                  child: GTStringDropdown(
+                                    items: _positions,
+                                    selectedItem:
+                                        _positionController.text.isEmpty
+                                        ? null
+                                        : _positionController.text,
+                                    onSelectionChanged: (value) {
+                                      setState(() {
+                                        _positionController.text = value ?? '';
+                                      });
+                                      _checkForChanges();
+                                    },
+                                    labelText: '',
+                                    hintText: 'Должность',
+                                    allowCustomInput: true,
+                                    showAddNewOption: true,
+                                    isLoading: _positionsLoading,
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
+                                    borderRadius: 6,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: SizedBox(
-                              height: 32,
-                              child: GTEnumDropdown<EmploymentType>(
-                                values: EmploymentType.values,
-                                selectedValue: _employmentType,
-                                onChanged: (v) {
-                                  setState(() => _employmentType = v);
-                                  _checkForChanges();
-                                },
-                                enumToString: EmployeeUIUtils.getEmploymentTypeText,
-                                labelText: '',
-                                hintText: 'Тип',
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 32,
+                                  child: GTEnumDropdown<EmploymentType>(
+                                    values: EmploymentType.values,
+                                    selectedValue: _employmentType,
+                                    onChanged: (v) {
+                                      setState(() => _employmentType = v);
+                                      _checkForChanges();
+                                    },
+                                    enumToString:
+                                        EmployeeUIUtils.getEmploymentTypeText,
+                                    labelText: '',
+                                    hintText: 'Тип',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
+                                    borderRadius: 6,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: SizedBox(
-                              height: 32,
-                              child: GTEnumDropdown<EmployeeStatus>(
-                                values: EmployeeStatus.values,
-                                selectedValue: _status,
-                                onChanged: (v) {
-                                  setState(() => _status = v);
-                                  _checkForChanges();
-                                },
-                                enumToString: (status) => EmployeeUIUtils.getStatusInfo(status).$1,
-                                labelText: '',
-                                hintText: 'Статус',
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 32,
+                                  child: GTEnumDropdown<EmployeeStatus>(
+                                    values: EmployeeStatus.values,
+                                    selectedValue: _status,
+                                    onChanged: (v) {
+                                      setState(() => _status = v);
+                                      _checkForChanges();
+                                    },
+                                    enumToString: (status) =>
+                                        EmployeeUIUtils.getStatusInfo(
+                                          status,
+                                        ).$1,
+                                    labelText: '',
+                                    hintText: 'Статус',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
+                                    borderRadius: 6,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
                             ],
                           ),
                         ),
@@ -704,13 +867,29 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                                   setState(() => _objectIds = items);
                                   _checkForChanges();
                                 },
-                                itemDisplayBuilder: (id) => widget.objects.firstWhere((o) => o.id == id, orElse: () => const ObjectEntity(id: '', companyId: '', name: '—', address: '')).name,
+                                itemDisplayBuilder: (id) => widget.objects
+                                    .firstWhere(
+                                      (o) => o.id == id,
+                                      orElse: () => const ObjectEntity(
+                                        id: '',
+                                        companyId: '',
+                                        name: '—',
+                                        address: '',
+                                      ),
+                                    )
+                                    .name,
                                 labelText: '',
                                 hintText: 'Выберите объекты',
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
                                 borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -721,7 +900,8 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               onTap: () async {
                                 final selected = await showDatePicker(
                                   context: context,
-                                  initialDate: _employmentDate ?? DateTime.now(),
+                                  initialDate:
+                                      _employmentDate ?? DateTime.now(),
                                   firstDate: DateTime(1900),
                                   lastDate: DateTime(2100),
                                 );
@@ -732,23 +912,33 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               },
                               child: Container(
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 alignment: Alignment.centerLeft,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      _employmentDate != null ? formatRuDate(_employmentDate!) : 'Дата приёма',
+                                      _employmentDate != null
+                                          ? formatRuDate(_employmentDate!)
+                                          : 'Дата приёма',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14,
-                                        color: _employmentDate != null ? theme.colorScheme.onSurface : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        color: _employmentDate != null
+                                            ? theme.colorScheme.onSurface
+                                            : theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
                                       ),
                                     ),
                                     const Icon(
@@ -794,18 +984,30 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _passportSeriesController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Серия',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -819,18 +1021,30 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _passportNumberController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Номер',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -844,18 +1058,30 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _citizenshipController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Гражданство',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -893,7 +1119,8 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               onTap: () async {
                                 final selected = await showDatePicker(
                                   context: context,
-                                  initialDate: _passportIssueDate ?? DateTime.now(),
+                                  initialDate:
+                                      _passportIssueDate ?? DateTime.now(),
                                   firstDate: DateTime(1900),
                                   lastDate: DateTime.now(),
                                 );
@@ -904,23 +1131,33 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               },
                               child: Container(
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 alignment: Alignment.centerLeft,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      _passportIssueDate != null ? formatRuDate(_passportIssueDate!) : 'Дата выдачи',
+                                      _passportIssueDate != null
+                                          ? formatRuDate(_passportIssueDate!)
+                                          : 'Дата выдачи',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14,
-                                        color: _passportIssueDate != null ? theme.colorScheme.onSurface : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        color: _passportIssueDate != null
+                                            ? theme.colorScheme.onSurface
+                                            : theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
                                       ),
                                     ),
                                     const Icon(
@@ -941,19 +1178,33 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _passportDepartmentCodeController,
                                 onChanged: (_) => _checkForChanges(),
-                                inputFormatters: [passportDepartmentCodeFormatter()],
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                inputFormatters: [
+                                  passportDepartmentCodeFormatter(),
+                                ],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Код подр.',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -968,7 +1219,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
               _buildDivider(),
               EditableInlineTextRow(
                 label: 'Кем выдан',
-                value: _employee.passportIssuedBy?.isNotEmpty == true ? _employee.passportIssuedBy! : '—',
+                value: _employee.passportIssuedBy?.isNotEmpty == true
+                    ? _employee.passportIssuedBy!
+                    : '—',
                 isEditing: true,
                 controller: _passportIssuedByController,
                 hintText: 'Введите орган выдачи',
@@ -1011,23 +1264,33 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               },
                               child: Container(
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 alignment: Alignment.centerLeft,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      _birthDate != null ? formatRuDate(_birthDate!) : 'Дата рождения',
+                                      _birthDate != null
+                                          ? formatRuDate(_birthDate!)
+                                          : 'Дата рождения',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14,
-                                        color: _birthDate != null ? theme.colorScheme.onSurface : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        color: _birthDate != null
+                                            ? theme.colorScheme.onSurface
+                                            : theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
                                       ),
                                     ),
                                     const Icon(
@@ -1048,18 +1311,30 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                               child: TextField(
                                 controller: _birthPlaceController,
                                 onChanged: (_) => _checkForChanges(),
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Место рождения',
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
-                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                                    borderSide: BorderSide(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1074,7 +1349,9 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
               _buildDivider(),
               EditableInlineTextRow(
                 label: 'Адрес регистрации',
-                value: _employee.registrationAddress?.isNotEmpty == true ? _employee.registrationAddress! : '—',
+                value: _employee.registrationAddress?.isNotEmpty == true
+                    ? _employee.registrationAddress!
+                    : '—',
                 isEditing: true,
                 controller: _registrationAddressController,
                 hintText: 'Введите адрес регистрации',
@@ -1094,12 +1371,34 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
               _buildDivider(),
               EditableInlineTextRow(
                 label: 'СНИЛС',
-                value: _employee.snils?.isNotEmpty == true ? _employee.snils! : '—',
+                value: _employee.snils?.isNotEmpty == true
+                    ? _employee.snils!
+                    : '—',
                 isEditing: true,
                 controller: _snilsController,
                 hintText: 'XXX-XXX-XXX XX',
                 keyboardType: TextInputType.number,
                 inputFormatters: [snilsFormatter()],
+                onChanged: (_) => _checkForChanges(),
+              ),
+              _buildDivider(),
+              EditableInlineTextRow(
+                label: 'КИГ',
+                value: _employee.kig?.isNotEmpty == true ? _employee.kig! : '—',
+                isEditing: true,
+                controller: _kigController,
+                hintText: 'Введите КИГ',
+                onChanged: (_) => _checkForChanges(),
+              ),
+              _buildDivider(),
+              EditableInlineTextRow(
+                label: 'Номер патента',
+                value: _employee.patentNumber?.isNotEmpty == true
+                    ? _employee.patentNumber!
+                    : '—',
+                isEditing: true,
+                controller: _patentNumberController,
+                hintText: 'Введите номер патента',
                 onChanged: (_) => _checkForChanges(),
               ),
               _buildDivider(),
@@ -1137,9 +1436,15 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                                 allowCustomInput: true,
                                 showAddNewOption: true,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
                                 borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -1159,9 +1464,15 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                                 allowCustomInput: true,
                                 showAddNewOption: true,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
                                 borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -1181,9 +1492,15 @@ class _EmployeeEditFormState extends ConsumerState<EmployeeEditForm> {
                                 allowCustomInput: true,
                                 showAddNewOption: true,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
                                 borderRadius: 6,
-                                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),

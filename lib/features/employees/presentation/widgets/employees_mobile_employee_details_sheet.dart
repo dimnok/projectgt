@@ -736,6 +736,12 @@ class _EmployeesMobileEmployeeDetailsBodyState
                     ),
                     _kv(theme, 'ИНН', _dashIfEmpty(employee.inn)),
                     _kv(theme, 'СНИЛС', _dashIfEmpty(employee.snils)),
+                    _kv(theme, 'КИГ', _dashIfEmpty(employee.kig)),
+                    _kv(
+                      theme,
+                      'Номер патента',
+                      _dashIfEmpty(employee.patentNumber),
+                    ),
                     _kv(
                       theme,
                       'Адрес регистрации',

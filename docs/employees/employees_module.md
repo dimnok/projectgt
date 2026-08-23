@@ -1,8 +1,16 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 15 августа 2026 года
+**Дата актуализации:** 23 августа 2026 года
 
-**Изменения в этой версии (15.08.2026, вкладка «ТМЦ» — выданное имущество):**
+**Изменения в этой версии (23.08.2026, КИГ и номер патента):**
+- В карточке сотрудника (блок документов) добавлены необязательные текстовые поля **КИГ** и **Номер патента** — без скрытия по гражданству, без маски ввода, по тому же паттерну, что ИНН / СНИЛС
+- **БД (prod audit):** колонки `employees.kig`, `employees.patent_number` (`TEXT NULL`); миграция [`20260823100000_employees_kig_patent_number.sql`](../../supabase/migrations/20260823100000_employees_kig_patent_number.sql), на проде `employees_kig_patent_number` (`20260823072352`)
+- **Domain / Data:** [`Employee.kig`](../../lib/domain/entities/employee.dart) / [`Employee.patentNumber`](../../lib/domain/entities/employee.dart); DTO [`EmployeeModel`](../../lib/data/models/employee_model.dart) (`kig`, `patent_number`); datasource без отдельного select — `select('*')`
+- **UI:** desktop просмотр — [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart); desktop правка — [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart); mobile просмотр — секция «Документы» в [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart); mobile правка — [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) (`GTTextField`)
+- **Не затронуто:** быстрое добавление (`AddEmployeeSimpleDialog`), список/таблица, поиск, табель, ФОТ, RLS
+- **Excel:** исходник [`export-employees/index.ts`](../../supabase/functions/export-employees/index.ts) дополнен колонками «КИГ» и «Номер патента»; **на проде опубликовано** (выгрузка 23.08.2026: SELECT включает `kig`, `patent_number`)
+
+**Предыдущая версия (15.08.2026, вкладка «ТМЦ» — выданное имущество):**
 - Заглушка вкладки **«ТМЦ»** заменена на [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart): список активных выдач (`tmc_assignments.is_active`)
 - Данные: [`tmcAssignmentsProvider(employeeId)`](../../lib/features/tmc/presentation/state/tmc_providers.dart); ленивая загрузка при первом выборе вкладки (`isActive` / `_wasActivated`)
 - Строка: порядковый номер, наименование, инв. №, дата выдачи, объект; справа стоимость = `unit_price × quantity` (`formatCurrency`); цена — join `tmc_items.unit_price` (не колонка `tmc_assignments`)
@@ -131,18 +139,18 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
-- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** (активные выдачи), **«Финансы»** (заглушка); вкладки «Документы» и «Доп. информация» — в roadmap
+- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** (активные выдачи), **«Финансы»** (заглушка); вкладки «Документы» (файлы) и «Доп. информация» — в roadmap. Поля **КИГ** / **номер патента** живут в блоке анкеты («Обзор» / «Документы» на mobile), не отдельной вкладкой
 
 ---
 
 ## Описание модуля
 
-Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, трудоустройство, объекты, статус, история ставок, фото, **заявления (PDF + подписанные сканы)**, **просмотр табеля по сотруднику**, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
+Модуль **Employees** закрывает жизненный цикл карточки сотрудника в компании: анкета, паспорт, **КИГ и номер патента**, трудоустройство, объекты, статус, история ставок, фото, **заявления (PDF + подписанные сканы)**, **просмотр табеля по сотруднику**, флаг ответственного, участие в **Timesheet**, **Works**, **Work Plans**, **FOT**.
 
 Ключевые функции:
 
 - список сотрудников: **таблица** (desktop / широкий экран) или **мобильный** список с фильтром по статусу, поиском, свайп-действиями и bottom sheet
-- создание / редактирование / удаление (права `employees:*`)
+- создание / редактирование / удаление (права `employees:*`); в карточке — паспорт, ИНН, СНИЛС, **КИГ**, **номер патента** (два последних необязательны, всегда отображаются)
 - история и текущая ставка (`employee_rates`)
 - **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
 - **табель в карточке:** просмотр часов за месяц (смены + ручная посещаемость); массовое проставление — только в модуле Timesheet
@@ -179,10 +187,11 @@
 | `work_hours`         | `employee_id` в сменах                             |
 | `employee_attendance`| ручные часы табеля                                 |
 | FOT / payroll        | расчёты, отчёты, балансы                           |
+| `tmc_assignments` / `tmc_items` | вкладка «ТМЦ» (owner — модуль TMC)          |
 
 ### Связанные модули приложения
 
-- `objects`, `profile`, `works`, `work_plans`, `timesheet`, `fot`, `roles` (матрица прав), `company`
+- `objects`, `profile`, `works`, `work_plans`, `timesheet`, `fot`, `tmc`, `roles` (матрица прав), `company`
 
 ---
 
@@ -212,15 +221,15 @@
 |------|------------|
 | [`employees_table_actions_bar.dart`](../../lib/features/employees/presentation/widgets/employees_table_actions_bar.dart) | Панель действий таблицы |
 | [`employees_table_filters_toolbar.dart`](../../lib/features/employees/presentation/widgets/employees_table_filters_toolbar.dart) | Фильтры; индикатор загрузки picklist объектов в триггере dropdown — `CupertinoActivityIndicator`; `EmployeesObjectTableFilterValue.toExportFilterJson()` для экспорта |
-| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»** (`IndexedStack`); «Табель» только при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); «Финансы» — заглушка; safe `viewTab` при отзыве права на табель; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
+| [`employee_details_modal.dart`](../../lib/features/employees/presentation/widgets/employee_details_modal.dart) | Детальная карточка (desktop); вкладки **«Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»** (`IndexedStack`); «Табель» только при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); «Финансы» — заглушка; в «Обзоре» / личных данных — паспорт, ИНН, СНИЛС, **КИГ**, **номер патента**; safe `viewTab` при отзыве права на табель; вход в редактирование — `GTTextButton` «Редактировать»; `ref.listen` на `employeeProvider` и `permissionServiceProvider` |
 | [`employee_applications_section.dart`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart) | **Вкладка «Заявления»:** типы заявлений, компактный список сканов (одна строка + icon actions), просмотр / скачивание / удаление |
 | [`employee_timesheet_section.dart`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) | **Вкладка «Табель»:** месяц одного сотрудника — сводка часов/дней, полоска дней с цветом объекта и точкой примечания, легенда объектов, без прокрутки; ленивая загрузка; баннер `includeInTimesheet` |
 | [`employee_tmc_section.dart`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart) | **Вкладка «ТМЦ»:** активные выдачи; номер строки; стоимость `unit_price × quantity`; ленивая загрузка; пустое состояние при отсутствии `tmc.read` |
 | [`employee_card_placeholder_tab.dart`](../../lib/features/employees/presentation/widgets/employee_card_placeholder_tab.dart) | Заглушка вкладки **«Финансы»** («Раздел в разработке») |
 | [`employee_application_forms.dart`](../../lib/features/employees/presentation/widgets/employee_application_forms.dart) | Формы отпуска и БС для карточки сотрудника (PDF + загрузка скана) |
 | [`employee_application_scan_preview.dart`](../../lib/features/employees/presentation/widgets/employee_application_scan_preview.dart) | Просмотр PDF (`printing`) и изображений в диалоге |
-| [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
-| [`add_employee_simple_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_simple_dialog.dart) | Быстрое добавление |
+| [`employee_edit_form.dart`](../../lib/features/employees/presentation/widgets/employee_edit_form.dart) | Форма редактирования; поля **КИГ** / **номер патента** (`EditableInlineTextRow`, после СНИЛС); кнопка «Сохранить» при отправке — `CupertinoActivityIndicator`; `_saveChanges` — guard `employees.update` |
+| [`add_employee_simple_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_simple_dialog.dart) | Быстрое добавление (ФИО, телефон, объекты); **КИГ / патент не входят** — заполняются в карточке |
 | [`add_employee_rate_dialog.dart`](../../lib/features/employees/presentation/widgets/add_employee_rate_dialog.dart) | Добавление ставки |
 | [`employee_rate_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_rate_summary_widget.dart) | Сводка по ставкам; `canManageRates` — кнопка добавления ставки; история ставок (`FutureBuilder`) — `CupertinoActivityIndicator` |
 | [`employee_business_trip_summary_widget.dart`](../../lib/features/employees/presentation/widgets/employee_business_trip_summary_widget.dart) | Сводка по суточным; add/edit через опциональные коллбэки (передаются только при `update`) |
@@ -232,8 +241,8 @@
 | [`employees_mobile_add_employee_button.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_add_employee_button.dart) | FAB / кнопка добавления |
 | [`employees_mobile_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_card.dart) | Карточка в списке |
 | [`employees_mobile_swipeable_employee_card.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_swipeable_employee_card.dart) | Свайп по карточке |
-| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; те же вкладки, что на desktop; «Табель» при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); кнопки «Изменить» — при `employees.update` |
-| [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; `_persistEmployeeUpdate` — guard `employees.update` |
+| [`employees_mobile_employee_details_sheet.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_details_sheet.dart) | Bottom sheet деталей; те же вкладки, что на desktop; «Табель» при `timesheet.read`; «ТМЦ» — [`EmployeeTmcSection`](../../lib/features/employees/presentation/widgets/employee_tmc_section.dart); секция **«Документы»** — паспорт, ИНН, СНИЛС, **КИГ**, **номер патента**, адрес; кнопки «Изменить» — при `employees.update` |
+| [`employees_mobile_employee_edit_blocks.dart`](../../lib/features/employees/presentation/widgets/employees_mobile_employee_edit_blocks.dart) | Блоки редактирования на мобильном; редактор «Документы» — паспорт, адрес, ИНН, СНИЛС, **КИГ**, **номер патента** (`GTTextField`); `_persistEmployeeUpdate` — guard `employees.update` |
 
 ### Design System (`lib/core/widgets/`)
 
@@ -311,8 +320,8 @@
 
 | Файл | Содержимое |
 |------|------------|
-| [`employee.dart`](../../lib/domain/entities/employee.dart) | Сущность сотрудника, enum `EmploymentType`, `EmployeeStatus` (отдельно от `EmployeeState` в Riverpod) |
-| [`employee_application.dart`](../../lib/domain/entities/employee_application.dart) | Заявление сотрудника; enum `EmployeeApplicationType` (`vacation`, `unpaidLeave`) |
+| [`employee.dart`](../../lib/domain/entities/employee.dart) | Сущность сотрудника, enum `EmploymentType`, `EmployeeStatus`; документы: паспорт, `inn`, `snils`, `kig`, `patentNumber` (отдельно от `EmployeeState` в Riverpod) |
+| [`employee_application.dart`](../../lib/domain/entities/employee_application.dart) | Заявление сотрудника; enum `EmployeeApplicationType` (`vacation`, `unpaidLeave`, `resignation`) |
 | [`employee_rate.dart`](../../lib/domain/entities/employee_rate.dart) | Сущность ставки с периодом |
 | [`employee_repository.dart`](../../lib/domain/repositories/employee_repository.dart) | Контракт репозитория сотрудников |
 | [`employee_application_repository.dart`](../../lib/domain/repositories/employee_application_repository.dart) | Контракт заявлений: список, upload scan, download, delete |
@@ -329,7 +338,7 @@
 
 | Файл | Назначение |
 |------|------------|
-| [`employee_model.dart`](../../lib/data/models/employee_model.dart) | DTO `employees`; `current_hourly_rate` только на клиенте (`includeFromJson: false`) |
+| [`employee_model.dart`](../../lib/data/models/employee_model.dart) | DTO `employees`; `kig` / `patent_number`; `current_hourly_rate` только на клиенте (`includeFromJson: false`) |
 | [`employee_application_model.dart`](../../lib/data/models/employee_application_model.dart) | DTO `employee_applications`; join `creator:profiles(full_name)` |
 | [`employee_rate_model.dart`](../../lib/data/models/employee_rate_model.dart) | DTO `employee_rates` |
 | [`employee_data_source.dart`](../../lib/data/datasources/employee_data_source.dart) | Supabase: CRUD, `getResponsibleEmployees`, `can_be_responsible`, пакетная мапа флага, обогащение текущей ставкой |
@@ -439,35 +448,43 @@ lib/
 
 ---
 
-## База данных (Audit по репозиторию)
+## База данных (Audit)
 
-> **Источник:** SQL-миграции в `supabase/migrations/` и DTO в `lib/data/models/`. Полный `CREATE TABLE` для `employee_rates` в отслеживаемых миграциях **не найден** (таблица используется в функциях ФОТ, экспорте и клиенте). Имена индексов ниже — только те, что явно фигурируют в миграциях.
+> **Источник:** прод `information_schema.columns` / `pg_policy` / `pg_indexes` / `pg_description` (23.08.2026) + DTO [`EmployeeModel`](../../lib/data/models/employee_model.dart) + миграции в `supabase/migrations/`. `mcp_supabase:list_edge_functions` в текущем MCP **нет** — инвентарь Edge Functions по каталогу `supabase/functions/`.
 
 ### Таблица `employees`
 
 **Назначение:** основная карточка сотрудника в разрезе компании.
 
-**Колонки (по [`EmployeeModel`](../../lib/data/models/employee_model.dart) + колонка флага в БД, используемая datasource):**
+**Колонки (prod 23.08.2026):**
 
-| Колонка | Тип (логический) | Примечание |
-|---------|------------------|------------|
-| `id` | UUID | PK |
-| `company_id` | UUID | обязателен в клиенте |
-| `photo_url` | TEXT | |
-| `last_name`, `first_name`, `middle_name` | TEXT | |
-| `birth_date`, `birth_place` | TIMESTAMPTZ / TEXT | |
-| `citizenship`, `phone` | TEXT | |
-| `clothing_size`, `shoe_size`, `height` | TEXT | |
-| `employment_date` | TIMESTAMPTZ | |
-| `employment_type` | TEXT | default `official` |
-| `position` | TEXT | |
-| `status` | TEXT | default `working` |
-| `object_ids` | TEXT[] | в приложении `List<String>` |
-| `passport_*`, `registration_address`, `inn`, `snils` | TEXT / TIMESTAMPTZ | |
-| `can_be_responsible` | BOOLEAN | в клиенте — через `canBeResponsibleMap`, не в JSON модели |
-| `created_at`, `updated_at` | TIMESTAMPTZ | |
+| Колонка | Тип | NULL | Примечание |
+|---------|-----|------|------------|
+| `id` | UUID | NO | PK, `gen_random_uuid()` |
+| `company_id` | UUID | NO | обязателен в клиенте |
+| `photo_url` | TEXT | YES | |
+| `last_name`, `first_name` | TEXT | NO | |
+| `middle_name` | TEXT | YES | |
+| `birth_date` | TIMESTAMPTZ | YES | |
+| `birth_place` | TEXT | YES | |
+| `citizenship`, `phone` | TEXT | YES | гражданство — свободный текст, без enum |
+| `clothing_size`, `shoe_size`, `height` | TEXT | YES | |
+| `employment_date` | TIMESTAMPTZ | YES | |
+| `employment_type` | TEXT | NO | default `official` |
+| `position` | TEXT | YES | |
+| `status` | TEXT | NO | default `working` |
+| `include_in_timesheet` | BOOLEAN | NO | default `true`; COMMENT: скрывать в табеле/Excel без часов |
+| `object_ids` | TEXT[] | YES | default `ARRAY[]::text[]`; в приложении `List<String>` |
+| `passport_series`, `passport_number`, `passport_issued_by`, `passport_department_code` | TEXT | YES | |
+| `passport_issue_date` | TIMESTAMPTZ | YES | |
+| `registration_address` | TEXT | YES | |
+| `inn`, `snils` | TEXT | YES | |
+| `kig` | TEXT | YES | КИГ иностранного гражданина; необязательно |
+| `patent_number` | TEXT | YES | номер патента на работу; необязательно |
+| `can_be_responsible` | BOOLEAN | NO | default `false`; в клиенте — через `canBeResponsibleMap`, не в JSON модели |
+| `created_at`, `updated_at` | TIMESTAMPTZ | YES | default `now()` |
 
-Ранняя миграция [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql) содержит иные поля (`hourly_rate`, `facility`); **текущая** доменная модель их **не** использует — фактическая схема на деплое должна быть сверена с продакшеном (`pg_dump` / Supabase Studio).
+Ранняя миграция [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql) содержит иные поля (`hourly_rate`, `facility`); **текущая** доменная модель их **не** использует. `kig` / `patent_number` — [`20260823100000_employees_kig_patent_number.sql`](../../supabase/migrations/20260823100000_employees_kig_patent_number.sql).
 
 **RLS:** ✅ Включён.
 
@@ -484,12 +501,13 @@ lib/
 
 > **RBAC:** UI ([`PermissionService`](../../lib/features/roles/application/permission_service.dart)) и PostgREST согласованы через `check_permission(uid(), 'employees', …)`.
 
-**Индексы** (упоминания в миграциях):
+**Индексы (prod 23.08.2026, `pg_indexes`):**
 
-- `employees_pkey` (подразумевается PK)
+- `employees_pkey`
 - `idx_employees_status`, `idx_employees_position` — из [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql)
-- `idx_employees_name` — **удалён** в [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql)
-- `idx_employees_company_id`, `idx_employees_company_last_name` — из [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql) (покрытие фильтра `company_id` и `ORDER BY last_name`)
+- `idx_employees_company_id`, `idx_employees_company_last_name` — из [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql)
+- `idx_employees_name` — **удалён** в [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql); на проде отсутствует
+- отдельных индексов по `kig` / `patent_number` **нет** (поля не участвуют в фильтрах списка)
 
 #### Триггеры (`employees`)
 
@@ -661,15 +679,21 @@ Bucket **`employee_applications`** (private, `public: false`):
 4. Поиск: `EmployeeState.filteredEmployees` (ФИО, должность, телефон).
 5. Таблица: дополнительно фильтр по статусу, объекту, сортировка по фамилии, счётчики по статусам — на клиенте. Если выбранный объект исчез из picklist (смена прав / профиля), фильтр сбрасывается в «Все объекты» через `ref.listen(employeesModuleObjectsProvider)`.
 6. Inline: `Employee.copyWith` + `updateEmployee` для `status` и `object_ids`.
-7. `can_be_responsible`: отдельные вызовы datasource + обновление `canBeResponsibleMap` (не через полную перезагрузку карточки из одного JSON).
-8. Ответственный по объекту для планов: `getResponsibleEmployees` — `status = working`, `can_be_responsible = true`, объект в `object_ids`.
-9. При удалении сотрудника — удаление файла фото в Storage и строки в БД.
-10. Экспорт: те же фильтры, что UI, плюс проверка членства в `company_members` на Edge.
-11. **Карточка сотрудника:** `PermissionService.can('employees', 'update')` управляет видимостью редактирования; при отсутствии права PostgREST отклоняет UPDATE/INSERT суточных и сотрудника даже при обходе UI.
-12. **Аватар:** после выбора изображения — ветка `kIsWeb` в `EmployeeAvatarController`; URL из Storage пишется в `employees.photo_url` через `updateEmployee`.
-13. **Уведомления пользователю:** только `AppSnackBar.show(context:, message:, kind:)` — без `SnackBarUtils` и Material `SnackBar` в модуле.
-14. **Индикаторы загрузки:** единый стиль **`CupertinoActivityIndicator`** в presentation-слое; Material `CircularProgressIndicator` в модуле не используется.
-15. **Заявления (вкладка карточки):**
+7. **Документы иностранца (КИГ / патент):**
+    1. Поля всегда на карточке (desktop: после СНИЛС в «Личных данных»; mobile: секция «Документы»), **без** условия по `citizenship`.
+    2. Пустая строка сохраняется как `NULL`; формат не нормализуется (в отличие от ИНН/СНИЛС, где оставляются только цифры).
+    3. Быстрое создание сотрудника поля не запрашивает; заполнение — в карточке при `employees.update`.
+    4. Список и клиентский поиск (`ФИО` / `position` / `phone`) поля **не** используют.
+    5. Excel: колонки «КИГ» и «Номер патента» в `export-employees`; на проде подтверждено выгрузкой 23.08.2026.
+8. `can_be_responsible`: отдельные вызовы datasource + обновление `canBeResponsibleMap` (не через полную перезагрузку карточки из одного JSON).
+9. Ответственный по объекту для планов: `getResponsibleEmployees` — `status = working`, `can_be_responsible = true`, объект в `object_ids`.
+10. При удалении сотрудника — удаление файла фото в Storage и строки в БД.
+11. Экспорт: те же фильтры, что UI, плюс проверка членства в `company_members` на Edge.
+12. **Карточка сотрудника:** `PermissionService.can('employees', 'update')` управляет видимостью редактирования; при отсутствии права PostgREST отклоняет UPDATE/INSERT суточных и сотрудника даже при обходе UI.
+13. **Аватар:** после выбора изображения — ветка `kIsWeb` в `EmployeeAvatarController`; URL из Storage пишется в `employees.photo_url` через `updateEmployee`.
+14. **Уведомления пользователю:** только `AppSnackBar.show(context:, message:, kind:)` — без `SnackBarUtils` и Material `SnackBar` в модуле.
+15. **Индикаторы загрузки:** единый стиль **`CupertinoActivityIndicator`** в presentation-слое; Material `CircularProgressIndicator` в модуле не используется.
+16. **Заявления (вкладка карточки):**
     1. HR выбирает тип (отпуск / БС / **увольнение**) → форма с датами → **«Просмотр и печать»** (`PdfPreviewScreen` + `ProfilePdfGenerator`; шапка PDF — **ООО «ГТ Инжиниринг»**).
     2. После подписи на бумаге — **«Загрузить подписанный скан»** (`file_selector`: pdf, jpg, png) → `uploadBinary` в Storage → INSERT в `employee_applications`.
     3. **Список на вкладке** ([`_ApplicationListTile`](../../lib/features/employees/presentation/widgets/employee_applications_section.dart)):
@@ -679,7 +703,7 @@ Bucket **`employee_applications`** (private, `public: false`):
        - `scan_name` / `scan_size` в UI списка не показываются.
     4. Удаление — только при `employees.update`; каскад: строка БД + файл Storage.
     5. При ошибке INSERT после upload — best-effort удаление объекта из Storage ([`SupabaseEmployeeApplicationDataSource`](../../lib/data/datasources/supabase_employee_application_data_source.dart)).
-16. **Табель (вкладка карточки):**
+17. **Табель (вкладка карточки):**
     1. Вкладка видна только при `PermissionService.can('timesheet', 'read')`.
     2. При первом выборе вкладки [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) подписывается на [`employeeTimesheetMonthProvider`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart).
     3. Параллельная загрузка: `EmployeeAttendanceRepository.getAttendanceRecords(employeeId, start, end)` + `TimesheetRepository.getShiftHoursForEmployee(…)`.
@@ -735,9 +759,11 @@ Bucket **`employee_applications`** (private, `public: false`):
 
 ### Edge Functions
 
-| Функция | Назначение |
-|---------|------------|
-| **`export-employees`** | POST: `companyId`, `status`, `objectFilter`, `searchQuery`; **service role** + `ensureCompanyAccess` (JWT + `company_members`); ExcelJS; отдача base64 XLSX |
+Инвентарь по репозиторию (`supabase/functions/`): единственная функция модуля — **`export-employees`**. Функций `tmc*` нет. Инструмент `list_edge_functions` в MCP проекта недоступен.
+
+| Функция | Назначение | Статус на 23.08.2026 |
+|---------|------------|----------------------|
+| **`export-employees`** | POST: `companyId`, `status`, `objectFilter`, `searchQuery`; **service role** + `ensureCompanyAccess` (JWT + `company_members`); ExcelJS; отдача base64 XLSX. Колонки документов: паспорт, ИНН, СНИЛС, **КИГ**, **номер патента** | **Опубликовано на проде** (подтверждено выгрузкой 23.08.2026) |
 
 Клиент: [`EmployeeServerExcelExportService`](../../lib/features/employees/presentation/services/employee_server_excel_export_service.dart).
 
@@ -750,7 +776,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Табличный и мобильный списки, адаптивный выбор раскладки
 - Inline статус / объекты, фильтры, экспорт, аватар, детали и редактирование (с RBAC в UI и RLS)
 - Кэш деталей, `canBeResponsibleMap`, сохранение ставки при обновлении анкеты
-- Серверный Excel через `export-employees`
+- Серверный Excel через `export-employees` (колонки КИГ / номер патента на проде)
+- **КИГ и номер патента** в карточке сотрудника (необязательные TEXT; UI desktop + mobile; RLS без изменений)
 - Read-only карточка: скрытие edit-контролов и `check_permission` на `employees` / `business_trip_rates`
 - Picklist объектов без `objects.read`; корректный жизненный цикл экранов на Flutter Web (`ref.listen`, без отложенного `dispose`)
 - Загрузка фото сотрудника на Web (`pickImageBytes` / `uploadPhotoBytes`)
