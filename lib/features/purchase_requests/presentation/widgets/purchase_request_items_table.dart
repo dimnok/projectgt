@@ -1,9 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_item.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_details_tokens.dart';
 
 /// Таблица позиций заявки: №, наименование, кол-во, ед. изм., артикул.
+///
+/// На широком экране колонки «Наименование» и «Артикул» делят свободное
+/// место; если ширины не хватает — таблица прокручивается по горизонтали.
 class PurchaseRequestItemsTable extends StatelessWidget {
   /// Создаёт таблицу позиций.
   const PurchaseRequestItemsTable({
@@ -98,14 +103,16 @@ class PurchaseRequestItemsTable extends StatelessWidget {
     TextAlign align = TextAlign.start,
     bool emphasized = false,
     bool muted = false,
+    int maxLines = 1,
   }) {
     return Text(
       value,
       textAlign: align,
-      maxLines: 1,
+      maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodyMedium?.copyWith(
         fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+        height: maxLines > 1 ? 1.35 : null,
         fontFeatures: const [FontFeature.tabularFigures()],
         color: muted
             ? theme.colorScheme.onSurface.withValues(alpha: 0.35)
@@ -136,7 +143,7 @@ class _ItemsDesktopTable extends StatelessWidget {
     final headerBg = PurchaseRequestDetailsTokens.tableHeaderBackground(theme);
     final zebraBg = PurchaseRequestDetailsTokens.tableZebraBackground(theme);
 
-    return DecoratedBox(
+    final table = DecoratedBox(
       decoration: PurchaseRequestDetailsTokens.cardDecoration(theme),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(
@@ -148,7 +155,6 @@ class _ItemsDesktopTable extends StatelessWidget {
             ColoredBox(
               color: headerBg,
               child: _ItemsTableRow(
-                theme: theme,
                 showActions: canEdit,
                 index: PurchaseRequestItemsTable._headerCell(theme, '№'),
                 name: PurchaseRequestItemsTable._headerCell(
@@ -174,7 +180,6 @@ class _ItemsDesktopTable extends StatelessWidget {
               ColoredBox(
                 color: i.isOdd ? zebraBg : Colors.transparent,
                 child: _ItemsTableRow(
-                  theme: theme,
                   showActions: canEdit,
                   index: PurchaseRequestItemsTable._indexCell(theme, i + 1),
                   name: PurchaseRequestItemsTable._nameCell(
@@ -194,6 +199,7 @@ class _ItemsDesktopTable extends StatelessWidget {
                   article: PurchaseRequestItemsTable._valueCell(
                     theme,
                     PurchaseRequestItemsTable._articleLabel(items[i].article),
+                    maxLines: 2,
                     muted:
                         PurchaseRequestItemsTable._articleLabel(
                           items[i].article,
@@ -227,6 +233,21 @@ class _ItemsDesktopTable extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = math.max(
+          constraints.maxWidth,
+          _ItemsTableRow.minTableWidth(showActions: canEdit),
+        );
+        final sized = SizedBox(width: tableWidth, child: table);
+        if (tableWidth <= constraints.maxWidth) return sized;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: sized,
+        );
+      },
     );
   }
 }
@@ -320,7 +341,6 @@ class _ItemsMobileList extends StatelessWidget {
 
 class _ItemsTableRow extends StatelessWidget {
   const _ItemsTableRow({
-    required this.theme,
     required this.showActions,
     required this.index,
     required this.name,
@@ -333,7 +353,31 @@ class _ItemsTableRow extends StatelessWidget {
     this.showBottomDivider = true,
   });
 
-  final ThemeData theme;
+  static const double _hPad = 16;
+  static const double _gap = 12;
+  static const double _indexWidth = 28;
+  static const double _qtyWidth = 72;
+  static const double _unitWidth = 48;
+  static const double _actionGap = 4;
+  static const double _actionWidth = 36;
+  static const double _nameMinWidth = 180;
+  static const double _articleMinWidth = 180;
+
+  /// Минимальная ширина строки, при которой все колонки читаются без сжатия.
+  static double minTableWidth({required bool showActions}) {
+    return (_hPad * 2) +
+        _indexWidth +
+        _gap +
+        _nameMinWidth +
+        _gap +
+        _qtyWidth +
+        _gap +
+        _unitWidth +
+        _gap +
+        _articleMinWidth +
+        (showActions ? _actionGap + _actionWidth : 0);
+  }
+
   final bool showActions;
   final Widget index;
   final Widget name;
@@ -355,23 +399,24 @@ class _ItemsTableRow extends StatelessWidget {
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: _hPad,
           vertical: isHeader ? 11 : 13,
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(width: 28, child: index),
-            const SizedBox(width: 12),
-            Expanded(flex: 5, child: name),
-            const SizedBox(width: 12),
-            SizedBox(width: 64, child: qty),
-            const SizedBox(width: 12),
-            SizedBox(width: 56, child: unit),
-            const SizedBox(width: 12),
-            SizedBox(width: 88, child: article),
+            SizedBox(width: _indexWidth, child: index),
+            const SizedBox(width: _gap),
+            Expanded(flex: 3, child: name),
+            const SizedBox(width: _gap),
+            SizedBox(width: _qtyWidth, child: qty),
+            const SizedBox(width: _gap),
+            SizedBox(width: _unitWidth, child: unit),
+            const SizedBox(width: _gap),
+            Expanded(flex: 2, child: article),
             if (showActions) ...[
-              const SizedBox(width: 4),
-              SizedBox(width: 36, child: action),
+              const SizedBox(width: _actionGap),
+              SizedBox(width: _actionWidth, child: action),
             ],
           ],
         ),
