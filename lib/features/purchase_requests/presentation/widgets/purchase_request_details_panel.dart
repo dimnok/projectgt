@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_form_dialog.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_items_excel_export.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
 import 'package:projectgt/features/purchase_requests/presentation/widgets/purchase_request_actions_bar.dart';
@@ -128,14 +131,12 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                             ),
                             _DetailSection(
                               title: 'Позиции',
-                              trailing: actions.canEditItems
-                                  ? GTTextButton(
-                                      text: 'Добавить',
-                                      icon: Icons.add_rounded,
-                                      dense: true,
-                                      onPressed: () => _addItem(context, ref),
-                                    )
-                                  : null,
+                              trailing: _ItemsSectionTrailing(
+                                requestNumber: request.number,
+                                items: itemsAsync.valueOrNull ?? const [],
+                                canEdit: actions.canEditItems,
+                                onAdd: () => _addItem(context, ref),
+                              ),
                               child: itemsAsync.when(
                                 loading: () => const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -497,6 +498,88 @@ class _HeaderContent extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Кнопки секции позиций: Excel (если есть строки) и «Добавить».
+class _ItemsSectionTrailing extends StatelessWidget {
+  const _ItemsSectionTrailing({
+    required this.requestNumber,
+    required this.items,
+    required this.canEdit,
+    required this.onAdd,
+  });
+
+  final String requestNumber;
+  final List<PurchaseRequestItem> items;
+  final bool canEdit;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final showExcel = items.isNotEmpty;
+    if (!showExcel && !canEdit) return const SizedBox.shrink();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showExcel)
+          _ItemsExcelButton(requestNumber: requestNumber, items: items),
+        if (showExcel && canEdit) const SizedBox(width: 4),
+        if (canEdit)
+          GTTextButton(
+            text: 'Добавить',
+            icon: Icons.add_rounded,
+            dense: true,
+            onPressed: onAdd,
+          ),
+      ],
+    );
+  }
+}
+
+/// Кнопка выгрузки позиций заявки в Excel на устройство пользователя.
+class _ItemsExcelButton extends StatefulWidget {
+  const _ItemsExcelButton({
+    required this.requestNumber,
+    required this.items,
+  });
+
+  final String requestNumber;
+  final List<PurchaseRequestItem> items;
+
+  @override
+  State<_ItemsExcelButton> createState() => _ItemsExcelButtonState();
+}
+
+class _ItemsExcelButtonState extends State<_ItemsExcelButton> {
+  bool _busy = false;
+
+  Future<void> _export() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await exportPurchaseRequestItemsToDevice(
+        context: context,
+        requestNumber: widget.requestNumber,
+        items: widget.items,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Скачать позиции в Excel',
+      child: GTTextButton(
+        text: 'Excel',
+        icon: Icons.download_outlined,
+        dense: true,
+        onPressed: _busy ? null : () => unawaited(_export()),
+      ),
     );
   }
 }
