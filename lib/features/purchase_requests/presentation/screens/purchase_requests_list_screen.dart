@@ -26,7 +26,12 @@ import 'package:projectgt/presentation/widgets/app_drawer.dart';
 /// Экран реестра заявок на закупку.
 class PurchaseRequestsListScreen extends ConsumerStatefulWidget {
   /// Создаёт экран.
-  const PurchaseRequestsListScreen({super.key});
+  ///
+  /// [initialRequestId] — открыть заявку сразу (например, переход с главной).
+  const PurchaseRequestsListScreen({super.key, this.initialRequestId});
+
+  /// Идентификатор заявки для открытия при входе на экран.
+  final String? initialRequestId;
 
   @override
   ConsumerState<PurchaseRequestsListScreen> createState() =>
@@ -37,6 +42,26 @@ class _PurchaseRequestsListScreenState
     extends ConsumerState<PurchaseRequestsListScreen> {
   String? _selectedRequestId;
   final _mobileSearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final initialId = widget.initialRequestId;
+    if (initialId != null && initialId.isNotEmpty) {
+      _selectedRequestId = initialId;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PurchaseRequestsListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextId = widget.initialRequestId;
+    if (nextId != null &&
+        nextId.isNotEmpty &&
+        nextId != oldWidget.initialRequestId) {
+      setState(() => _selectedRequestId = nextId);
+    }
+  }
 
   @override
   void dispose() {

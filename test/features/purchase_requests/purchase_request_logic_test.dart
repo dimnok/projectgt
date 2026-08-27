@@ -523,4 +523,85 @@ void main() {
       );
     });
   });
+
+  group('isPurchaseRequestAwaitingUserApproval', () {
+    const userId = 'user-1';
+    const otherId = 'user-2';
+
+    PurchaseRequestSettings settings({
+      List<String> firstApprovers = const [userId],
+      List<String> invoiceApprovers = const [userId],
+    }) {
+      return PurchaseRequestSettings(
+        companyId: 'company-1',
+        firstApproverIds: firstApprovers,
+        invoicePreparerIds: const [userId],
+        invoiceApproverIds: invoiceApprovers,
+        accountantIds: const [userId],
+      );
+    }
+
+    test('true for first approver on approval status', () {
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.approval,
+          settings: settings(),
+          userId: userId,
+        ),
+        isTrue,
+      );
+    });
+
+    test('true for invoice approver on invoice_approval', () {
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.invoiceApproval,
+          settings: settings(invoiceApprovers: [otherId, userId]),
+          userId: userId,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false for other statuses', () {
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.invoicePreparation,
+          settings: settings(),
+          userId: userId,
+        ),
+        isFalse,
+      );
+    });
+
+    test('false if user is not in the role', () {
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.approval,
+          settings: settings(firstApprovers: [otherId]),
+          userId: userId,
+        ),
+        isFalse,
+      );
+    });
+
+    test('false without settings or user', () {
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.approval,
+          settings: null,
+          userId: userId,
+        ),
+        isFalse,
+      );
+      expect(
+        isPurchaseRequestAwaitingUserApproval(
+          status: PurchaseRequestStatus.approval,
+          settings: settings(),
+          userId: '',
+        ),
+        isFalse,
+      );
+    });
+  });
 }

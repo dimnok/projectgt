@@ -6,6 +6,7 @@ import 'package:projectgt/features/home/presentation/widgets/contract_progress_w
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_mobile_quick_actions.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_purchase_requests_approval_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_employee_applications_widget.dart';
@@ -28,6 +29,7 @@ class HomeMobileDashboard extends StatelessWidget {
       children: [
         const HomeMobileKpiSection(),
         const SizedBox(height: 24),
+        const HomePurchaseRequestsApprovalWidget(),
         const HomeMyOpenShiftEntry(),
         const HomeMobileQuickActions(),
         const SizedBox(height: 32),
@@ -110,7 +112,7 @@ class _MobileMainCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(

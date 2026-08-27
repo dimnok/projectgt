@@ -14,6 +14,9 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_settings.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_status.dart';
 import 'package:projectgt/features/purchase_requests/domain/repositories/purchase_request_repository.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
+import 'package:projectgt/features/roles/application/permission_service.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
 
 /// Лимит записей в одной загрузке списка заявок.
 const kPurchaseRequestListLimit = 50;
@@ -210,6 +213,61 @@ final purchaseRequestCompanyUsersProvider =
       return repo.getCompanyUsers();
     });
 
+/// Заявки, которые текущий пользователь должен согласовать сейчас.
+///
+/// Берёт роли из настроек маршрута и статусы `approval` / `invoice_approval`.
+/// Пустой список, если нет права читать модуль или пользователь не согласующий.
+final purchaseRequestsAwaitingMyApprovalProvider =
+    FutureProvider.autoDispose<List<PurchaseRequestListItem>>((ref) async {
+      final permissions = ref.watch(permissionServiceProvider);
+      final userId = ref.watch(authProvider).user?.id;
+      final repo = ref.watch(purchaseRequestRepositoryProvider);
+
+      if (!permissions.can('purchase_requests', 'read')) {
+        return const [];
+      }
+      if (userId == null || userId.isEmpty) return const [];
+
+      final canApprove = permissions.can('purchase_requests', 'approve');
+      final canApproveInvoice = permissions.can(
+        'purchase_requests',
+        'approve_invoice',
+      );
+      if (!canApprove && !canApproveInvoice) return const [];
+
+      final settings = await repo.getSettings();
+      if (settings == null) return const [];
+
+      final asFirst = canApprove && settings.firstApproverIds.contains(userId);
+      final asInvoice =
+          canApproveInvoice && settings.invoiceApproverIds.contains(userId);
+      if (!asFirst && !asInvoice) return const [];
+
+      final collected = <PurchaseRequestListItem>[];
+      if (asFirst) {
+        collected.addAll(
+          await repo.list(filter: PurchaseRequestListFilter.pendingApproval),
+        );
+      }
+      if (asInvoice) {
+        collected.addAll(
+          await repo.list(filter: PurchaseRequestListFilter.approved),
+        );
+      }
+
+      final filtered = collected
+          .where(
+            (item) => isPurchaseRequestAwaitingUserApproval(
+              status: item.status,
+              settings: settings,
+              userId: userId,
+            ),
+          )
+          .toList();
+      filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return filtered;
+    });
+
 /// Перезагружает реестр, сохраняя текущий фильтр и поиск.
 void refreshPurchaseRequestList(WidgetRef ref) {
   unawaited(ref.read(purchaseRequestListProvider.notifier).load(quiet: true));
@@ -221,5 +279,6 @@ void invalidatePurchaseRequestCaches(WidgetRef ref, String requestId) {
   ref.invalidate(purchaseRequestHistoryProvider(requestId));
   ref.invalidate(purchaseRequestItemsProvider(requestId));
   ref.invalidate(purchaseRequestInvoicesProvider(requestId));
+  ref.invalidate(purchaseRequestsAwaitingMyApprovalProvider);
   refreshPurchaseRequestList(ref);
 }

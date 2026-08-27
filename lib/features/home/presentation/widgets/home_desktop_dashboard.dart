@@ -4,6 +4,7 @@ import 'package:projectgt/features/home/presentation/widgets/contract_progress_w
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_kpi_section.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_my_open_shift_entry.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_desktop_quick_actions_bar.dart';
+import 'package:projectgt/features/home/presentation/widgets/home_purchase_requests_approval_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_shifts_summary_widget.dart';
 import 'package:projectgt/features/home/presentation/widgets/shifts_calendar_widgets.dart';
 import 'package:projectgt/features/home/presentation/widgets/home_employee_applications_widget.dart';
@@ -71,6 +72,7 @@ class HomeDesktopDashboard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const HomePurchaseRequestsApprovalWidget(),
                     const HomeMyOpenShiftEntry(),
                     _DesktopMainCard(
                       theme: theme,
@@ -194,10 +196,7 @@ class _DesktopMainCardState extends State<_DesktopMainCard> {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: widget.child,
-              ),
+              Padding(padding: const EdgeInsets.all(24), child: widget.child),
             ],
           ),
         ),

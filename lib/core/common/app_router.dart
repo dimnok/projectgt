@@ -38,6 +38,7 @@ import 'package:projectgt/features/cash_flow/presentation/screens/cash_flow_list
 import 'package:projectgt/features/settlements/presentation/screens/settlements_list_screen.dart';
 import 'package:projectgt/features/tmc/presentation/screens/tmc_list_screen.dart';
 import 'package:projectgt/features/purchase_requests/presentation/screens/purchase_requests_list_screen.dart';
+import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 // Telegram moderation экраны удалены
 import 'package:projectgt/core/navigation/app_module_availability.dart';
 import 'package:projectgt/core/navigation/app_route_observer.dart';
@@ -661,7 +662,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, child) {
               final service = ref.watch(permissionServiceProvider);
               if (service.can('purchase_requests', 'read')) {
-                return const PurchaseRequestsListScreen();
+                final requestId =
+                    state.uri.queryParameters[kPurchaseRequestIdQueryParam];
+                return PurchaseRequestsListScreen(
+                  initialRequestId: (requestId != null && requestId.isNotEmpty)
+                      ? requestId
+                      : null,
+                );
               }
               return _buildAccessDeniedScreen();
             },

@@ -1,7 +1,7 @@
 # Модуль Заявки на закупку (Purchase Requests)
 
-**Дата:** 26.08.2026  
-**Изменения:** выгрузка позиций заявки в Excel на устройство пользователя (кнопка **Excel** в секции «Позиции»; пакет `excel`; файл в Storage **не** сохраняется). Ранее (25.08.2026): таблица позиций в деталях заявки: «Наименование» и «Артикул» делят ширину (flex 3/2), артикул до 2 строк, при нехватке места — горизонтальный скролл (колонка больше не обрезается на 88 px). Ранее (22.08.2026): минимальная чистка API репозитория: из `list()` убраны неиспользуемые параметры (`objectId`, `status`, `createdBy`, `fromDate`, `toDate`, `offset`); из workflow-методов убраны опциональные параметры, которые UI не передавал (`comment` у `submit`/`approve`/`approveInvoice`/`queuePayment`; `paymentDate`/`comment` у `markPaid`; `receivedDate`/`comment` у `markReceived`). Комментарии остались только у `returnForRevision`, `returnInvoice`, `cancel`. Ранее: чистка модуля (Вариант 1): удалены неиспользуемые поля `itemsPreview` / `itemsCount` из `PurchaseRequestListItem` и из RPC `purchase_request_list` (миграция `20260822110000`, применена на прод через MCP `apply_migration`); агрегация `item_agg` убрана — меньше нагрузка на БД. Поле `currentAssigneeId` удалено из Dart-entity `PurchaseRequest` и `PurchaseRequestListItem` (в БД колонка `current_assignee_id` осталась для индекса `idx_purchase_requests_assignee`; в RPC RETURN сохранена для совместимости). Удалены 2 мёртвых теста на `currentAssigneeId` и 1 дублирующий тест; параметр `assigneeId` убран из builder'а `request()`. Тестов: 28 (было 30). Ранее: мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
+**Дата:** 27.08.2026  
+**Изменения:** на главной — блок «Нужно согласовать» для текущего согласующего (статусы `approval` / `invoice_approval`; права `approve` / `approve_invoice` + роль в настройках). Блок скрыт, если заявок нет. Нажатие открывает заявку через query `?requestId=` (`kPurchaseRequestIdQueryParam`; отдельный `/purchase_requests/:id` по-прежнему нет). Карточка: красный контур, полоса слева, значок «!», счётчик. Провайдер `purchaseRequestsAwaitingMyApprovalProvider`; сброс в `invalidatePurchaseRequestCaches`. Хелпер `isPurchaseRequestAwaitingUserApproval`. Тестов: 33 + 3 Excel = 36. Ранее (26.08.2026): выгрузка позиций заявки в Excel на устройство пользователя (кнопка **Excel** в секции «Позиции»; пакет `excel`; файл в Storage **не** сохраняется). Ранее (25.08.2026): таблица позиций в деталях заявки: «Наименование» и «Артикул» делят ширину (flex 3/2), артикул до 2 строк, при нехватке места — горизонтальный скролл (колонка больше не обрезается на 88 px). Ранее (22.08.2026): минимальная чистка API репозитория: из `list()` убраны неиспользуемые параметры (`objectId`, `status`, `createdBy`, `fromDate`, `toDate`, `offset`); из workflow-методов убраны опциональные параметры, которые UI не передавал (`comment` у `submit`/`approve`/`approveInvoice`/`queuePayment`; `paymentDate`/`comment` у `markPaid`; `receivedDate`/`comment` у `markReceived`). Комментарии остались только у `returnForRevision`, `returnInvoice`, `cancel`. Ранее: чистка модуля (Вариант 1): удалены неиспользуемые поля `itemsPreview` / `itemsCount` из `PurchaseRequestListItem` и из RPC `purchase_request_list` (миграция `20260822110000`, применена на прод через MCP `apply_migration`); агрегация `item_agg` убрана — меньше нагрузка на БД. Поле `currentAssigneeId` удалено из Dart-entity `PurchaseRequest` и `PurchaseRequestListItem` (в БД колонка `current_assignee_id` осталась для индекса `idx_purchase_requests_assignee`; в RPC RETURN сохранена для совместимости). Удалены 2 мёртвых теста на `currentAssigneeId` и 1 дублирующий тест; параметр `assigneeId` убран из builder'а `request()`. Тестов: 28 (было 30). Ранее: мобильная форма «Новая заявка» / правка черновика: лист снизу на всю ширину (`EmployeesLayoutUtils.useEmployeesDesktopModal` + `isDesktopSurface` — телефон в альбоме не получает центрированный диалог); позиции столбиком без серых карточек; ряд 50/50 «− кол-во +» и «ед. изм.»; «добавить»/«удалить» — круги 44×44, шаг количества — квадраты со скруглением как у `GTTextField` (16); при ≥2 позициях — подпись «Позиция N» и тонкий разделитель. Логика сохранения та же. `MobileBottomSheetContent`: опции `fillMaxHeight` / `showDragHandle` (по умолчанию выкл.). Ранее (22.08.2026): mobile-реестр — в шапке нет кнопок темы и настроек (остались меню, заголовок, «+»); карточки шире (`MobileAtmosphereMainSurface` padding 8, карточка horizontal 4); из карточки убрано перечисление позиций (`shortItemsLabel` удалён). Ранее (22.08.2026): desktop-диалог «Настройка согласующих» — ширина 880 px (обход лимита Material 3 Dialog 560 px), таймлайн из 5 этапов с подсказками, компактные dropdown 340 px, подвал «Отмена» / «Сохранить». Ранее (22.08.2026): несколько участников на роли маршрута (таблица `purchase_request_route_members`); на этапе действует **любой** из списка (OR), не цепочка обязательных согласований; настройки **живые** (смена списка сразу действует на заявки в работе); авторизация RPC/RLS/UI — `purchase_request_internal_user_is_assignee`, не `current_assignee_id`; RPC `purchase_request_upsert_settings` принимает массивы `uuid[]`; уведомления следующей роли — всем участникам (`purchase_request_internal_notify_role`). Ещё ранее (16.08.2026): мобильная форма позиций; фильтры реестра по статусу; вкладки «Мои» и «На мне» удалены.
 
 ---
 
@@ -18,15 +18,16 @@
 - **Поставщики** — контрагенты из `contractors` с типом `supplier`; выбор в диалоге счёта (`GTDropdown`, `contractorNotifierProvider`).
 - **Счета и файлы:** создание счёта — PostgREST INSERT + upload в Storage + INSERT в `purchase_request_files` (type = `invoice`). Если upload прошёл, а INSERT метаданных упал — объект в Storage удаляется, затем DELETE счёта. Отправка на согласование — только RPC `purchase_request_submit_invoices` (≥1 счёт, у каждого — файл). Update счёта в UI **нет** (только удаление + повторное добавление). **Просмотр и скачивание** — `storage.download` по `storage_path` (путь обязан начинаться с `activeCompanyId/`); UI-кнопки у всех, кто видит заявку (`purchase_request_can_read`); Storage SELECT — permission `read`.
 - **Нумерация:** `ЗП-YYYY-NNNNN` через `purchase_request_number_seq` + `purchase_request_internal_next_number`.
-- **Детали заявки** открываются **в том же экране** (правая панель на desktop, полноэкранная панель на mobile). Отдельный маршрут `/purchase_requests/:id` **удалён**.
+- **Детали заявки** открываются **в том же экране** (правая панель на desktop, полноэкранная панель на mobile). Отдельный маршрут `/purchase_requests/:id` **удалён**. Открытие с главной — query `?requestId=` (`PurchaseRequestsListScreen.initialRequestId`).
 - **ФИО в UI:** единая логика `pickProfileDisplayName` / `formatUserDisplayLabel` (`lib/core/utils/user_display_utils.dart`); в списке — RPC `purchase_request_list` (`created_by_name`); в деталях и истории — batch-запрос к `profiles`.
 - **Gate «Настройки» в UI:** `isCompanyOwnerProvider` → `Profile.isOwner` из `company_members.is_owner` (не `systemRole`). Кнопка «Настройки» — **только desktop** (левая панель). На mobile её нет: первичная настройка — экран-заглушка `_ModuleSetupPlaceholder` (owner). Смена темы — desktop-шапка; на mobile переключатель темы скрыт.
 - **Write без компании:** все мутации репозитория вызывают `_requireCompany()` → `PurchaseRequestCompanyRequiredException`.
 - **Свой черновик:** правка шапки/позиций и удаление заявки — только автор, только статус `draft` (RPC + UI). Право `view_all` чужой черновик удалить не может. На этапе `revision` можно менять позиции, но не шапку и не удалять заявку.
 - **Отмена:** не финальный статус. RPC `purchase_request_cancel` переводит заявку в `draft`, assignee = автор, причина пишется в историю (`action = cancelled`). Кнопка «Вернуть в черновик» скрыта у черновика и у «Получено». Статус `cancelled` в CHECK остаётся для старых данных; живые строки с ним переведены в `draft` миграцией `20260816194000`.
-- **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало бы фильтр на дефолт «Все»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search`.
+- **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало бы фильтр на дефолт «Все»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search` + сброс `purchaseRequestsAwaitingMyApprovalProvider` (блок на главной).
+- **Блок на главной:** не лента `purchase_request_notifications`, а **текущие** заявки, где пользователь согласующий (`isPurchaseRequestAwaitingUserApproval`). Push / колокольчик в модуле **нет**.
 - **Excel позиций:** файл собирается **на клиенте** (`PurchaseRequestItemsExcelExportService` + пакет `excel`) и сохраняется через `saveFileBytesToUserDevice`. В Storage и в БД Excel **не** пишется. Кнопка видна любому, кто видит заявку, если есть ≥1 позиция. Специального permission `export` нет (в матрице модуля код `export` отключён).
-- **Edge Functions:** в `supabase/functions/` нет функций модуля; инструмент MCP `list_edge_functions` в текущем сервере отсутствует (проверка 26.08.2026: ни одной `purchase_request*` функции в репозитории).
+- **Edge Functions:** в `supabase/functions/` нет функций модуля (проверка 27.08.2026: ни одной `purchase_request*` функции в репозитории).
 
 ---
 
@@ -71,7 +72,9 @@
 | Единый виджет фильтров mobile/desktop | ✅ `PurchaseRequestFilterBar` |
 | Редактирование счёта после создания | 🔴 только удаление + повторное добавление |
 | Отдельный блок «Документы» (не invoice) | 🔴 не реализовано |
-| UI уведомлений | 🔴 не реализовано |
+| Блок «Нужно согласовать» на главной | ✅ скрыт, если 0 заявок; красный контур + «!» |
+| Список in-app уведомлений из `purchase_request_notifications` | 🔴 не реализовано |
+| Push по заявкам | 🔴 нет (FCM только у смен) |
 | Удаление черновика / правка шапки (объект, комментарий) | ✅ только своя заявка в `draft` |
 
 ---
@@ -110,6 +113,7 @@
 - **excel** — клиентская сборка xlsx позиций (`PurchaseRequestItemsExcelExportService`)
 - **Objects** — выбор объекта при создании
 - **Contractors** — поставщики в диалоге счёта (`ContractorType.supplier`)
+- **Home** — `HomePurchaseRequestsApprovalWidget` (desktop центральная колонка / mobile после KPI); провайдер и хелпер — модуля заявок
 
 ---
 
@@ -119,7 +123,7 @@
 
 | Файл | Назначение |
 |------|------------|
-| `screens/purchase_requests_list_screen.dart` | Единый экран модуля: placeholder до настройки маршрута; desktop — двухпанельный layout; mobile — список карточек или панель деталей; state: `_selectedRequestId`. Mobile-шапка: меню / «Назад», заголовок, «+» (без темы и настроек) |
+| `screens/purchase_requests_list_screen.dart` | Единый экран модуля: placeholder до настройки маршрута; desktop — двухпанельный layout; mobile — список карточек или панель деталей; state: `_selectedRequestId`; опционально `initialRequestId` (query `requestId`). Mobile-шапка: меню / «Назад», заголовок, «+» (без темы и настроек) |
 | `screens/desktop/purchase_requests_list_desktop_view.dart` | Desktop: левая панель (поиск, фильтры, «Новая заявка», «Настройки») + правая область (таблица или детали) |
 
 ### Виджеты
@@ -145,7 +149,7 @@
 | `utils/purchase_request_invoice_file_flow.dart` | Скачивание и просмотр файла счёта (`downloadInvoiceFile` + `openAttachmentFilePreview`) |
 | `utils/purchase_request_items_excel_export.dart` | Клиентская сборка xlsx позиций (`PurchaseRequestItemsExcelExportService`) и сохранение на устройство (`exportPurchaseRequestItemsToDevice`); лист «Позиции»; имя `Заявка_{номер}.xlsx` |
 | `utils/purchase_request_ui_labels.dart` | Цвета статусов (`statusColor`), фразы истории (`historyActionPhrase`), `idleActionsMessage` |
-| `utils/purchase_request_module_utils.dart` | `isPurchaseRequestSettingsConfigured()`, `isPurchaseRequestStageAssignee()`, `formatPurchaseRequestAmount()`, `latestPurchaseRequestCancelComment()` |
+| `utils/purchase_request_module_utils.dart` | `isPurchaseRequestSettingsConfigured()`, `isPurchaseRequestStageAssignee()`, `isPurchaseRequestAwaitingUserApproval()`, `formatPurchaseRequestAmount()`, `latestPurchaseRequestCancelComment()`, `kPurchaseRequestIdQueryParam` |
 | `utils/purchase_request_form_dialog.dart` | `showPurchaseRequestFormDialog` — desktop `DesktopDialogContent`, mobile `MobileBottomSheetContent` (`useSafeArea: true`) |
 
 ### Провайдеры
@@ -160,10 +164,11 @@
 | `purchaseRequestInvoiceFileBusyIdsProvider` | Id файлов счетов, которые сейчас скачиваются или открываются (`family` по `requestId`) |
 | `purchaseRequestSettingsProvider` | Настройки компании |
 | `purchaseRequestCompanyUsersProvider` | Пользователи для dropdown настроек (используется в `PurchaseRequestSettingsDialog`) |
+| `purchaseRequestsAwaitingMyApprovalProvider` | Заявки на согласование для текущего пользователя (главная); `autoDispose` |
 
 **Хелперы:**
 - `refreshPurchaseRequestList(ref)` — `load(quiet: true)` без пересоздания notifier (фильтр и поиск сохраняются).
-- `invalidatePurchaseRequestCaches(ref, requestId)` — сброс кэша деталей, истории, позиций, **счетов** + `refreshPurchaseRequestList`.
+- `invalidatePurchaseRequestCaches(ref, requestId)` — сброс кэша деталей, истории, позиций, **счетов**, **блока на главной** + `refreshPurchaseRequestList`.
 
 **Company:** `isCompanyOwnerProvider` (`company_providers.dart`) — `profile.isOwner == true` для кнопки «Настройки» на desktop.
 
@@ -171,7 +176,7 @@
 
 ### Навигация и доступ
 
-- **Маршрут:** `/purchase_requests` (`app_router.dart`, name `purchase_requests`). Вложенный маршрут деталей **отсутствует** — выбор заявки через локальный state `_selectedRequestId`. Открытая панель не закрывается автоматически, если заявки нет в текущем фильтре списка (например черновик при «На согласовании»).
+- **Маршрут:** `/purchase_requests` (`app_router.dart`, name `purchase_requests`). Query `requestId` открывает заявку в том же экране (`initialRequestId`). Вложенный маршрут деталей **отсутствует**. Открытая панель не закрывается автоматически, если заявки нет в текущем фильтре списка (например черновик при «На согласовании»).
 - **Drawer:** пункт «Заявки на закупку» (`app_drawer.dart`)
 - **Матрица прав:** для `purchase_requests` отключены TMC-специфичные коды (`issue`, `move`, `repair`, …) в `permissions_matrix.dart`
 
@@ -303,9 +308,9 @@
 
 ### Архитектура слоёв
 
-- **Use Cases:** отсутствуют (`domain/use_cases/` нет). Бизнес-правила кнопок workflow — в `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`); gate настроек — `isPurchaseRequestSettingsConfigured()` (дублирует SQL `purchase_request_internal_settings_configured`); проверка «может действовать на этапе» — `isPurchaseRequestStageAssignee()` (дублирует SQL `purchase_request_internal_user_is_assignee`).
+- **Use Cases:** отсутствуют (`domain/use_cases/` нет). Бизнес-правила кнопок workflow — в `resolvePurchaseRequestActions` (`purchase_request_actions_bar.dart`); gate настроек — `isPurchaseRequestSettingsConfigured()` (дублирует SQL `purchase_request_internal_settings_configured`); проверка «может действовать на этапе» — `isPurchaseRequestStageAssignee()` (дублирует SQL `purchase_request_internal_user_is_assignee`); «ждёт согласования на главной» — `isPurchaseRequestAwaitingUserApproval()` (только `approval` / `invoice_approval`).
 - **Domain entities** с `fromRpcRow` / `fromJson`: `PurchaseRequestListItem`, `PurchaseRequestCompanyUser` — `fromRpcRow`; `PurchaseRequestHistoryEntry` — только `fromJson`; `PurchaseRequestInvoice` / `PurchaseRequestFile` — маппинг в `PurchaseRequestInvoiceModel` / `PurchaseRequestFileModel`. Маппинг в domain (техдолг: перенести остальное в `data/models`).
-- **Сущности без Dart-кода:** `purchase_request_notifications` — только таблица БД.
+- **Сущности без Dart-кода:** `purchase_request_notifications` — только таблица БД (записи пишутся RPC; UI ленты нет).
 
 ### Сущности (domain)
 
@@ -411,8 +416,11 @@ lib/features/purchase_requests/
         ├── purchase_request_status_badge.dart
         └── purchase_requests_table.dart
 
+lib/features/home/presentation/widgets/
+└── home_purchase_requests_approval_widget.dart  # блок «Нужно согласовать» на главной
+
 test/features/purchase_requests/
-├── purchase_request_logic_test.dart   # статусы, user_display_utils, resolvePurchaseRequestActions, invoices ready, previewable, idleActionsMessage, history fromJson, latestPurchaseRequestCancelComment, isPurchaseRequestSettingsConfigured (28 тестов)
+├── purchase_request_logic_test.dart   # статусы, user_display_utils, resolvePurchaseRequestActions, invoices ready, previewable, idleActionsMessage, history fromJson, latestPurchaseRequestCancelComment, isPurchaseRequestSettingsConfigured, isPurchaseRequestAwaitingUserApproval (33 теста)
 └── purchase_request_items_excel_export_test.dart  # fileNameFor, xlsx bytes (3 теста)
 
 lib/core/utils/
@@ -652,18 +660,18 @@ supabase/migrations/
 | `purchase_request_can_read` | RLS helper: `(company_id, created_by, status)` |
 | `purchase_request_recalc_total_amount` | Пересчёт `total_amount` по счетам |
 
-### Статистика live (22.08.2026 повторный аудит, MCP `pg_stat_user_tables.n_live_tup`)
+### Статистика live (27.08.2026, MCP `pg_stat_user_tables.n_live_tup`)
 
 | Таблица | Строк (оценка) |
 |---------|----------------|
-| `purchase_requests` | 3 |
-| `purchase_request_items` | 6 |
-| `purchase_request_history` | 19 |
+| `purchase_requests` | 6 |
+| `purchase_request_items` | 22 |
+| `purchase_request_history` | 30 |
 | `purchase_request_settings` | 1 |
-| `purchase_request_route_members` | 4 |
-| `purchase_request_notifications` | 10 |
-| `purchase_request_invoices` | 2 |
-| `purchase_request_files` | 2 |
+| `purchase_request_route_members` | 7 |
+| `purchase_request_notifications` | 33 |
+| `purchase_request_invoices` | 5 |
+| `purchase_request_files` | 5 |
 | `purchase_request_number_seq` | 1 |
 
 ---
@@ -844,7 +852,15 @@ stateDiagram-v2
 | `mark_paid` | все `receiver` **или** инициатор (см. выше) |
 | `cancel` | пользователь из **текущего** `current_assignee_id` (если не автор действия) и инициатор, если отмену сделал не он. Не рассылка всей роли |
 
-In-app UI уведомлений нет.
+In-app **ленты** из таблицы `purchase_request_notifications` нет. На главной показывается не эта таблица, а текущие заявки, где пользователь — согласующий:
+
+- статусы `approval` (роль `first_approver` + право `approve`) и `invoice_approval` (роль `invoice_approver` + право `approve_invoice`);
+- список через RPC `purchase_request_list` (`pending_approval` / `approved`) + фильтр `isPurchaseRequestAwaitingUserApproval`;
+- UI: `HomePurchaseRequestsApprovalWidget` — красный контур (`#DC2626` / `#F87171` в тёмной теме), полоса слева, значок `CupertinoIcons.exclamationmark`, бейдж с числом; до 5 строк, «Ещё N»;
+- пустой список / нет права / загрузка / ошибка — виджет не рисуется (`SizedBox.shrink`);
+- переход: `context.pushNamed('purchase_requests', queryParameters: {requestId})`.
+
+Push по заявкам нет.
 
 ### Нумерация
 
@@ -862,8 +878,9 @@ In-app UI уведомлений нет.
 | **Profiles** | ФИО в списке (RPC), деталях и истории (batch SELECT) |
 | **Supabase Storage** | приватный bucket **`purchase_requests`**; upload/delete в `createInvoiceWithFile` / `deleteInvoice`; download в `downloadInvoiceFile` (SELECT + `read`). Excel позиций в bucket **не** кладётся |
 | **excel** | Клиентская сборка xlsx позиций (`Excel.createExcel`, лист «Позиции») |
-| **Notifications** | Таблица + `purchase_request_internal_notify` / `purchase_request_internal_notify_role`; in-app UI отсутствует |
-| **Edge Functions** | Не используются (в `supabase/functions/` нет `purchase_request*`) |
+| **Notifications** | Таблица + `purchase_request_internal_notify` / `purchase_request_internal_notify_role`; лента в модуле отсутствует; на главной — текущие задачи согласующего, не unread из таблицы |
+| **Home** | `HomePurchaseRequestsApprovalWidget`; `docs/HOME_SCREEN.md` |
+| **Edge Functions** | Не используются (в `supabase/functions/` нет `purchase_request*`; проверка 27.08.2026) |
 
 ---
 
@@ -896,7 +913,7 @@ In-app UI уведомлений нет.
 - Gate «Настройки» через `isCompanyOwnerProvider` / `Profile.isOwner`
 - Методы репозитория: `updateHeader`, `deleteDraft`, `updateItem`
 - Общие утилиты ФИО (`user_display_utils.dart`)
-- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (**28** `test(`: статусы, ФИО, `resolvePurchaseRequestActions`, invoices, previewable, idle, history, `latestPurchaseRequestCancelComment`, `isPurchaseRequestSettingsConfigured`); `purchase_request_items_excel_export_test.dart` (**3** `test(`)
+- Юнит-тесты: `test/features/purchase_requests/purchase_request_logic_test.dart` (**33** `test(`: статусы, ФИО, `resolvePurchaseRequestActions`, invoices, previewable, idle, history, `latestPurchaseRequestCancelComment`, `isPurchaseRequestSettingsConfigured`, `isPurchaseRequestAwaitingUserApproval`); `purchase_request_items_excel_export_test.dart` (**3** `test(`)
 - Mobile-реестр: шапка без темы/настроек; карточки без превью позиций, увеличенная ширина
 - Панель деталей: KPI-сводка, таблица/карточки позиций, **секция счетов**, таймлайн истории, workflow actions, кнопки правки/удаления своего черновика
 - Mobile: карточки позиций в форме создания (`_PurchaseItemMobileCard`) и в деталях заявки (`_ItemsMobileList`, ширина &lt; 600 px)
@@ -906,12 +923,15 @@ In-app UI уведомлений нет.
 - Human-readable ошибки Supabase в списке и диалогах
 - Артикул при добавлении позиции из панели деталей
 - Выгрузка позиций заявки в Excel на устройство (`purchase_request_items_excel_export.dart`; без Storage; тесты `purchase_request_items_excel_export_test.dart`, 3 `test(`)
+- Блок «Нужно согласовать» на главной (`HomePurchaseRequestsApprovalWidget`, `purchaseRequestsAwaitingMyApprovalProvider`, query `requestId`)
+- Юнит-тесты: `purchase_request_logic_test.dart` (**33** `test(`) + Excel (**3**)
 
 ### Баги / техдолг 🟡
 
 - Редактирование счёта после создания — только удаление и повторное добавление (нет `updateInvoice` в UI; RLS UPDATE на `invoice_preparation` есть)
 - Отдельный блок «Документы» (файлы не типа `invoice`) не в UI
-- Уведомления пишутся в БД, но не отображаются
+- Уведомления пишутся в БД, но ленты в модуле нет (на главной — текущие задачи согласующего, не unread)
+- Push по заявкам нет
 - Нет UI для правки отдельной позиции вне диалога черновика (в `revision` — только «Добавить» / удалить строку)
 - Бизнес-логика workflow в presentation, не в domain use cases
 - `metadata` истории не маппится в entity и не показывается в таймлайне
@@ -925,7 +945,7 @@ In-app UI уведомлений нет.
 
 1. Редактирование счёта (update полей / замена файла без удаления)
 2. Секция «Документы» с Storage (типы кроме `invoice`)
-3. Badge / список уведомлений в модуле
+3. Badge / список in-app уведомлений в модуле (таблица `purchase_request_notifications`) и/или push
 4. Domain use cases / перенос `resolvePurchaseRequestActions` из виджета
 5. RPC или view для истории с `user_name` (убрать batch на клиенте)
 6. Маппинг `metadata` истории в entity и отображение в таймлайне
@@ -954,4 +974,4 @@ In-app UI уведомлений нет.
 
 ---
 
-*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/core/widgets/attachment_file_preview.dart`, `lib/core/utils/attachment_file_save.dart`), миграций `supabase/migrations/` и live PostgreSQL (`api.progt.ru`, MCP `execute_sql`, 26.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет. Схема БД без изменений (выгрузка Excel — только клиент).*
+*Документ подготовлен по аудиту кода (`lib/features/purchase_requests/`, `lib/features/home/presentation/widgets/home_purchase_requests_approval_widget.dart`, `lib/core/common/app_router.dart`, `lib/core/widgets/attachment_file_preview.dart`, `lib/core/utils/attachment_file_save.dart`), миграций `supabase/migrations/` и live PostgreSQL (`api.progt.ru`, MCP `execute_sql`, 27.08.2026). RLS: все таблицы модуля ✅ кроме `purchase_request_number_seq` ❌. Bucket `purchase_requests` **private**. Edge Functions модуля в `supabase/functions/` нет. Схема БД без изменений (блок на главной и query `requestId` — только клиент).*

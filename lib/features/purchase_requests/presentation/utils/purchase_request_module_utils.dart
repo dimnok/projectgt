@@ -59,6 +59,27 @@ bool isPurchaseRequestStageAssignee({
   return ids.contains(userId);
 }
 
+/// Заявка или счета ждут согласования текущим пользователем.
+///
+/// Совпадает с ролями `first_approver` / `invoice_approver` в настройках маршрута.
+bool isPurchaseRequestAwaitingUserApproval({
+  required PurchaseRequestStatus status,
+  required PurchaseRequestSettings? settings,
+  required String userId,
+}) {
+  if (settings == null || userId.isEmpty) return false;
+  if (status == PurchaseRequestStatus.approval) {
+    return settings.firstApproverIds.contains(userId);
+  }
+  if (status == PurchaseRequestStatus.invoiceApproval) {
+    return settings.invoiceApproverIds.contains(userId);
+  }
+  return false;
+}
+
+/// Query-параметр маршрута `/purchase_requests` для открытия конкретной заявки.
+const kPurchaseRequestIdQueryParam = 'requestId';
+
 /// Последняя причина возврата в черновик из истории заявки.
 String? latestPurchaseRequestCancelComment(
   List<PurchaseRequestHistoryEntry> entries,
