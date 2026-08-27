@@ -20,10 +20,7 @@ class RolesListScreen extends ConsumerStatefulWidget {
   final String? initialRoleId;
 
   /// Конструктор экрана управления ролями.
-  const RolesListScreen({
-    super.key,
-    this.initialRoleId,
-  });
+  const RolesListScreen({super.key, this.initialRoleId});
 
   @override
   ConsumerState<RolesListScreen> createState() => _RolesListScreenState();
@@ -56,29 +53,24 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
       vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _panelAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _panelAnimationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
-    _widthAnimation = Tween<double>(
-      begin: 0.0,
-      end: 300.0,
-    ).animate(CurvedAnimation(
-      parent: _panelAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _widthAnimation = Tween<double>(begin: 0.0, end: 300.0).animate(
+      CurvedAnimation(
+        parent: _panelAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _panelAnimationController,
-      curve: Curves.easeIn,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _panelAnimationController, curve: Curves.easeIn),
+    );
   }
 
   @override
@@ -196,8 +188,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                           Text(
                             'Мобильная версия в разработке',
                             style: theme.textTheme.titleLarge?.copyWith(
-                              color:
-                                  isDark ? Colors.grey[400] : Colors.grey[600],
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -206,8 +199,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                             'Пожалуйста, используйте десктопную версию\nдля управления ролями',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color:
-                                  isDark ? Colors.grey[600] : Colors.grey[400],
+                              color: isDark
+                                  ? Colors.grey[600]
+                                  : Colors.grey[400],
                             ),
                           ),
                         ],
@@ -215,20 +209,21 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                     );
                   }
                   return _buildDesktopLayout(
-                      theme, isDark, sortedRoles, modules);
+                    theme,
+                    isDark,
+                    sortedRoles,
+                    modules,
+                  );
                 },
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Text('Ошибка загрузки модулей: $error'),
-            ),
+            error: (error, stack) =>
+                Center(child: Text('Ошибка загрузки модулей: $error')),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Text('Ошибка: $error'),
-        ),
+        error: (error, stack) => Center(child: Text('Ошибка: $error')),
       ),
     );
   }
@@ -252,9 +247,17 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
         decoration: BoxDecoration(
           color: isDark
               ? const Color.fromRGBO(
-                  38, 40, 42, 1) // Тёмно-серый с минимальной голубизной
+                  38,
+                  40,
+                  42,
+                  1,
+                ) // Тёмно-серый с минимальной голубизной
               : const Color.fromRGBO(
-                  248, 249, 250, 1), // Очень светло-серый с лёгким оттенком
+                  248,
+                  249,
+                  250,
+                  1,
+                ), // Очень светло-серый с лёгким оттенком
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
@@ -322,10 +325,12 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
-                                      title:
-                                          const Text('Несохраненные изменения'),
+                                      title: const Text(
+                                        'Несохраненные изменения',
+                                      ),
                                       content: const Text(
-                                          'У вас есть несохраненные изменения. Сохранить их перед переключением?'),
+                                        'У вас есть несохраненные изменения. Сохранить их перед переключением?',
+                                      ),
                                       actions: [
                                         TextButton(
                                           onPressed: () {
@@ -338,8 +343,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                               _selectedRoleId = role.id;
                                             });
                                           },
-                                          child:
-                                              const Text('Отменить изменения'),
+                                          child: const Text(
+                                            'Отменить изменения',
+                                          ),
                                         ),
                                         FilledButton(
                                           onPressed: () {
@@ -382,7 +388,8 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        'Роль "${result['name']}" создана'),
+                                      'Роль "${result['name']}" создана',
+                                    ),
                                     backgroundColor:
                                         CupertinoColors.systemGreen,
                                     behavior: SnackBarBehavior.floating,
@@ -397,7 +404,8 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        'Ошибка: ${e.toString().replaceAll('Exception: ', '')}'),
+                                      'Ошибка: ${e.toString().replaceAll('Exception: ', '')}',
+                                    ),
                                     backgroundColor: CupertinoColors.systemRed,
                                     behavior: SnackBarBehavior.floating,
                                     shape: RoundedRectangleBorder(
@@ -486,8 +494,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
     domain.Role selectedRole,
     List<domain.Module> modules,
   ) {
-    final permissionsAsync =
-        ref.watch(rolePermissionsProvider(selectedRole.id));
+    final permissionsAsync = ref.watch(
+      rolePermissionsProvider(selectedRole.id),
+    );
 
     return Column(
       children: [
@@ -528,7 +537,7 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                 children: [
                   // Матрица прав
                   Expanded(
-                    child: SingleChildScrollView(
+                    child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: PermissionsMatrix(
                         role: selectedRole,
@@ -556,8 +565,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                     .remove(pId);
                               } else {
                                 // Иначе записываем в temp
-                                _tempPermissions[selectedRole.id]![moduleId]![
-                                    pId] = value;
+                                _tempPermissions[selectedRole
+                                        .id]![moduleId]![pId] =
+                                    value;
                               }
                             }
 
@@ -568,8 +578,9 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                             if (_tempPermissions[selectedRole.id]![moduleId]
                                     ?.isEmpty ??
                                 false) {
-                              _tempPermissions[selectedRole.id]!
-                                  .remove(moduleId);
+                              _tempPermissions[selectedRole.id]!.remove(
+                                moduleId,
+                              );
                             }
                             if (_tempPermissions[selectedRole.id]?.isEmpty ??
                                 false) {
@@ -625,22 +636,23 @@ class _RolesListScreenState extends ConsumerState<RolesListScreen>
                                     onRevertChange: (moduleId, permId) {
                                       setState(() {
                                         // Отменяем конкретное изменение
-                                        if (_tempPermissions[selectedRole.id]
-                                                ?[moduleId] !=
+                                        if (_tempPermissions[selectedRole
+                                                .id]?[moduleId] !=
                                             null) {
-                                          _tempPermissions[selectedRole.id]![
-                                                  moduleId]!
+                                          _tempPermissions[selectedRole
+                                                  .id]![moduleId]!
                                               .remove(permId);
-                                          if (_tempPermissions[
-                                                  selectedRole.id]![moduleId]!
+                                          if (_tempPermissions[selectedRole
+                                                  .id]![moduleId]!
                                               .isEmpty) {
                                             _tempPermissions[selectedRole.id]!
                                                 .remove(moduleId);
                                           }
                                           if (_tempPermissions[selectedRole.id]!
                                               .isEmpty) {
-                                            _tempPermissions
-                                                .remove(selectedRole.id);
+                                            _tempPermissions.remove(
+                                              selectedRole.id,
+                                            );
                                           }
                                         }
                                         _hasChanges =
