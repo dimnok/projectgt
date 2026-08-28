@@ -163,6 +163,7 @@ class _PurchaseRequestsListScreenState
                   else if (useMobile) ...[
                     PurchaseRequestFilterBar.mobile(
                       filter: listState.filter,
+                      counts: listState.counts,
                       onChanged: listNotifier.setFilter,
                     ),
                     if (listState.isTruncatedByLimit)

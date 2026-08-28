@@ -104,6 +104,7 @@ class _PurchaseRequestsListDesktopViewState
                 canCreate: widget.canCreate,
                 isOwner: widget.isOwner,
                 filter: listState.filter,
+                counts: listState.counts,
                 onFilterChanged: listNotifier.setFilter,
                 onSearchChanged: listNotifier.setSearchQuery,
                 onCreate: widget.onCreate,
@@ -132,6 +133,7 @@ class _PurchaseRequestsSidebar extends StatelessWidget {
     required this.canCreate,
     required this.isOwner,
     required this.filter,
+    this.counts,
     required this.onFilterChanged,
     required this.onSearchChanged,
     required this.onCreate,
@@ -142,6 +144,7 @@ class _PurchaseRequestsSidebar extends StatelessWidget {
   final bool canCreate;
   final bool isOwner;
   final PurchaseRequestListFilter filter;
+  final Map<PurchaseRequestListFilter, int>? counts;
   final ValueChanged<PurchaseRequestListFilter> onFilterChanged;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onCreate;
@@ -202,6 +205,7 @@ class _PurchaseRequestsSidebar extends StatelessWidget {
               children: [
                 PurchaseRequestFilterBar.desktopSidebar(
                   filter: filter,
+                  counts: counts,
                   onChanged: onFilterChanged,
                 ),
               ],
@@ -246,40 +250,41 @@ class _PurchaseRequestsContentPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+    if (listState.error != null) {
+      return Center(child: Text(listState.error!));
+    }
+
+    if (selectedRequestId != null) {
+      return PurchaseRequestDetailsPanel(
+        key: ValueKey(selectedRequestId),
+        requestId: selectedRequestId!,
+        showCloseButton: true,
+        onClose: onCloseDetails,
+        onDeleted: onCloseDetails,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: ColoredBox(
+        color: isDark ? Colors.grey[900]! : Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (listState.isTruncatedByLimit)
+              const PurchaseRequestListLimitBanner(
+                limit: kPurchaseRequestListLimit,
+              ),
+            Expanded(
+              child: PurchaseRequestsTable(
+                items: listState.items,
+                isLoading: listState.isLoading,
+                onRowTap: (item) => onSelectRequest(item.id),
+              ),
+            ),
+          ],
         ),
       ),
-      child: listState.error != null
-          ? Center(child: Text(listState.error!))
-          : selectedRequestId != null
-              ? PurchaseRequestDetailsPanel(
-                  key: ValueKey(selectedRequestId),
-                  requestId: selectedRequestId!,
-                  showCloseButton: true,
-                  onClose: onCloseDetails,
-                  onDeleted: onCloseDetails,
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (listState.isTruncatedByLimit)
-                      const PurchaseRequestListLimitBanner(
-                        limit: kPurchaseRequestListLimit,
-                      ),
-                    Expanded(
-                      child: PurchaseRequestsTable(
-                        items: listState.items,
-                        isLoading: listState.isLoading,
-                        onRowTap: (item) => onSelectRequest(item.id),
-                      ),
-                    ),
-                  ],
-                ),
     );
   }
 }

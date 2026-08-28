@@ -7,6 +7,7 @@ import 'package:projectgt/features/purchase_requests/domain/entities/purchase_re
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_file.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_invoice.dart';
 import 'package:projectgt/features/purchase_requests/domain/entities/purchase_request_history_entry.dart';
+import 'package:projectgt/features/purchase_requests/presentation/state/purchase_request_providers.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_invoice_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_module_utils.dart';
 import 'package:projectgt/features/purchase_requests/presentation/utils/purchase_request_ui_labels.dart';
@@ -654,6 +655,32 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('PurchaseRequestListState with counts', () {
+    test('copyWith updates and preserves filter counts', () {
+      const state = PurchaseRequestListState();
+      expect(state.counts, isNull);
+
+      final withCounts = state.copyWith(
+        counts: {
+          PurchaseRequestListFilter.pendingApproval: 2,
+          PurchaseRequestListFilter.approved: 5,
+          PurchaseRequestListFilter.all: 9,
+          PurchaseRequestListFilter.archive: 2,
+        },
+      );
+
+      expect(withCounts.counts?[PurchaseRequestListFilter.pendingApproval], 2);
+      expect(withCounts.counts?[PurchaseRequestListFilter.approved], 5);
+      expect(withCounts.counts?[PurchaseRequestListFilter.all], 9);
+      expect(withCounts.counts?[PurchaseRequestListFilter.archive], 2);
+
+      final nextState = withCounts.copyWith(
+        filter: PurchaseRequestListFilter.pendingApproval,
+      );
+      expect(nextState.counts?[PurchaseRequestListFilter.all], 9);
     });
   });
 }

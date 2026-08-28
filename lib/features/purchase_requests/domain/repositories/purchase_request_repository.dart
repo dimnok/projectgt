@@ -16,6 +16,9 @@ abstract class PurchaseRequestRepository {
     int limit = 50,
   });
 
+  /// Количество заявок по категориям фильтра (RPC).
+  Future<Map<PurchaseRequestListFilter, int>> getCounts({String? search});
+
   /// Карточка заявки.
   Future<PurchaseRequest?> getRequest(String id);
 

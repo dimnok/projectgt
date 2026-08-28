@@ -19,6 +19,7 @@ class PurchaseRequestFilterBar extends StatelessWidget {
     super.key,
     required this.filter,
     required this.onChanged,
+    this.counts,
     this.layout = PurchaseRequestFilterBarLayout.horizontalChips,
     this.padding,
     this.spacing = 8,
@@ -29,11 +30,13 @@ class PurchaseRequestFilterBar extends StatelessWidget {
     Key? key,
     required PurchaseRequestListFilter filter,
     required ValueChanged<PurchaseRequestListFilter> onChanged,
+    Map<PurchaseRequestListFilter, int>? counts,
   }) {
     return PurchaseRequestFilterBar(
       key: key,
       filter: filter,
       onChanged: onChanged,
+      counts: counts,
       layout: PurchaseRequestFilterBarLayout.horizontalChips,
     );
   }
@@ -43,11 +46,13 @@ class PurchaseRequestFilterBar extends StatelessWidget {
     Key? key,
     required PurchaseRequestListFilter filter,
     required ValueChanged<PurchaseRequestListFilter> onChanged,
+    Map<PurchaseRequestListFilter, int>? counts,
   }) {
     return PurchaseRequestFilterBar(
       key: key,
       filter: filter,
       onChanged: onChanged,
+      counts: counts,
       layout: PurchaseRequestFilterBarLayout.verticalSidebar,
       padding: EdgeInsets.zero,
     );
@@ -58,6 +63,9 @@ class PurchaseRequestFilterBar extends StatelessWidget {
 
   /// Обработчик смены фильтра.
   final ValueChanged<PurchaseRequestListFilter> onChanged;
+
+  /// Количество заявок по категориям фильтра.
+  final Map<PurchaseRequestListFilter, int>? counts;
 
   /// Раскладка.
   final PurchaseRequestFilterBarLayout layout;
@@ -71,8 +79,10 @@ class PurchaseRequestFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = PurchaseRequestListFilter.values.map((f) {
+      final count = counts?[f];
+      final label = count != null ? '${f.label} ($count)' : f.label;
       return _PurchaseRequestFilterOption(
-        label: f.label,
+        label: label,
         selected: f == filter,
         layout: layout,
         onTap: () => onChanged(f),

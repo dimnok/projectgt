@@ -40,6 +40,7 @@ class PurchaseRequestListState {
     this.filter = PurchaseRequestListFilter.all,
     this.search,
     this.isTruncatedByLimit = false,
+    this.counts,
   });
 
   /// Элементы реестра.
@@ -60,6 +61,9 @@ class PurchaseRequestListState {
   /// Список обрезан лимитом [kPurchaseRequestListLimit].
   final bool isTruncatedByLimit;
 
+  /// Количество заявок по категориям фильтра.
+  final Map<PurchaseRequestListFilter, int>? counts;
+
   /// Копия с изменениями.
   PurchaseRequestListState copyWith({
     List<PurchaseRequestListItem>? items,
@@ -68,6 +72,7 @@ class PurchaseRequestListState {
     PurchaseRequestListFilter? filter,
     String? search,
     bool? isTruncatedByLimit,
+    Map<PurchaseRequestListFilter, int>? counts,
     bool clearError = false,
     bool clearSearch = false,
   }) {
@@ -78,6 +83,7 @@ class PurchaseRequestListState {
       filter: filter ?? this.filter,
       search: clearSearch ? null : (search ?? this.search),
       isTruncatedByLimit: isTruncatedByLimit ?? this.isTruncatedByLimit,
+      counts: counts ?? this.counts,
     );
   }
 }
@@ -135,13 +141,19 @@ class PurchaseRequestListNotifier
       state = state.copyWith(isLoading: true, clearError: true);
     }
     try {
-      final items = await _repository.list(
-        filter: state.filter,
-        search: state.search,
-        limit: kPurchaseRequestListLimit,
-      );
+      final results = await Future.wait([
+        _repository.list(
+          filter: state.filter,
+          search: state.search,
+          limit: kPurchaseRequestListLimit,
+        ),
+        _repository.getCounts(search: state.search),
+      ]);
+      final items = results[0] as List<PurchaseRequestListItem>;
+      final counts = results[1] as Map<PurchaseRequestListFilter, int>;
       state = state.copyWith(
         items: items,
+        counts: counts,
         isLoading: false,
         isTruncatedByLimit: items.length >= kPurchaseRequestListLimit,
         clearError: true,

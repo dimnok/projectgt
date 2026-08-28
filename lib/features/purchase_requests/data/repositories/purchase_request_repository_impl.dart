@@ -106,6 +106,42 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
+  Future<Map<PurchaseRequestListFilter, int>> getCounts({String? search}) async {
+    if (!_hasCompany) {
+      return {
+        for (final filter in PurchaseRequestListFilter.values) filter: 0,
+      };
+    }
+
+    final response = await client.rpc(
+      'purchase_request_counts',
+      params: {
+        'p_company_id': activeCompanyId,
+        'p_search': search,
+      },
+    );
+
+    final rows = response as List;
+    if (rows.isEmpty) {
+      return {
+        for (final filter in PurchaseRequestListFilter.values) filter: 0,
+      };
+    }
+
+    final map = Map<String, dynamic>.from(rows.first as Map);
+    return {
+      PurchaseRequestListFilter.pendingApproval:
+          (map['pending_approval'] as num?)?.toInt() ?? 0,
+      PurchaseRequestListFilter.approved:
+          (map['approved'] as num?)?.toInt() ?? 0,
+      PurchaseRequestListFilter.all:
+          (map['all_count'] as num?)?.toInt() ?? 0,
+      PurchaseRequestListFilter.archive:
+          (map['archive'] as num?)?.toInt() ?? 0,
+    };
+  }
+
+  @override
   Future<PurchaseRequest?> getRequest(String id) async {
     if (!_hasCompany || id.isEmpty) return null;
 

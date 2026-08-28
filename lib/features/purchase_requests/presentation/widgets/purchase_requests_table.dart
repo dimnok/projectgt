@@ -29,76 +29,69 @@ class PurchaseRequestsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GTSectionTitle(title: 'Заявки (${items.length})'),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: GTSectionTitle(title: 'Заявки (${items.length})'),
+        ),
+        _buildHeader(theme),
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: theme.colorScheme.outline.withValues(alpha: 0.12),
+        ),
+        Expanded(child: _buildBody(theme)),
+      ],
+    );
+  }
+
+  Widget _buildBody(ThemeData theme) {
+    if (items.isEmpty) {
+      return isLoading
+          ? const Center(child: CupertinoActivityIndicator())
+          : Center(
+              child: Text(
+                'Нет заявок',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
                 ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  _buildHeader(theme),
-                  const Divider(height: 1, thickness: 1),
-                  Expanded(
-                    child: items.isEmpty
-                        ? (isLoading
-                            ? const Center(child: CupertinoActivityIndicator())
-                            : Center(
-                                child: Text(
-                                  'Нет заявок',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.hintColor,
-                                  ),
-                                ),
-                              ))
-                        : Stack(
-                            children: [
-                              ListView.separated(
-                                itemCount: items.length,
-                                separatorBuilder: (_, __) =>
-                                    const Divider(height: 1),
-                                itemBuilder: (context, index) {
-                                  return _PurchaseRequestRow(
-                                    item: items[index],
-                                    onTap: () => onRowTap(items[index]),
-                                  );
-                                },
-                              ),
-                              if (isLoading)
-                                const Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: CupertinoActivityIndicator(),
-                                  ),
-                                ),
-                            ],
-                          ),
-                  ),
-                ],
-              ),
+            );
+    }
+
+    return Stack(
+      children: [
+        ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            thickness: 1,
+            color: theme.colorScheme.outline.withValues(alpha: 0.08),
+          ),
+          itemBuilder: (context, index) {
+            return _PurchaseRequestRow(
+              item: items[index],
+              onTap: () => onRowTap(items[index]),
+            );
+          },
+        ),
+        if (isLoading)
+          const Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: CupertinoActivityIndicator(),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: theme.colorScheme.onSurface.withValues(alpha: 0.03),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
           Expanded(flex: 2, child: _headerText('Номер', theme)),
@@ -143,7 +136,7 @@ class _PurchaseRequestRow extends StatelessWidget {
         onTap: onTap,
         hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
               Expanded(
