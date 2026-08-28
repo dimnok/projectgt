@@ -85,6 +85,34 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Дефолтный max-rows PostgREST; без `.range()` ответ обрезается (часто 1000 строк). */
+const POSTGREST_PAGE_SIZE = 1000;
+
+/**
+ * Загружает все строки выборки, обходя лимит max-rows PostgREST (повторные запросы с `.range`).
+ *
+ * [fetchPage] возвращает строки с индексами [from, to] включительно в порядке сортировки запроса.
+ */
+async function fetchAllPages<T>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const acc: T[] = [];
+  let offset = 0;
+  for (;;) {
+    const to = offset + POSTGREST_PAGE_SIZE - 1;
+    const { data, error } = await fetchPage(offset, to);
+    if (error) throw error;
+    const batch = data ?? [];
+    acc.push(...batch);
+    if (batch.length < POSTGREST_PAGE_SIZE) break;
+    offset += POSTGREST_PAGE_SIZE;
+  }
+  return acc;
+}
+
 /** Соответствует `payoutsByEmployeeAndMonthFIFOProvider` в `payroll_providers.dart`. */
 function buildFifoForYear(
   year: number,
@@ -348,15 +376,17 @@ serve(async (req: Request) => {
       }
     }
 
-    const { data: payoutRows, error: payErr } = await supabase
-      .from("payroll_payout")
-      .select("employee_id, amount, payout_date")
-      .eq("company_id", companyId)
-      .order("payout_date", { ascending: false });
+    const payoutRows = await fetchAllPages<PayoutRow>((from, to) =>
+      supabase
+        .from("payroll_payout")
+        .select("employee_id, amount, payout_date")
+        .eq("company_id", companyId)
+        .order("payout_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    );
 
-    if (payErr) throw payErr;
-
-    const allPayouts: PayoutRow[] = (payoutRows as PayoutRow[] ?? []).map((p) => ({
+    const allPayouts: PayoutRow[] = (payoutRows ?? []).map((p) => ({
       employee_id: p.employee_id,
       amount: num(p.amount),
       payout_date: p.payout_date,

@@ -1,6 +1,10 @@
 # Детализация расчетов модуля ФОТ
 
-**Дата:** 23 августа 2026 года (аудит RPC на self-hosted)
+**Дата:** 28 августа 2026 года
+
+**Изменения 28.08.2026:**
+- Клиент FIFO и `export-payroll` загружают выплаты порциями по 1000, иначе PostgREST отбрасывает старые строки.
+- Часы для ФОТ и PDF: `TimesheetDataSource` / `EmployeeAttendanceDataSource` (порции по 1000). Отдельный SELECT часов в ФОТ убран.
 
 **Изменения 23.08.2026:**
 - Фильтр объектов: при заданном `p_object_ids` премии и штрафы без `object_id` в срез не входят; выплата не создаёт строку ведомости. Правило то же на вкладках «Премии» / «Штрафы» (`inFilter('object_id', …)`).
@@ -47,7 +51,7 @@
 ### 2. Клиентский fallback
 
 `_calculatePayrollClientSide` в `payroll_providers.dart`:
-- Часы из `payrollWorkHoursProvider` (закрытые смены + attendance за месяц). **Фильтр объектов на часы не накладывается.**
+- Часы из `payrollWorkHoursProvider` → табель (`getTimesheetEntries` + `getAttendanceRecords`) за месяц. **Фильтр объектов на часы не накладывается.**
 - Премии/штрафы из `bonusesByFilterProvider` / `penaltiesByFilterProvider` (фильтр объектов есть).
 - Выплаты добавляют сотрудника в список только без фильтра объектов.
 - Ставка дня: `getEmployeeRateForDateUseCase`. Суточные: `getActiveRateForEmployeeAndDate`.
@@ -63,7 +67,7 @@
 Клиент (`payoutsByEmployeeAndMonthFIFOProvider`) и Excel (`buildFifoForYear` в `export-payroll`) считают одинаково:
 
 1. Исторический долг: RPC `calculate_employee_balances_before_date(p_before_date timestamptz, p_company_id uuid)` на `YYYY-01-01`. Берётся колонка `accruals_sum`.
-2. Все выплаты компании, сортировка по дате.
+2. Все выплаты компании, сортировка по дате. Загрузка порциями по 1000 строк (`payout_date`, `id`).
 3. 12 вызовов `calculate_payroll_for_month` **без** `p_object_ids` — `net_salary` месяца.
 4. Каждая выплата: сначала гасит долг до года, затем месяцы 1–12 с `net_salary > 0`.
 5. Если остаток выплаты некуда отнести и `payout_date.year == выбранный год` — сумма идёт в календарный месяц даты выплаты.

@@ -1,6 +1,8 @@
 # Структура интерфейса модуля ФОТ
 
-**Дата актуализации:** 23 августа 2026 года
+**Дата актуализации:** 28 августа 2026 года
+
+> **Изменения 28.08.2026:** `allPayoutsProvider` → `PayrollPayoutRepository.getAllPayouts()` (пагинация PostgREST 1000). Формула FIFO не менялась.
 
 > **Изменения 23.08.2026 (фильтр объектов, аудит):** На вкладках «Премии» и «Штрафы» при выбранных объектах в список входят только записи с `object_id` из фильтра (`inFilter`, без записей без объекта). Фильтр объектов на вкладке «Выплаты» по-прежнему отключён (у выплат нет `object_id`). На вкладке ФОТ при выбранном объекте `_groupPayrolls` не добавляет штат без начислений. Канон расчёта и RLS: `docs/fot/fot_module.md`.
 
@@ -247,7 +249,7 @@
 | `availableObjectsForPayrollProvider` | `payroll_filter_providers.dart` | Список объектов для dropdown |
 | `filteredPayrollsProvider` | `payroll_providers.dart` | Расчёты за период (RPC / fallback) |
 | `payoutsByEmployeeAndMonthFIFOProvider` | `payroll_providers.dart` | FIFO за год: выплаты и балансы по месяцам 1–12 |
-| `allPayoutsProvider` | `payroll_providers.dart` | Все выплаты компании (вход FIFO) |
+| `allPayoutsProvider` | `payroll_providers.dart` | Все выплаты компании (вход FIFO); порции по 1000 строк |
 | `employeeAggregatedBalanceProvider` | `balance_providers.dart` | Баланс за всё время (форма массовых выплат) |
 | `singleEmployeeBalanceProvider` | `balance_providers.dart` | Баланс одного сотрудника (профиль) |
 | `employeeBalanceAtDateProvider` | `balance_providers.dart` | Баланс на дату (заготовка под фильтр «закрытых» сотрудников; RPC `calculate_employee_balances_at_date`) |

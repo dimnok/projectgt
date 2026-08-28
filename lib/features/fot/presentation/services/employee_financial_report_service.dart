@@ -6,21 +6,31 @@ import 'package:projectgt/features/fot/domain/entities/payroll_calculation.dart'
 import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
 import 'package:projectgt/features/fot/presentation/services/payroll_pdf_service.dart';
 import 'package:projectgt/features/fot/presentation/providers/payroll_providers.dart';
+import 'package:projectgt/features/timesheet/data/datasources/employee_attendance_data_source.dart';
+import 'package:projectgt/features/timesheet/data/datasources/timesheet_data_source.dart';
+import 'package:projectgt/features/timesheet/presentation/providers/repositories_providers.dart';
 import 'package:collection/collection.dart';
 
 /// Сервис для формирования данных финансового отчета по конкретному сотруднику.
 ///
 /// Инкапсулирует логику сбора данных из разных источников:
 /// - История ставок (employee_rates)
-/// - Отработанные часы (work_hours + employee_attendance)
+/// - Отработанные часы (табель: закрытые смены + ручной ввод)
 /// - Выплаты (payroll_payout)
 /// - Расчеты через RPC (calculate_payroll_for_month)
 class EmployeeFinancialReportService {
   final SupabaseClient _client;
   final String? _activeCompanyId;
+  final TimesheetDataSource _timesheetDataSource;
+  final EmployeeAttendanceDataSource _attendanceDataSource;
 
   /// Создает экземпляр [EmployeeFinancialReportService].
-  EmployeeFinancialReportService(this._client, this._activeCompanyId);
+  EmployeeFinancialReportService(
+    this._client,
+    this._activeCompanyId,
+    this._timesheetDataSource,
+    this._attendanceDataSource,
+  );
 
   /// Собирает полные данные за год для формирования PDF-отчета.
   Future<List<MonthlyReportData>> getYearlyReportData({
@@ -41,37 +51,29 @@ class EmployeeFinancialReportService {
       ratesResponse,
     );
 
-    // 2. Все отработанные часы (смены + табель)
-    final results = await Future.wait([
-      _client
-          .from('work_hours')
-          .select('''
-        hours,
-        works!inner(date, status)
-      ''')
-          .eq('employee_id', employeeId)
-          .eq('works.status', 'closed')
-          .gte('works.date', startDate.toIso8601String())
-          .lte('works.date', endDate.toIso8601String()),
-      _client
-          .from('employee_attendance')
-          .select('hours, date')
-          .eq('employee_id', employeeId)
-          .gte('date', startDate.toIso8601String())
-          .lte('date', endDate.toIso8601String()),
-    ]);
+    // 2. Все отработанные часы (смены + табель) — тот же источник, что у табеля.
+    final shiftRows = await _timesheetDataSource.getShiftWorkHoursForEmployee(
+      employeeId: employeeId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    final attendanceRows = await _attendanceDataSource.getAttendanceRecords(
+      employeeId: employeeId,
+      startDate: startDate,
+      endDate: endDate,
+    );
 
     final allWorkEntries = [
-      ...(results[0] as List).map(
+      ...shiftRows.map(
         (row) => {
           'hours': (row['hours'] as num).toDouble(),
-          'date': DateTime.parse(row['works']['date']),
+          'date': DateTime.parse(row['date'].toString()),
         },
       ),
-      ...(results[1] as List).map(
+      ...attendanceRows.map(
         (row) => {
-          'hours': (row['hours'] as num).toDouble(),
-          'date': DateTime.parse(row['date']),
+          'hours': row.hours.toDouble(),
+          'date': DateTime.parse(row.date),
         },
       ),
     ];
@@ -218,5 +220,10 @@ class EmployeeFinancialReportService {
 final employeeFinancialReportServiceProvider = Provider((ref) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  return EmployeeFinancialReportService(client, activeCompanyId);
+  return EmployeeFinancialReportService(
+    client,
+    activeCompanyId,
+    ref.watch(timesheetDataSourceProvider),
+    ref.watch(employeeAttendanceDataSourceProvider),
+  );
 });

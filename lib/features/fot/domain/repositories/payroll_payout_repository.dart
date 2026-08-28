@@ -5,6 +5,12 @@ import '../../data/models/payroll_payout_model.dart';
 /// Предоставляет методы для получения, создания, обновления и удаления выплат по расчёту ФОТ.
 /// Интерфейс в слое Domain согласно Clean Architecture.
 abstract class PayrollPayoutRepository {
+  /// Возвращает все выплаты активной компании.
+  ///
+  /// Загрузка идёт порциями, чтобы не потерять строки за лимитом PostgREST (1000).
+  /// Используется FIFO-расчётом колонок «Выплаты» и «Баланс».
+  Future<List<PayrollPayoutModel>> getAllPayouts();
+
   /// Создать новую выплату.
   ///
   /// [payout] — модель выплаты для создания.

@@ -11,109 +11,81 @@ import 'package:projectgt/features/fot/data/models/payroll_payout_model.dart';
 import '../../domain/repositories/payroll_payout_repository.dart';
 import '../../data/repositories/payroll_payout_repository_impl.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
+import 'package:projectgt/features/timesheet/presentation/providers/repositories_providers.dart';
 import 'balance_providers.dart';
 import 'payroll_filter_providers.dart';
 
-/// Провайдер для независимой загрузки данных work_hours и employee_attendance за выбранный месяц.
+/// Провайдер часов ФОТ за выбранный месяц: закрытые смены + ручной табель.
 ///
-/// Загружает данные из work_hours (смены) и employee_attendance (ручной ввод) напрямую из Supabase
-/// за выбранный период из фильтров, не зависит от модуля табеля.
+/// Источник тот же, что у модуля «Табель»: порции PostgREST по 1000 строк.
 final payrollWorkHoursProvider = FutureProvider<List<dynamic>>((ref) async {
   final filterState = ref.watch(payrollFilterProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  
+
   if (activeCompanyId == null) return [];
 
-  final startDate =
-      DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
-  final endDate =
-      DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
+  final startDate = DateTime(
+    filterState.selectedYear,
+    filterState.selectedMonth,
+    1,
+  );
+  final endDate = DateTime(
+    filterState.selectedYear,
+    filterState.selectedMonth + 1,
+    0,
+  );
 
   try {
-    final client = ref.watch(supabaseClientProvider);
+    final timesheetDataSource = ref.watch(timesheetDataSourceProvider);
+    final attendanceDataSource = ref.watch(
+      employeeAttendanceDataSourceProvider,
+    );
 
-    // 1️⃣ Загружаем часы из смен (work_hours)
-    // ⚠️ ВАЖНО: Учитываем только закрытые смены (status = 'closed')
-    // Фильтруем по датам на сервере, чтобы избежать проблемы "первой тысячи"
-    final workHoursResponse = await client.from('work_hours').select('''
-          id,
-          work_id,
-          employee_id,
-          hours,
-          works!inner(
-            date,
-            object_id,
-            status,
-            company_id
-          )
-        ''')
-        .eq('works.status', 'closed')
-        .eq('works.company_id', activeCompanyId)
-        .gte('works.date', startDate.toIso8601String())
-        .lte('works.date', endDate.toIso8601String());
+    final shiftRows = await timesheetDataSource.getTimesheetEntries(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    final attendanceRows = await attendanceDataSource.getAttendanceRecords(
+      startDate: startDate,
+      endDate: endDate,
+    );
 
-    // 2️⃣ Загружаем часы из ручного ввода (employee_attendance)
-    final attendanceResponse = await client
-        .from('employee_attendance')
-        .select('id, employee_id, object_id, date, hours')
-        .eq('company_id', activeCompanyId)
-        .gte('date', startDate.toIso8601String())
-        .lte('date', endDate.toIso8601String());
+    final workHoursEntries = <WorkHourEntry>[];
+    for (final record in shiftRows) {
+      final employeeId = record['employee_id'];
+      final hours = record['hours'];
+      final dateRaw = record['date'];
+      if (employeeId == null || hours == null || dateRaw == null) {
+        continue;
+      }
 
-    // 3️⃣ Преобразуем work_hours в WorkHourEntry и фильтруем по датам
-    final workHoursEntries = workHoursResponse
-        .map<dynamic>((record) {
-          final works = record['works'] as Map<String, dynamic>?;
+      workHoursEntries.add(
+        WorkHourEntry(
+          id: record['id'] as String,
+          workId: (record['work_id'] as String?) ?? '',
+          employeeId: employeeId as String,
+          hours: hours as num,
+          date: DateTime.parse(dateRaw.toString()),
+          objectId: (record['object_id'] as String?) ?? '',
+          employeePosition: null,
+        ),
+      );
+    }
 
-          if (works == null ||
-              record['employee_id'] == null ||
-              record['hours'] == null ||
-              works['date'] == null) {
-            return null; // Пропускаем неполные записи
-          }
-
-          final workDate = DateTime.parse(works['date']);
-          // Фильтруем по текущему месяцу
-          if (workDate.isBefore(startDate) || workDate.isAfter(endDate)) {
-            return null;
-          }
-
-          return WorkHourEntry(
-            id: record['id'],
-            workId: record['work_id'],
-            employeeId: record['employee_id'],
-            hours: record['hours'],
-            date: workDate,
-            objectId: works['object_id'] ?? '',
+    final attendanceEntries = attendanceRows
+        .map(
+          (record) => WorkHourEntry(
+            id: record.id,
+            workId: '',
+            employeeId: record.employeeId,
+            hours: record.hours,
+            date: DateTime.parse(record.date),
+            objectId: record.objectId,
             employeePosition: null,
-          );
-        })
-        .where((entry) => entry != null)
+          ),
+        )
         .toList();
 
-    // 4️⃣ Преобразуем employee_attendance в WorkHourEntry
-    final attendanceEntries = attendanceResponse
-        .map<dynamic>((record) {
-          if (record['employee_id'] == null ||
-              record['hours'] == null ||
-              record['date'] == null) {
-            return null;
-          }
-
-          return WorkHourEntry(
-            id: record['id'],
-            workId: '', // Нет work_id для ручного ввода
-            employeeId: record['employee_id'],
-            hours: record['hours'],
-            date: DateTime.parse(record['date']),
-            objectId: record['object_id'] ?? '',
-            employeePosition: null,
-          );
-        })
-        .where((entry) => entry != null)
-        .toList();
-
-    // 5️⃣ Объединяем данные из обеих таблиц
     return [...workHoursEntries, ...attendanceEntries];
   } catch (e, stackTrace) {
     developer.log(
@@ -174,11 +146,12 @@ class WorkHourEntry {
 ///
 /// HYBRID ПОДХОД: Использует PostgreSQL функцию для батч-расчёта.
 /// При ошибке откатывается на клиентский расчёт (fallback).
-final filteredPayrollsProvider =
-    FutureProvider<List<PayrollCalculation>>((ref) async {
+final filteredPayrollsProvider = FutureProvider<List<PayrollCalculation>>((
+  ref,
+) async {
   final filterState = ref.watch(payrollFilterProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
-  
+
   if (activeCompanyId == null) return [];
 
   final year = filterState.selectedYear;
@@ -187,33 +160,38 @@ final filteredPayrollsProvider =
   try {
     // 🚀 ОПТИМИЗАЦИЯ: Используем PostgreSQL функцию для батч-расчёта
     final client = ref.watch(supabaseClientProvider);
-    
+
     // Передаем список объектов для фильтрации на уровне БД
-    final objectIds = filterState.selectedObjectIds.isNotEmpty 
-        ? filterState.selectedObjectIds 
+    final objectIds = filterState.selectedObjectIds.isNotEmpty
+        ? filterState.selectedObjectIds
         : null;
 
-    final response = await client.rpc('calculate_payroll_for_month', params: {
-      'p_year': year,
-      'p_month': month,
-      'p_object_ids': objectIds,
-      'p_company_id': activeCompanyId,
-    });
+    final response = await client.rpc(
+      'calculate_payroll_for_month',
+      params: {
+        'p_year': year,
+        'p_month': month,
+        'p_object_ids': objectIds,
+        'p_company_id': activeCompanyId,
+      },
+    );
 
     // Маппинг данных из БД в PayrollCalculation
     final List<PayrollCalculation> payrolls = [];
     for (final row in response) {
-      payrolls.add(PayrollCalculation(
-        employeeId: row['employee_id'] as String,
-        periodMonth: DateTime(year, month, 1),
-        hoursWorked: (row['total_hours'] as num).toDouble(),
-        hourlyRate: (row['current_hourly_rate'] as num).toDouble(),
-        baseSalary: (row['base_salary'] as num).toDouble(),
-        bonusesTotal: (row['bonuses_total'] as num).toDouble(),
-        penaltiesTotal: (row['penalties_total'] as num).toDouble(),
-        businessTripTotal: (row['business_trip_total'] as num).toDouble(),
-        netSalary: (row['net_salary'] as num).toDouble(),
-      ));
+      payrolls.add(
+        PayrollCalculation(
+          employeeId: row['employee_id'] as String,
+          periodMonth: DateTime(year, month, 1),
+          hoursWorked: (row['total_hours'] as num).toDouble(),
+          hourlyRate: (row['current_hourly_rate'] as num).toDouble(),
+          baseSalary: (row['base_salary'] as num).toDouble(),
+          bonusesTotal: (row['bonuses_total'] as num).toDouble(),
+          penaltiesTotal: (row['penalties_total'] as num).toDouble(),
+          businessTripTotal: (row['business_trip_total'] as num).toDouble(),
+          netSalary: (row['net_salary'] as num).toDouble(),
+        ),
+      );
     }
 
     return payrolls;
@@ -256,7 +234,9 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
 
     final penaltiesAsyncRaw = await ref.watch(penaltiesByFilterProvider.future);
     final bonusesAsyncRaw = await ref.watch(bonusesByFilterProvider.future);
-    final payoutsAsyncRaw = await ref.watch(payrollPayoutsByFilterProvider.future);
+    final payoutsAsyncRaw = await ref.watch(
+      payrollPayoutsByFilterProvider.future,
+    );
     final penaltiesAsync = penaltiesAsyncRaw;
     final bonusesAsync = bonusesAsyncRaw;
     final payoutsAsync = payoutsAsyncRaw;
@@ -264,8 +244,7 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
     final filterState = ref.read(payrollFilterProvider);
     final hasObjectFilter = filterState.selectedObjectIds.isNotEmpty;
 
-    final companyEmployeeIds =
-        employeeState.employees.map((e) => e.id).toSet();
+    final companyEmployeeIds = employeeState.employees.map((e) => e.id).toSet();
     final employeeIds = <String>{
       ...employeeEntries.keys,
       for (final b in bonusesAsync)
@@ -291,8 +270,9 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
       // Рассчитываем базовую зарплату с учётом исторических ставок
       for (final entry in entries) {
         if (entry.hours != null) {
-          final entryHours =
-              (entry.hours is num) ? entry.hours.toDouble() : 0.0;
+          final entryHours = (entry.hours is num)
+              ? entry.hours.toDouble()
+              : 0.0;
           hours += entryHours;
 
           // Получаем ставку на дату конкретной смены
@@ -311,13 +291,13 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
         if (objectId != null && objectId.isNotEmpty) {
           try {
             // Используем новый метод с учётом employee_id и hours
-            final rate =
-                await tripRateDataSource.getActiveRateForEmployeeAndDate(
-              employeeId,
-              objectId,
-              entry.date,
-              entry.hours,
-            );
+            final rate = await tripRateDataSource
+                .getActiveRateForEmployeeAndDate(
+                  employeeId,
+                  objectId,
+                  entry.date,
+                  entry.hours,
+                );
             if (rate != null) {
               businessTripTotal += rate.rate;
             }
@@ -340,24 +320,28 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
 
       // Расчёт штрафов из базы
       final penaltiesTotal = (penaltiesAsync)
-          .where((p) =>
-              p.employeeId == employeeId &&
-              p.date != null &&
-              p.date!.year == year &&
-              p.date!.month == month)
+          .where(
+            (p) =>
+                p.employeeId == employeeId &&
+                p.date != null &&
+                p.date!.year == year &&
+                p.date!.month == month,
+          )
           .fold<double>(0, (sum, p) => sum + p.amount);
 
       // Расчёт премий из базы
       final bonusesTotal = (bonusesAsync)
-          .where((b) =>
-              b.employeeId == employeeId &&
-              ((b.date != null &&
-                      b.date!.year == year &&
-                      b.date!.month == month) ||
-                  (b.date == null &&
-                      b.createdAt != null &&
-                      b.createdAt!.year == year &&
-                      b.createdAt!.month == month)))
+          .where(
+            (b) =>
+                b.employeeId == employeeId &&
+                ((b.date != null &&
+                        b.date!.year == year &&
+                        b.date!.month == month) ||
+                    (b.date == null &&
+                        b.createdAt != null &&
+                        b.createdAt!.year == year &&
+                        b.createdAt!.month == month)),
+          )
           .fold<double>(0, (sum, b) => sum + b.amount);
 
       final grossSalary =
@@ -380,19 +364,21 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
     }
 
     payrolls.sort((a, b) {
-      final empA =
-          employeeState.employees.firstWhereOrNull((e) => e.id == a.employeeId);
-      final empB =
-          employeeState.employees.firstWhereOrNull((e) => e.id == b.employeeId);
+      final empA = employeeState.employees.firstWhereOrNull(
+        (e) => e.id == a.employeeId,
+      );
+      final empB = employeeState.employees.firstWhereOrNull(
+        (e) => e.id == b.employeeId,
+      );
       final nameA = empA != null
           ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
-              .trim()
-              .toLowerCase()
+                .trim()
+                .toLowerCase()
           : '';
       final nameB = empB != null
           ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}')
-              .trim()
-              .toLowerCase()
+                .trim()
+                .toLowerCase()
           : '';
       return nameA.compareTo(nameB);
     });
@@ -413,8 +399,9 @@ Future<List<PayrollCalculation>> _calculatePayrollClientSide(
 ///
 /// Если поиск пустой — грузит за выбранный месяц.
 /// Если поиск не пустой — грузит за все время.
-final payrollPayoutsByFilterProvider =
-    FutureProvider<List<PayrollPayoutModel>>((ref) async {
+final payrollPayoutsByFilterProvider = FutureProvider<List<PayrollPayoutModel>>((
+  ref,
+) async {
   final client = ref.watch(supabaseClientProvider);
   final filterState = ref.watch(payrollFilterProvider);
   final searchQuery = ref.watch(payrollSearchQueryProvider);
@@ -422,46 +409,64 @@ final payrollPayoutsByFilterProvider =
 
   if (activeCompanyId == null) return [];
 
-  var query = client.from('payroll_payout').select().eq('company_id', activeCompanyId);
+  var query = client
+      .from('payroll_payout')
+      .select()
+      .eq('company_id', activeCompanyId);
 
   // 1. Фильтрация по периоду или поиску
   if (searchQuery.trim().isEmpty) {
     // Если поиск пустой — грузим за выбранный месяц
-    final startDate =
-        DateTime(filterState.selectedYear, filterState.selectedMonth, 1);
-    final endDate =
-        DateTime(filterState.selectedYear, filterState.selectedMonth + 1, 0);
+    final startDate = DateTime(
+      filterState.selectedYear,
+      filterState.selectedMonth,
+      1,
+    );
+    final endDate = DateTime(
+      filterState.selectedYear,
+      filterState.selectedMonth + 1,
+      0,
+    );
 
     query = query
         .gte('payout_date', startDate.toIso8601String())
         .lte('payout_date', endDate.toIso8601String());
-        
+
     final response = await query.order('payout_date', ascending: false);
 
     return (response as List)
-        .map((json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
+        .map(
+          (json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>),
+        )
         .toList();
   } else {
     // Если поиск не пустой — грузим за все время, но только для подходящих сотрудников
     final queryText = searchQuery.trim().toLowerCase();
-    final matchingEmployeeIds = ref.read(employeeProvider).employees
+    final matchingEmployeeIds = ref
+        .read(employeeProvider)
+        .employees
         .where((e) {
-          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'.toLowerCase();
+          final fullName = '${e.lastName} ${e.firstName} ${e.middleName ?? ''}'
+              .toLowerCase();
           return fullName.contains(queryText);
         })
         .map((e) => e.id)
         .toList();
 
     if (matchingEmployeeIds.isEmpty) return [];
-    
+
     final allResults = <Map<String, dynamic>>[];
     const chunk = 20;
     for (var i = 0; i < matchingEmployeeIds.length; i += chunk) {
       final slice = matchingEmployeeIds.sublist(
         i,
-        i + chunk > matchingEmployeeIds.length ? matchingEmployeeIds.length : i + chunk,
+        i + chunk > matchingEmployeeIds.length
+            ? matchingEmployeeIds.length
+            : i + chunk,
       );
-      final chunkResponse = await query.inFilter('employee_id', slice).order('payout_date', ascending: false);
+      final chunkResponse = await query
+          .inFilter('employee_id', slice)
+          .order('payout_date', ascending: false);
       allResults.addAll((chunkResponse as List).cast<Map<String, dynamic>>());
     }
 
@@ -471,87 +476,84 @@ final payrollPayoutsByFilterProvider =
       return dateB.compareTo(dateA);
     });
 
-    return allResults
-        .map((json) => PayrollPayoutModel.fromJson(json))
-        .toList();
+    return allResults.map((json) => PayrollPayoutModel.fromJson(json)).toList();
   }
 });
 
 /// Провайдер всех выплат за текущий месяц с сортировкой.
-final filteredPayrollPayoutsProvider =
-    FutureProvider<List<PayrollPayoutModel>>((ref) async {
-  try {
-    final payouts = await ref.watch(payrollPayoutsByFilterProvider.future);
-    final searchQuery = ref.watch(payrollSearchQueryProvider);
-    final employeeState = ref.watch(employeeProvider);
-    final employees = employeeState.employees;
+final filteredPayrollPayoutsProvider = FutureProvider<List<PayrollPayoutModel>>(
+  (ref) async {
+    try {
+      final payouts = await ref.watch(payrollPayoutsByFilterProvider.future);
+      final searchQuery = ref.watch(payrollSearchQueryProvider);
+      final employeeState = ref.watch(employeeProvider);
+      final employees = employeeState.employees;
 
-    var result = payouts;
+      var result = payouts;
 
-    // 1. Фильтрация по ФИО на клиенте (если есть поиск)
-    if (searchQuery.trim().isNotEmpty) {
-      final query = searchQuery.trim().toLowerCase();
-      result = result.where((payout) {
-        final emp = employees.firstWhereOrNull((e) => e.id == payout.employeeId);
-        if (emp == null) return false;
-        final fullName = '${emp.lastName} ${emp.firstName} ${emp.middleName ?? ''}'
-            .toLowerCase();
-        return fullName.contains(query);
-      }).toList();
+      // 1. Фильтрация по ФИО на клиенте (если есть поиск)
+      if (searchQuery.trim().isNotEmpty) {
+        final query = searchQuery.trim().toLowerCase();
+        result = result.where((payout) {
+          final emp = employees.firstWhereOrNull(
+            (e) => e.id == payout.employeeId,
+          );
+          if (emp == null) return false;
+          final fullName =
+              '${emp.lastName} ${emp.firstName} ${emp.middleName ?? ''}'
+                  .toLowerCase();
+          return fullName.contains(query);
+        }).toList();
+      }
+
+      // Сортируем по алфавиту (ФИО сотрудников)
+      result.sort((a, b) {
+        final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
+        final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
+        final nameA = empA != null
+            ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
+                  .trim()
+                  .toLowerCase()
+            : a.employeeId.toLowerCase();
+        final nameB = empB != null
+            ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}')
+                  .trim()
+                  .toLowerCase()
+            : b.employeeId.toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+
+      // Дополнительная сортировка по дате выплаты (самые новые сверху)
+      result.sort((a, b) => b.payoutDate.compareTo(a.payoutDate));
+
+      return result;
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to load payroll payouts (filtered)',
+        name: 'fot.payrollPayoutsByFilterProvider',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return [];
     }
-
-    // Сортируем по алфавиту (ФИО сотрудников)
-    result.sort((a, b) {
-      final empA = employees.firstWhereOrNull((e) => e.id == a.employeeId);
-      final empB = employees.firstWhereOrNull((e) => e.id == b.employeeId);
-      final nameA = empA != null
-          ? ('${empA.lastName} ${empA.firstName} ${empA.middleName ?? ''}')
-              .trim()
-              .toLowerCase()
-          : a.employeeId.toLowerCase();
-      final nameB = empB != null
-          ? ('${empB.lastName} ${empB.firstName} ${empB.middleName ?? ''}')
-              .trim()
-              .toLowerCase()
-          : b.employeeId.toLowerCase();
-      return nameA.compareTo(nameB);
-    });
-
-    // Дополнительная сортировка по дате выплаты (самые новые сверху)
-    result.sort((a, b) => b.payoutDate.compareTo(a.payoutDate));
-
-    return result;
-  } catch (e, stackTrace) {
-    developer.log(
-      'Failed to load payroll payouts (filtered)',
-      name: 'fot.payrollPayoutsByFilterProvider',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    return [];
-  }
-});
+  },
+);
 
 /// Провайдер получения ВСЕХ выплат (без фильтра по месяцам).
 /// Используется для FIFO распределения выплат по месяцам начисления.
-final allPayoutsProvider =
-    FutureProvider<List<PayrollPayoutModel>>((ref) async {
-  final client = ref.watch(supabaseClientProvider);
+///
+/// Загрузка через [PayrollPayoutRepository.getAllPayouts]: порции по 1000 строк
+/// (лимит PostgREST), иначе старые выплаты не входят в FIFO.
+final allPayoutsProvider = FutureProvider<List<PayrollPayoutModel>>((
+  ref,
+) async {
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
 
   if (activeCompanyId == null) return [];
 
   try {
-    final response = await client
-        .from('payroll_payout')
-        .select()
-        .eq('company_id', activeCompanyId)
-        .order('payout_date', ascending: false);
-
-    return (response as List)
-        .map(
-            (json) => PayrollPayoutModel.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final repo = ref.watch(payrollPayoutRepositoryProvider);
+    return await repo.getAllPayouts();
   } catch (e, stackTrace) {
     developer.log(
       'Failed to load all payouts',
@@ -572,17 +574,16 @@ class PayrollEmployeeFIFOData {
   final Map<int, double> balances;
 
   /// Конструктор [PayrollEmployeeFIFOData].
-  PayrollEmployeeFIFOData({
-    required this.payouts,
-    required this.balances,
-  });
+  PayrollEmployeeFIFOData({required this.payouts, required this.balances});
 }
 
 /// Провайдер FIFO распределения выплат по месяцам.
 /// Возвращает Map<employeeId, PayrollEmployeeFIFOData>
 /// где month = 1-12 (январь-декабрь выбранного года).
-final payoutsByEmployeeAndMonthFIFOProvider =
-    FutureProvider.family<Map<String, PayrollEmployeeFIFOData>, int>((ref, year) async {
+final payoutsByEmployeeAndMonthFIFOProvider = FutureProvider.family<Map<String, PayrollEmployeeFIFOData>, int>((
+  ref,
+  year,
+) async {
   final client = ref.watch(supabaseClientProvider);
   final allPayouts = await ref.watch(allPayoutsProvider.future);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
@@ -595,11 +596,14 @@ final payoutsByEmployeeAndMonthFIFOProvider =
   // 1️⃣ Получаем сумму всех начислений ДО начала выбранного года одним запросом
   final Map<String, double> accrualsBeforeYear = {};
   try {
-    final historicalAccrualsResponse = await client.rpc('calculate_employee_balances_before_date', params: {
-      'p_before_date': startOfSelectedYear,
-      'p_company_id': activeCompanyId,
-    });
-    
+    final historicalAccrualsResponse = await client.rpc(
+      'calculate_employee_balances_before_date',
+      params: {
+        'p_before_date': startOfSelectedYear,
+        'p_company_id': activeCompanyId,
+      },
+    );
+
     for (final row in (historicalAccrualsResponse as List)) {
       final empId = row['employee_id'] as String;
       accrualsBeforeYear[empId] = (row['accruals_sum'] as num).toDouble();
@@ -617,22 +621,28 @@ final payoutsByEmployeeAndMonthFIFOProvider =
 
   // 2️⃣ Группируем выплаты по сотрудникам и сортируем их по дате (хронология)
   final payoutsByEmployee = <String, List<PayrollPayoutModel>>{};
-  final sortedPayouts = [...allPayouts]..sort((a, b) => a.payoutDate.compareTo(b.payoutDate));
-  
+  final sortedPayouts = [...allPayouts]
+    ..sort((a, b) => a.payoutDate.compareTo(b.payoutDate));
+
   for (final payout in sortedPayouts) {
     payoutsByEmployee.putIfAbsent(payout.employeeId, () => []).add(payout);
   }
 
   // 3️⃣ Получаем начисления за месяцы ВЫБРАННОГО года ПАРАЛЛЕЛЬНО
   final payrollsByEmployeeAndMonth = <String, Map<int, double>>{};
-  
+
   final monthFutures = List.generate(12, (index) {
     final month = index + 1;
-    return client.rpc('calculate_payroll_for_month', params: {
-      'p_year': year,
-      'p_month': month,
-      'p_company_id': activeCompanyId,
-    }).then((response) => MapEntry(month, response as List));
+    return client
+        .rpc(
+          'calculate_payroll_for_month',
+          params: {
+            'p_year': year,
+            'p_month': month,
+            'p_company_id': activeCompanyId,
+          },
+        )
+        .then((response) => MapEntry(month, response as List));
   });
 
   final results = await Future.wait(monthFutures);
@@ -644,7 +654,7 @@ final payoutsByEmployeeAndMonthFIFOProvider =
     for (final row in monthRows) {
       final empId = row['employee_id'] as String;
       final netSalary = (row['net_salary'] as num).toDouble();
-      
+
       payrollsByEmployeeAndMonth.putIfAbsent(empId, () => {});
       payrollsByEmployeeAndMonth[empId]![month] = netSalary;
     }
@@ -661,10 +671,10 @@ final payoutsByEmployeeAndMonthFIFOProvider =
   for (final employeeId in allEmployeeIds) {
     final employeePayouts = payoutsByEmployee[employeeId] ?? [];
     final employeePayrolls = payrollsByEmployeeAndMonth[employeeId] ?? {};
-    
+
     // Начальный исторический долг (начисления до начала года)
     var remainingHistoricalDebt = accrualsBeforeYear[employeeId] ?? 0.0;
-    
+
     final payoutsForMonth = <int, double>{};
 
     // 4.1. Сначала распределяем ВСЕ выплаты (FIFO)
@@ -673,8 +683,8 @@ final payoutsByEmployeeAndMonthFIFOProvider =
 
       // Сначала гасим исторический долг начислениями до этого года
       if (remainingHistoricalDebt > 0) {
-        final toApplyToHistory = remainingPayout > remainingHistoricalDebt 
-            ? remainingHistoricalDebt 
+        final toApplyToHistory = remainingPayout > remainingHistoricalDebt
+            ? remainingHistoricalDebt
             : remainingPayout;
         remainingHistoricalDebt -= toApplyToHistory;
         remainingPayout -= toApplyToHistory;
@@ -684,17 +694,19 @@ final payoutsByEmployeeAndMonthFIFOProvider =
       if (remainingPayout > 0) {
         for (int month = 1; month <= 12 && remainingPayout > 0; month++) {
           final accrualForMonth = employeePayrolls[month] ?? 0.0;
-          if (accrualForMonth <= 0) continue; // Пропускаем месяцы без начисления
+          if (accrualForMonth <= 0)
+            continue; // Пропускаем месяцы без начисления
 
           final alreadyPaidInMonth = payoutsForMonth[month] ?? 0.0;
           final remainingInMonth = accrualForMonth - alreadyPaidInMonth;
 
           if (remainingInMonth > 0) {
-            final toApplyToMonth = remainingPayout > remainingInMonth 
-                ? remainingInMonth 
+            final toApplyToMonth = remainingPayout > remainingInMonth
+                ? remainingInMonth
                 : remainingPayout;
 
-            payoutsForMonth[month] = (payoutsForMonth[month] ?? 0.0) + toApplyToMonth;
+            payoutsForMonth[month] =
+                (payoutsForMonth[month] ?? 0.0) + toApplyToMonth;
             remainingPayout -= toApplyToMonth;
           }
         }
@@ -713,12 +725,13 @@ final payoutsByEmployeeAndMonthFIFOProvider =
     // Баланс(М) = Баланс_начала_года + Сумма(Начисления_до_М) - Сумма(Выплаты_до_М_по_FIFO)
     // Что эквивалентно: Баланс(М) = Баланс(М-1) + Начисление(М) - Выплата_FIFO(М)
     final balancesForMonth = <int, double>{};
-    var currentRunningBalance = remainingHistoricalDebt; // Остаток долга с прошлых лет после всех выплат
+    var currentRunningBalance =
+        remainingHistoricalDebt; // Остаток долга с прошлых лет после всех выплат
 
     for (int month = 1; month <= 12; month++) {
       final accrual = employeePayrolls[month] ?? 0.0;
       final payoutFIFO = payoutsForMonth[month] ?? 0.0;
-      
+
       currentRunningBalance += (accrual - payoutFIFO);
       balancesForMonth[month] = currentRunningBalance;
     }
@@ -733,8 +746,9 @@ final payoutsByEmployeeAndMonthFIFOProvider =
 });
 
 /// Провайдер репозитория выплат по ФОТ (Supabase).
-final payrollPayoutRepositoryProvider =
-    Provider<PayrollPayoutRepository>((ref) {
+final payrollPayoutRepositoryProvider = Provider<PayrollPayoutRepository>((
+  ref,
+) {
   final client = ref.watch(supabaseClientProvider);
   final activeCompanyId = ref.watch(activeCompanyIdProvider);
   return PayrollPayoutRepositoryImpl(client, activeCompanyId ?? '');
@@ -743,24 +757,25 @@ final payrollPayoutRepositoryProvider =
 /// Провайдер функции создания выплаты.
 final createPayoutUseCaseProvider =
     Provider<Future<PayrollPayoutModel> Function(PayrollPayoutModel)>((ref) {
-  final repo = ref.watch(payrollPayoutRepositoryProvider);
-  return (PayrollPayoutModel payout) async {
-    return await repo.createPayout(payout);
-  };
-});
+      final repo = ref.watch(payrollPayoutRepositoryProvider);
+      return (PayrollPayoutModel payout) async {
+        return await repo.createPayout(payout);
+      };
+    });
 
 /// Провайдер функции обновления выплаты.
 final updatePayoutUseCaseProvider =
     Provider<Future<PayrollPayoutModel> Function(PayrollPayoutModel)>((ref) {
-  final repo = ref.watch(payrollPayoutRepositoryProvider);
-  return (PayrollPayoutModel payout) async {
-    return await repo.updatePayout(payout);
-  };
-});
+      final repo = ref.watch(payrollPayoutRepositoryProvider);
+      return (PayrollPayoutModel payout) async {
+        return await repo.updatePayout(payout);
+      };
+    });
 
 /// Провайдер функции удаления выплаты по ID.
-final deletePayoutUseCaseProvider =
-    Provider<Future<void> Function(String)>((ref) {
+final deletePayoutUseCaseProvider = Provider<Future<void> Function(String)>((
+  ref,
+) {
   final repo = ref.watch(payrollPayoutRepositoryProvider);
   return (String id) async {
     await repo.deletePayout(id);
