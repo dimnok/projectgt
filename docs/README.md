@@ -330,7 +330,7 @@ lib/
 | **Работы (смены и планы)** | [`works/works_module.md`](./works/works_module.md) | Ежедневные смены, фото, часы; планы работ |
 | **Взаиморасчёты** | [`settlements/settlements_module.md`](./settlements/settlements_module.md) | Счета на оплату по договорам, история оплат, привязка к ДДС из выписки |
 | **ТМЦ** | [`tmc/tmc_module.md`](./tmc/tmc_module.md) | Учёт имущества компании (инструмент, СИЗ, оргтехника); Desktop |
-| **Заявки на закупку** | [`purchase_requests/purchase_requests_module.md`](./purchase_requests/purchase_requests_module.md) | Workflow заявок: согласование, счета, оплата, получение; выгрузка позиций в Excel; блок «Нужно согласовать» на главной |
+| **Заявки на закупку** | [`purchase_requests/purchase_requests_module.md`](./purchase_requests/purchase_requests_module.md) | Workflow заявок: согласование, счета, оплата, получение; возврат на доработку только согласующим; выгрузка позиций в Excel; блок «Нужно согласовать» на главной |
 
 ### 🗂️ Справочники (References Menu Group)
 

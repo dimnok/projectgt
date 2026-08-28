@@ -97,7 +97,7 @@ class PurchaseRequestDetailsPanel extends ConsumerWidget {
                     request.status,
                   );
 
-                  final reworkNote = latestPurchaseRequestCancelComment(
+                  final reworkNote = latestPurchaseRequestReworkComment(
                     historyAsync.valueOrNull ?? const [],
                   );
 

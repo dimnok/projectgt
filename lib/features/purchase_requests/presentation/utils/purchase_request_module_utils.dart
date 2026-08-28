@@ -80,12 +80,13 @@ bool isPurchaseRequestAwaitingUserApproval({
 /// Query-параметр маршрута `/purchase_requests` для открытия конкретной заявки.
 const kPurchaseRequestIdQueryParam = 'requestId';
 
-/// Последняя причина возврата в черновик из истории заявки.
-String? latestPurchaseRequestCancelComment(
+/// Последняя причина возврата на доработку или в черновик из истории заявки.
+String? latestPurchaseRequestReworkComment(
   List<PurchaseRequestHistoryEntry> entries,
 ) {
   for (var i = entries.length - 1; i >= 0; i--) {
-    if (entries[i].action != 'cancelled') continue;
+    final action = entries[i].action;
+    if (action != 'returned' && action != 'cancelled') continue;
     final comment = entries[i].comment?.trim();
     if (comment != null && comment.isNotEmpty) return comment;
   }

@@ -125,7 +125,7 @@ void main() {
       expect(actions.canEditItems, isTrue);
       expect(actions.canEditDraft, isTrue);
       expect(actions.canDeleteDraft, isTrue);
-      expect(actions.canCancel, isFalse);
+      expect(actions.canReturn, isFalse);
     });
 
     test('other user cannot edit or delete someone else draft', () {
@@ -221,10 +221,10 @@ void main() {
       );
 
       expect(actions.canSubmit, isFalse);
-      expect(actions.canCancel, isFalse);
+      expect(actions.canReturn, isFalse);
     });
 
-    test('view_all allows cancel by non-creator', () {
+    test('view_all cannot return submitted request to draft', () {
       final actions = resolvePurchaseRequestActions(
         request: request(
           status: PurchaseRequestStatus.approval,
@@ -238,14 +238,49 @@ void main() {
         ),
       );
 
-      expect(actions.canCancel, isTrue);
+      expect(actions.canReturn, isFalse);
       expect(actions.canApprove, isFalse);
-      expect(actions.hasAny, isTrue);
+      expect(actions.hasAny, isFalse);
     });
 
-    test('creator can return in-progress request to draft', () {
+    test('creator cannot return own submitted request', () {
       final actions = resolvePurchaseRequestActions(
         request: request(status: PurchaseRequestStatus.approval),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true, 'approve': true},
+          },
+        ),
+      );
+
+      expect(actions.canReturn, isFalse);
+      expect(actions.canApprove, isFalse);
+      expect(actions.canEditDraft, isFalse);
+    });
+
+    test('non-assignee with approve cannot return', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(
+          status: PurchaseRequestStatus.approval,
+          createdBy: otherId,
+        ),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'approve': true},
+          },
+        ),
+        settings: routeSettings(firstApprovers: [otherId]),
+      );
+
+      expect(actions.canReturn, isFalse);
+      expect(actions.canApprove, isFalse);
+    });
+
+    test('creator on revision can edit items and resubmit', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(status: PurchaseRequestStatus.revision),
         currentUserId: userId,
         permissions: permissions(
           grants: const {
@@ -254,8 +289,25 @@ void main() {
         ),
       );
 
-      expect(actions.canCancel, isTrue);
+      expect(actions.canEditItems, isTrue);
+      expect(actions.canSubmit, isTrue);
+      expect(actions.canReturn, isFalse);
       expect(actions.canEditDraft, isFalse);
+    });
+
+    test('paid request has no return for creator', () {
+      final actions = resolvePurchaseRequestActions(
+        request: request(status: PurchaseRequestStatus.paid),
+        currentUserId: userId,
+        permissions: permissions(
+          grants: const {
+            'purchase_requests': {'create': true, 'view_all': true},
+          },
+        ),
+      );
+
+      expect(actions.canReturn, isFalse);
+      expect(actions.hasAny, isFalse);
     });
 
     test('received request has no actions for creator', () {
@@ -410,7 +462,7 @@ void main() {
     });
   });
 
-  group('latestPurchaseRequestCancelComment', () {
+  group('latestPurchaseRequestReworkComment', () {
     PurchaseRequestHistoryEntry entry({
       required String id,
       required String action,
@@ -427,8 +479,8 @@ void main() {
       );
     }
 
-    test('returns latest non-empty cancel comment', () {
-      final note = latestPurchaseRequestCancelComment([
+    test('returns latest non-empty return comment', () {
+      final note = latestPurchaseRequestReworkComment([
         entry(
           id: '1',
           action: 'cancelled',
@@ -442,7 +494,7 @@ void main() {
         ),
         entry(
           id: '3',
-          action: 'cancelled',
+          action: 'returned',
           comment: 'исправить объект',
           createdAt: DateTime.utc(2026, 8, 3),
         ),
@@ -451,12 +503,12 @@ void main() {
       expect(note, 'исправить объект');
     });
 
-    test('returns null when cancel comments are empty', () {
+    test('returns null when rework comments are empty', () {
       expect(
-        latestPurchaseRequestCancelComment([
+        latestPurchaseRequestReworkComment([
           entry(
             id: '1',
-            action: 'cancelled',
+            action: 'returned',
             comment: '  ',
             createdAt: DateTime.utc(2026, 8, 1),
           ),

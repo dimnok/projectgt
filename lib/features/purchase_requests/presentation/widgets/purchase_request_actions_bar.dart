@@ -27,7 +27,6 @@ class PurchaseRequestActionSet {
     this.canQueuePayment = false,
     this.canMarkPaid = false,
     this.canMarkReceived = false,
-    this.canCancel = false,
     this.canEditItems = false,
     this.canEditDraft = false,
     this.canDeleteDraft = false,
@@ -60,9 +59,6 @@ class PurchaseRequestActionSet {
   /// Можно отметить получение материала.
   final bool canMarkReceived;
 
-  /// Можно вернуть заявку в черновик (отмена текущего этапа).
-  final bool canCancel;
-
   /// Можно редактировать позиции.
   final bool canEditItems;
 
@@ -82,8 +78,7 @@ class PurchaseRequestActionSet {
       canReturnInvoice ||
       canQueuePayment ||
       canMarkPaid ||
-      canMarkReceived ||
-      canCancel;
+      canMarkReceived;
 }
 
 /// Вычисляет доступные действия.
@@ -150,11 +145,6 @@ PurchaseRequestActionSet resolvePurchaseRequestActions({
         isAssignee &&
         permissions.can('purchase_requests', 'receive') &&
         status == PurchaseRequestStatus.paid,
-    canCancel:
-        (isCreator || permissions.can('purchase_requests', 'view_all')) &&
-        status != PurchaseRequestStatus.draft &&
-        status != PurchaseRequestStatus.received &&
-        status != PurchaseRequestStatus.cancelled,
   );
 }
 
@@ -349,12 +339,12 @@ class _PurchaseRequestActionsBarState
                 ),
               if (a.canReturn)
                 GTSecondaryButton(
-                  text: 'Вернуть',
+                  text: 'Вернуть на доработку',
                   onPressed: _busy
                       ? null
                       : () async {
                           final c = await _promptComment(
-                            title: 'Причина возврата',
+                            title: 'Причина возврата на доработку',
                             required: true,
                           );
                           if (!mounted || c == null || c.isEmpty) return;
@@ -421,20 +411,6 @@ class _PurchaseRequestActionsBarState
                   onPressed: _busy
                       ? null
                       : () => _run(repo.markReceived(widget.requestId)),
-                ),
-              if (a.canCancel)
-                GTSecondaryButton(
-                  text: 'Вернуть в черновик',
-                  onPressed: _busy
-                      ? null
-                      : () async {
-                          final c = await _promptComment(
-                            title: 'Причина возврата в черновик',
-                            required: true,
-                          );
-                          if (!mounted || c == null || c.isEmpty) return;
-                          await _run(repo.cancel(widget.requestId, comment: c));
-                        },
                 ),
             ],
           ),

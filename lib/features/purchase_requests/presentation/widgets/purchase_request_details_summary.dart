@@ -95,6 +95,13 @@ class PurchaseRequestDetailsSummary extends StatelessWidget {
             color: theme.colorScheme.tertiary,
             text: 'Возвращено на доработку',
           ),
+          if ((reworkNote ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _CommentBlock(
+              label: 'Что исправить',
+              comment: reworkNote!.trim(),
+            ),
+          ],
         ],
         if (request.status == PurchaseRequestStatus.draft &&
             (reworkNote ?? '').trim().isNotEmpty) ...[

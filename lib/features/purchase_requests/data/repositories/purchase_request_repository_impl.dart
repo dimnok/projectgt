@@ -669,17 +669,4 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
     );
     return _mapRequest(row);
   }
-
-  @override
-  Future<PurchaseRequest> cancel(
-    String requestId, {
-    required String comment,
-  }) async {
-    _requireCompany();
-    final row = await client.rpc(
-      'purchase_request_cancel',
-      params: {'p_request_id': requestId, 'p_comment': comment},
-    );
-    return _mapRequest(row);
-  }
 }

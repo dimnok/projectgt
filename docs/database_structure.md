@@ -655,6 +655,20 @@
 
 ---
 
+## Таблицы заявок на закупку (`purchase_request_*`)
+
+**Описание:**
+Заявки на закупку внутри компании: черновик → согласование → счета → оплата → получение. Смена статуса только через RPC (`SECURITY DEFINER`). После отправки откат в черновик запрещён; вернуть заявку на доработку может только согласующий текущего этапа.
+
+**Таблицы (owner модуля):**
+`purchase_requests`, `purchase_request_items`, `purchase_request_invoices`, `purchase_request_files`, `purchase_request_history`, `purchase_request_notifications`, `purchase_request_settings`, `purchase_request_route_members`, `purchase_request_number_seq`.
+
+**RLS:** ✅ включён на всех таблицах, кроме `purchase_request_number_seq` (служебный счётчик).
+
+**Подробно (колонки, политики, RPC, workflow):** [`purchase_requests/purchase_requests_module.md`](purchase_requests/purchase_requests_module.md).
+
+---
+
 ## Примечания
 - Для таблиц из схемы storage (файлы) и auth (пользователи) — см. документацию Supabase.
 - Все политики RLS реализуют строгую безопасность на уровне строк, если включены.

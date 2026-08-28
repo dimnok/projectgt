@@ -121,10 +121,4 @@ abstract class PurchaseRequestRepository {
 
   /// Материал получен.
   Future<PurchaseRequest> markReceived(String requestId);
-
-  /// Вернуть заявку в черновик с обязательной причиной.
-  Future<PurchaseRequest> cancel(
-    String requestId, {
-    required String comment,
-  });
 }
