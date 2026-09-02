@@ -19,15 +19,20 @@ abstract class ContractorModel with _$ContractorModel {
     required String id,
     @JsonKey(name: 'company_id') required String companyId,
     @JsonKey(name: 'logo_url') String? logoUrl,
-    @JsonKey(name: 'full_name') required String fullName,
-    @JsonKey(name: 'short_name') required String shortName,
-    required String inn,
-    required String director,
-    @JsonKey(name: 'legal_address') required String legalAddress,
-    @JsonKey(name: 'actual_address') required String actualAddress,
-    required String phone,
-    required String email,
-    required ContractorType type,
+    @JsonKey(name: 'full_name') @Default('') String fullName,
+    @JsonKey(name: 'short_name') @Default('') String shortName,
+    @Default('') String inn,
+    @Default('') String director,
+    @JsonKey(name: 'legal_address') @Default('') String legalAddress,
+    @JsonKey(name: 'actual_address') @Default('') String actualAddress,
+    @Default('') String phone,
+    @Default('') String email,
+    @JsonKey(
+      unknownEnumValue: ContractorType.customer,
+      defaultValue: ContractorType.customer,
+    )
+    @Default(ContractorType.customer)
+    ContractorType type,
     String? website,
     String? activityDescription,
     String? kpp,
@@ -49,8 +54,26 @@ abstract class ContractorModel with _$ContractorModel {
   const ContractorModel._();
 
   /// Создаёт модель из JSON.
-  factory ContractorModel.fromJson(Map<String, dynamic> json) =>
-      _$ContractorModelFromJson(json);
+  ///
+  /// Пустые поля из БД (`null`) читаются как пустая строка, чтобы одна
+  /// неполная карточка не роняла весь список контрагентов.
+  factory ContractorModel.fromJson(Map<String, dynamic> json) {
+    final type = json['type'];
+    return _$ContractorModelFromJson({
+      ...json,
+      'full_name': json['full_name'] ?? '',
+      'short_name': json['short_name'] ?? '',
+      'inn': json['inn'] ?? '',
+      'director': json['director'] ?? '',
+      'legal_address': json['legal_address'] ?? '',
+      'actual_address': json['actual_address'] ?? '',
+      'phone': json['phone'] ?? '',
+      'email': json['email'] ?? '',
+      'type': type == 'supplier' || type == 'contractor' || type == 'customer'
+          ? type
+          : 'customer',
+    });
+  }
 
   /// Создаёт модель из доменной сущности [Contractor].
   factory ContractorModel.fromDomain(Contractor contractor) => ContractorModel(

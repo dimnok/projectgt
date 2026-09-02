@@ -240,9 +240,10 @@
 - director: TEXT — ФИО директора
 - legal_address: TEXT — юридический адрес
 - actual_address: TEXT — фактический адрес
-- phone: TEXT — контактный телефон
-- email: TEXT — контактный email
+- phone: TEXT — контактный телефон (nullable; web пишет `null` при пустом поле, Flutter читает как пустую строку)
+- email: TEXT — контактный email (nullable; то же правило, что у `phone`)
 - type: TEXT — тип контрагента (`customer`, `contractor`, `supplier`)
+- activity_description: TEXT — код ОКВЭД. Web пишет код (`43.29`). Flutter и `dadata-proxy` могут писать `[код] название`. Название в БД не является источником правды: в вебе оно берётся из справочника по коду
 - created_at: TIMESTAMP — дата и время создания записи
 - updated_at: TIMESTAMP — дата и время последнего обновления
 

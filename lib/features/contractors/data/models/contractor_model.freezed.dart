@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ContractorModel {
 
- String get id;@JsonKey(name: 'company_id') String get companyId;@JsonKey(name: 'logo_url') String? get logoUrl;@JsonKey(name: 'full_name') String get fullName;@JsonKey(name: 'short_name') String get shortName; String get inn; String get director;@JsonKey(name: 'legal_address') String get legalAddress;@JsonKey(name: 'actual_address') String get actualAddress; String get phone; String get email; ContractorType get type; String? get website; String? get activityDescription; String? get kpp; String? get ogrn; String? get okpo; String? get directorBasis; String? get directorPhone; String? get chiefAccountantName; String? get chiefAccountantPhone; String? get contactPerson; String? get taxationSystem; bool get isVatPayer; double get vatRate;@JsonKey(name: 'created_at') DateTime? get createdAt;@JsonKey(name: 'updated_at') DateTime? get updatedAt;
+ String get id;@JsonKey(name: 'company_id') String get companyId;@JsonKey(name: 'logo_url') String? get logoUrl;@JsonKey(name: 'full_name') String get fullName;@JsonKey(name: 'short_name') String get shortName; String get inn; String get director;@JsonKey(name: 'legal_address') String get legalAddress;@JsonKey(name: 'actual_address') String get actualAddress; String get phone; String get email;@JsonKey(unknownEnumValue: ContractorType.customer, defaultValue: ContractorType.customer) ContractorType get type; String? get website; String? get activityDescription; String? get kpp; String? get ogrn; String? get okpo; String? get directorBasis; String? get directorPhone; String? get chiefAccountantName; String? get chiefAccountantPhone; String? get contactPerson; String? get taxationSystem; bool get isVatPayer; double get vatRate;@JsonKey(name: 'created_at') DateTime? get createdAt;@JsonKey(name: 'updated_at') DateTime? get updatedAt;
 /// Create a copy of ContractorModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +49,7 @@ abstract mixin class $ContractorModelCopyWith<$Res>  {
   factory $ContractorModelCopyWith(ContractorModel value, $Res Function(ContractorModel) _then) = _$ContractorModelCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'full_name') String fullName,@JsonKey(name: 'short_name') String shortName, String inn, String director,@JsonKey(name: 'legal_address') String legalAddress,@JsonKey(name: 'actual_address') String actualAddress, String phone, String email, ContractorType type, String? website, String? activityDescription, String? kpp, String? ogrn, String? okpo, String? directorBasis, String? directorPhone, String? chiefAccountantName, String? chiefAccountantPhone, String? contactPerson, String? taxationSystem, bool isVatPayer, double vatRate,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
+ String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'full_name') String fullName,@JsonKey(name: 'short_name') String shortName, String inn, String director,@JsonKey(name: 'legal_address') String legalAddress,@JsonKey(name: 'actual_address') String actualAddress, String phone, String email,@JsonKey(unknownEnumValue: ContractorType.customer, defaultValue: ContractorType.customer) ContractorType type, String? website, String? activityDescription, String? kpp, String? ogrn, String? okpo, String? directorBasis, String? directorPhone, String? chiefAccountantName, String? chiefAccountantPhone, String? contactPerson, String? taxationSystem, bool isVatPayer, double vatRate,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
 });
 
 
@@ -106,7 +106,7 @@ as DateTime?,
 
 @JsonSerializable(explicitToJson: true, fieldRename: FieldRename.snake)
 class _ContractorModel extends ContractorModel {
-  const _ContractorModel({required this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'logo_url') this.logoUrl, @JsonKey(name: 'full_name') required this.fullName, @JsonKey(name: 'short_name') required this.shortName, required this.inn, required this.director, @JsonKey(name: 'legal_address') required this.legalAddress, @JsonKey(name: 'actual_address') required this.actualAddress, required this.phone, required this.email, required this.type, this.website, this.activityDescription, this.kpp, this.ogrn, this.okpo, this.directorBasis, this.directorPhone, this.chiefAccountantName, this.chiefAccountantPhone, this.contactPerson, this.taxationSystem, this.isVatPayer = false, this.vatRate = 0, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt}): super._();
+  const _ContractorModel({required this.id, @JsonKey(name: 'company_id') required this.companyId, @JsonKey(name: 'logo_url') this.logoUrl, @JsonKey(name: 'full_name') this.fullName = '', @JsonKey(name: 'short_name') this.shortName = '', this.inn = '', this.director = '', @JsonKey(name: 'legal_address') this.legalAddress = '', @JsonKey(name: 'actual_address') this.actualAddress = '', this.phone = '', this.email = '', @JsonKey(unknownEnumValue: ContractorType.customer, defaultValue: ContractorType.customer) this.type = ContractorType.customer, this.website, this.activityDescription, this.kpp, this.ogrn, this.okpo, this.directorBasis, this.directorPhone, this.chiefAccountantName, this.chiefAccountantPhone, this.contactPerson, this.taxationSystem, this.isVatPayer = false, this.vatRate = 0, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt}): super._();
   factory _ContractorModel.fromJson(Map<String, dynamic> json) => _$ContractorModelFromJson(json);
 
 @override final  String id;
@@ -114,13 +114,13 @@ class _ContractorModel extends ContractorModel {
 @override@JsonKey(name: 'logo_url') final  String? logoUrl;
 @override@JsonKey(name: 'full_name') final  String fullName;
 @override@JsonKey(name: 'short_name') final  String shortName;
-@override final  String inn;
-@override final  String director;
+@override@JsonKey() final  String inn;
+@override@JsonKey() final  String director;
 @override@JsonKey(name: 'legal_address') final  String legalAddress;
 @override@JsonKey(name: 'actual_address') final  String actualAddress;
-@override final  String phone;
-@override final  String email;
-@override final  ContractorType type;
+@override@JsonKey() final  String phone;
+@override@JsonKey() final  String email;
+@override@JsonKey(unknownEnumValue: ContractorType.customer, defaultValue: ContractorType.customer) final  ContractorType type;
 @override final  String? website;
 @override final  String? activityDescription;
 @override final  String? kpp;
@@ -170,7 +170,7 @@ abstract mixin class _$ContractorModelCopyWith<$Res> implements $ContractorModel
   factory _$ContractorModelCopyWith(_ContractorModel value, $Res Function(_ContractorModel) _then) = __$ContractorModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'full_name') String fullName,@JsonKey(name: 'short_name') String shortName, String inn, String director,@JsonKey(name: 'legal_address') String legalAddress,@JsonKey(name: 'actual_address') String actualAddress, String phone, String email, ContractorType type, String? website, String? activityDescription, String? kpp, String? ogrn, String? okpo, String? directorBasis, String? directorPhone, String? chiefAccountantName, String? chiefAccountantPhone, String? contactPerson, String? taxationSystem, bool isVatPayer, double vatRate,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
+ String id,@JsonKey(name: 'company_id') String companyId,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'full_name') String fullName,@JsonKey(name: 'short_name') String shortName, String inn, String director,@JsonKey(name: 'legal_address') String legalAddress,@JsonKey(name: 'actual_address') String actualAddress, String phone, String email,@JsonKey(unknownEnumValue: ContractorType.customer, defaultValue: ContractorType.customer) ContractorType type, String? website, String? activityDescription, String? kpp, String? ogrn, String? okpo, String? directorBasis, String? directorPhone, String? chiefAccountantName, String? chiefAccountantPhone, String? contactPerson, String? taxationSystem, bool isVatPayer, double vatRate,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
 });
 
 
