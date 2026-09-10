@@ -1,0 +1,8 @@
+{
+  "name": "projectgt-web",
+  "private": true,
+  "scripts": {
+    "build": "npm ci --prefix react_app && npm run build --prefix react_app",
+    "start": "npm run start --prefix react_app"
+  }
+}
