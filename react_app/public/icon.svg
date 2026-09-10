@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <rect width="1024" height="1024" fill="#0E1827"/>
+  <g transform="translate(512 500) scale(0.72) translate(-512 -512)">
+    <defs>
+      <linearGradient id="gt-dark" x1="150" y1="120" x2="870" y2="930" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#F4F7FB"/>
+        <stop offset="1" stop-color="#C9D3E0"/>
+      </linearGradient>
+    </defs>
+    <polygon
+      points="512,72 848,266 848,758 512,952 176,758 176,266"
+      stroke="url(#gt-dark)"
+      stroke-width="22"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    />
+    <path d="M323 390 H539 V456 H395 V624 H323 Z" fill="url(#gt-dark)"/>
+    <path d="M323 308 H703 V380 H621 V624 H549 V380 H323 Z" fill="#1557EA"/>
+  </g>
+</svg>
