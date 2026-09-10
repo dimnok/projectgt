@@ -3,6 +3,6 @@
   "private": true,
   "scripts": {
     "build": "npm ci --prefix react_app && npm run build --prefix react_app",
-    "start": "cd react_app && npx next start -H 0.0.0.0 -p ${PORT:-8080}"
+    "start": "node react_app/node_modules/next/dist/bin/next start react_app -H 0.0.0.0 -p 8080"
   }
 }
