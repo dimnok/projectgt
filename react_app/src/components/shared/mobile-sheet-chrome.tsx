@@ -33,7 +33,7 @@ export function MobileSheet({
       onOpenChange={(next, details) => {
         if (
           !next &&
-          details.reason === "outsidePress" &&
+          details.reason === "outside-press" &&
           details.event.target instanceof Element &&
           details.event.target.closest("[data-slot=select-content]")
         ) {

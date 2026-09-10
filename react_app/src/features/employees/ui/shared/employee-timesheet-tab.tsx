@@ -376,7 +376,7 @@ export function EmployeeTimesheetTab({
   const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
 
   const dayLookup = useMemo(() => {
-    const map = new Map<number, (typeof data.days)[0]>();
+    const map = new Map<number, TimesheetDaySummary>();
     if (data?.days) {
       for (const d of data.days) {
         const dayNum = parseInt(d.date.split("-")[2], 10);

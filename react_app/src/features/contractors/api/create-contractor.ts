@@ -10,6 +10,7 @@ import type {
   Contractor,
   ContractorDraft,
 } from "@/features/contractors/types/contractor.types";
+import type { ContractorsRow } from "@/types/database.types";
 import { createId } from "@/lib/utils";
 
 /**

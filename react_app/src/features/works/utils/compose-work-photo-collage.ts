@@ -49,7 +49,7 @@ function cellRects(count: number, width: number, height: number): Rect[] {
 
 function drawCover(
   ctx: CanvasRenderingContext2D,
-  image: CanvasImageSource & { width: number; height: number },
+  image: HTMLImageElement,
   rect: Rect
 ) {
   const sourceWidth = image.naturalWidth || image.width;

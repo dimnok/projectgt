@@ -10,6 +10,7 @@ import type {
   Contract,
   ContractDraft,
 } from "@/features/contracts/types/contract.types";
+import type { ContractJoinRow } from "@/types/database.types";
 import { createId } from "@/lib/utils";
 
 /**

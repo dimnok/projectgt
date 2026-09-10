@@ -11,6 +11,7 @@ import type {
   Employee,
   EmployeeCreateDraft,
 } from "@/features/employees/types/employee.types";
+import type { EmployeesRow } from "@/types/database.types";
 import { createId } from "@/lib/utils";
 
 /**

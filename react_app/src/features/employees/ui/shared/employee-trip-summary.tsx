@@ -71,7 +71,7 @@ export function EmployeeTripSummary({
   }
 
   const hasRates = rates.length > 0;
-  const hasActive = rates.some(isTripRateActive);
+  const hasActive = rates.some((rate) => isTripRateActive(rate));
 
   return (
     <div className="flex flex-col gap-2">
