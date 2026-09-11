@@ -48,7 +48,7 @@ export async function assertCanManageUsers(): Promise<{
   const allowed = await canManageUsers(client, user.id);
   if (!allowed) {
     throw new Error(
-      "Привязку к сотруднику может менять только супер-админ или руководитель"
+      "Объекты и карточку сотрудника может менять только супер-админ или руководитель"
     );
   }
 

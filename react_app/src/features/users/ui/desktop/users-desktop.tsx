@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Loading } from "@/components/shared/loading";
 import { useCurrentProfile } from "@/features/profile/hooks/use-current-profile";
+import { useObjects } from "@/features/objects/hooks/use-objects";
 import { ProfileEmployeeDialog } from "@/features/profile/ui/profile-employee-dialog";
 import { useCompanyUsers } from "@/features/users/hooks/use-company-users";
 import type {
@@ -15,6 +16,7 @@ import type {
 import { UsersFilters } from "@/features/users/ui/desktop/users-filters";
 import { UsersList } from "@/features/users/ui/desktop/users-list";
 import { UsersSummary } from "@/features/users/ui/desktop/users-summary";
+import { UserObjectsDialog } from "@/features/users/ui/shared/user-objects-dialog";
 import { UserRoleDialog } from "@/features/users/ui/shared/user-role-dialog";
 import { filterCompanyUsers, userDisplayName } from "@/features/users/utils/user.utils";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -24,18 +26,32 @@ export function UsersDesktop() {
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { can, isOwner } = usePermissions();
   const { data, isLoading, isError, error } = useCompanyUsers();
+  const objectsQuery = useObjects();
+  const objects = objectsQuery.data ?? [];
   const { query } = useAppSearch();
   const [link, setLink] = useState<CompanyUserLinkFilter>("all");
   const [editor, setEditor] = useState<CompanyUser | null>(null);
   const [roleEditor, setRoleEditor] = useState<CompanyUser | null>(null);
+  const [objectsEditor, setObjectsEditor] = useState<CompanyUser | null>(null);
 
   const canRead = can("users", "read");
   const canLinkEmployee = Boolean(profile?.canManageUsers);
+  const canAssignObjects = canLinkEmployee && objectsQuery.isSuccess;
   const canAssignRole = isOwner;
 
+  const objectNames = useMemo(
+    () => new Map(objects.map((object) => [object.id, object.name])),
+    [objects]
+  );
+
   const users = useMemo(
-    () => filterCompanyUsers(data ?? [], { search: query, link }),
-    [data, query, link]
+    () =>
+      filterCompanyUsers(data ?? [], {
+        search: query,
+        link,
+        objectNames,
+      }),
+    [data, query, link, objectNames]
   );
 
   if (profileLoading) {
@@ -77,10 +93,13 @@ export function UsersDesktop() {
         ) : (
           <UsersList
             users={users}
+            objects={objects}
             canLinkEmployee={canLinkEmployee}
+            canAssignObjects={canAssignObjects}
             canAssignRole={canAssignRole}
             onAssign={setEditor}
             onAssignRole={setRoleEditor}
+            onAssignObjects={setObjectsEditor}
           />
         )}
       </div>
@@ -113,6 +132,16 @@ export function UsersDesktop() {
         onOpenChange={(open) => {
           if (!open) {
             setRoleEditor(null);
+          }
+        }}
+      />
+
+      <UserObjectsDialog
+        user={objectsEditor}
+        objects={objects}
+        onOpenChange={(open) => {
+          if (!open) {
+            setObjectsEditor(null);
           }
         }}
       />

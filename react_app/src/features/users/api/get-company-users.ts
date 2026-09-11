@@ -28,6 +28,7 @@ type MemberQueryRow = {
         email: string | null;
         phone: string | null;
         employee_id: string | null;
+        object_ids: string[] | null;
       }
     | {
         id: string;
@@ -37,6 +38,7 @@ type MemberQueryRow = {
         email: string | null;
         phone: string | null;
         employee_id: string | null;
+        object_ids: string[] | null;
       }[]
     | null;
 };
@@ -81,7 +83,7 @@ export async function getCompanyUsers(): Promise<CompanyUser[]> {
   const membersResult = await client
     .from("company_members")
     .select(
-      "user_id, system_role, role_id, is_active, is_owner, roles(role_name), profiles(id, full_name, short_name, photo_url, email, phone, employee_id)"
+      "user_id, system_role, role_id, is_active, is_owner, roles(role_name), profiles(id, full_name, short_name, photo_url, email, phone, employee_id, object_ids)"
     )
     .eq("company_id", companyId);
 
@@ -148,6 +150,11 @@ export async function getCompanyUsers(): Promise<CompanyUser[]> {
         isActive: asBoolean(row.is_active, true),
         isOwner,
         employeeId,
+        objectIds: Array.isArray(profile.object_ids)
+          ? profile.object_ids.filter(
+              (id): id is string => typeof id === "string" && id.length > 0
+            )
+          : [],
         linkedEmployee: employeeId ? employeesById.get(employeeId) ?? null : null,
       } satisfies CompanyUser;
     })

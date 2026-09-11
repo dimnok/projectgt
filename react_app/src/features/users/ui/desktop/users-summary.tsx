@@ -43,6 +43,10 @@ export function UsersSummary({ users }: UsersSummaryProps) {
             <span className="text-muted-foreground">Неактивны</span>
             <span className="tabular-nums font-medium">{counts.inactive}</span>
           </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Без объектов</span>
+            <span className="tabular-nums font-medium">{counts.withoutObjects}</span>
+          </li>
         </ul>
       </CardContent>
     </Card>

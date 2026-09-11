@@ -1,19 +1,21 @@
 "use client";
 
-import { useMemo, useRef, type MouseEvent, type TouchEvent } from "react";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { ru } from "react-day-picker/locale";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  type TouchEvent,
+} from "react";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
 import {
   defaultDayInMonth,
   formatMonthYear,
-  monthStartDate,
   parseLocalDate,
   shiftMonthKey,
   toDateKey,
@@ -31,27 +33,101 @@ type WorksMobileCalendarProps = {
   onSelectDate: (date: string) => void;
 };
 
-const PANEL_CLASS =
-  "h-[var(--collapsible-panel-height)] overflow-hidden transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none data-ending-style:h-0 data-starting-style:h-0 [&[hidden]:not([hidden='until-found'])]:hidden";
-const PAN_PX = 36;
-const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const ROW_HEIGHT = 40;
+const ROW_GAP = 4;
+const ROW_STEP = ROW_HEIGHT + ROW_GAP;
+const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
 
-function weekDateKeys(selectedDate: string): string[] {
-  const date = parseLocalDate(selectedDate);
-  const day = date.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset);
-  return Array.from({ length: 7 }, (_, index) => {
-    const next = new Date(monday);
-    next.setDate(monday.getDate() + index);
-    return toDateKey(next);
-  });
+function shiftDateByDays(dateKey: string, days: number): string {
+  const date = parseLocalDate(dateKey);
+  date.setDate(date.getDate() + days);
+  return toDateKey(date);
 }
 
-function shiftWeek(selectedDate: string, weeks: number): string {
-  const date = parseLocalDate(selectedDate);
-  date.setDate(date.getDate() + weeks * 7);
-  return toDateKey(date);
+function getMonthWeeks(monthKey: string): string[][] {
+  const [year, monthIndex] = monthKey.split("-").map(Number);
+  const firstDay = new Date(year, monthIndex - 1, 1);
+  const dayOfWeek = firstDay.getDay(); // 0 is Sun, 1 is Mon, ..., 6 is Sat
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+  const current = new Date(year, monthIndex - 1, 1 + mondayOffset);
+  const weeks: string[][] = [];
+
+  for (let w = 0; w < 6; w++) {
+    const week: string[] = [];
+    let hasDayInMonth = false;
+    for (let d = 0; d < 7; d++) {
+      const key = toDateKey(current);
+      if (key.slice(0, 7) === monthKey) {
+        hasDayInMonth = true;
+      }
+      week.push(key);
+      current.setDate(current.getDate() + 1);
+    }
+    if (hasDayInMonth || weeks.length === 0) {
+      weeks.push(week);
+    } else {
+      break;
+    }
+  }
+
+  return weeks;
+}
+
+type CalendarDayCellProps = {
+  date: string;
+  month: string;
+  selectedDate: string;
+  today: string;
+  hasShift: boolean;
+  onSelectDate: (date: string) => void;
+};
+
+function CalendarDayCell({
+  date,
+  month,
+  selectedDate,
+  today,
+  hasShift,
+  onSelectDate,
+}: CalendarDayCellProps) {
+  const inMonth = date.slice(0, 7) === month;
+  const isSelected = date === selectedDate;
+  const isToday = date === today;
+  const dayNum = Number(date.slice(8, 10));
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectDate(date)}
+      aria-label={date}
+      aria-pressed={isSelected}
+      className="group relative flex h-10 w-full items-center justify-center p-0.5 outline-hidden"
+    >
+      <span
+        className={cn(
+          "relative flex size-9 items-center justify-center rounded-xl text-sm transition-all duration-150",
+          isSelected
+            ? "bg-primary text-primary-foreground font-semibold shadow-xs scale-100"
+            : isToday
+              ? "ring-1 ring-primary/40 font-semibold text-foreground"
+              : inMonth
+                ? "font-medium text-foreground hover:bg-muted/60 active:scale-95"
+                : "text-muted-foreground/35 hover:text-muted-foreground/60 active:scale-95"
+        )}
+      >
+        <span>{dayNum}</span>
+        {hasShift ? (
+          <span
+            className={cn(
+              "absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full",
+              isSelected ? "bg-primary-foreground" : "bg-foreground"
+            )}
+          />
+        ) : null}
+      </span>
+    </button>
+  );
 }
 
 export function WorksMobileCalendar({
@@ -63,135 +139,195 @@ export function WorksMobileCalendar({
   onMonthChange,
   onSelectDate,
 }: WorksMobileCalendarProps) {
-  const monthDate = monthStartDate(month);
-  const selected = parseLocalDate(selectedDate);
   const today = toDateKey(new Date());
   const hasShiftSet = useMemo(() => new Set(shiftDates), [shiftDates]);
-  const weekDates = useMemo(() => weekDateKeys(selectedDate), [selectedDate]);
-  const panStartRef = useRef<{ x: number; y: number } | null>(null);
-  const skipClickRef = useRef(false);
+  const weeks = useMemo(() => getMonthWeeks(month), [month]);
 
-  function goToday() {
-    onMonthChange(toMonthKey(today));
-    onSelectDate(today);
-  }
+  const activeWeekIndex = useMemo(() => {
+    const index = weeks.findIndex((week) => week.includes(selectedDate));
+    if (index !== -1) {
+      return index;
+    }
+    const fallback = defaultDayInMonth(month);
+    const fallbackIndex = weeks.findIndex((week) => week.includes(fallback));
+    return fallbackIndex !== -1 ? fallbackIndex : 0;
+  }, [weeks, selectedDate, month]);
 
-  function handleNav(direction: -1 | 1) {
-    const next = shiftMonthKey(month, direction);
-    onMonthChange(next);
-    onSelectDate(defaultDayInMonth(next));
-  }
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
 
-  function handleSelectDate(date: string) {
-    onSelectDate(date);
-    onMonthChange(date.slice(0, 7));
-  }
+  const handleDateSelect = useCallback(
+    (date: string) => {
+      onSelectDate(date);
+      const dateMonth = date.slice(0, 7);
+      if (dateMonth !== month) {
+        onMonthChange(dateMonth);
+      }
+    },
+    [month, onMonthChange, onSelectDate]
+  );
 
-  function handlePanStart(event: TouchEvent<HTMLDivElement>) {
-    const target = event.target;
-    if (target instanceof Element && target.closest("[data-cal-nav]")) {
-      panStartRef.current = null;
+  const handlePrev = useCallback(() => {
+    if (open) {
+      const nextMonth = shiftMonthKey(month, -1);
+      onMonthChange(nextMonth);
+      onSelectDate(defaultDayInMonth(nextMonth));
+    } else {
+      const prevDate = shiftDateByDays(selectedDate, -7);
+      const dateMonth = prevDate.slice(0, 7);
+      if (dateMonth !== month) {
+        onMonthChange(dateMonth);
+      }
+      onSelectDate(prevDate);
+    }
+  }, [month, open, onMonthChange, onSelectDate, selectedDate]);
+
+  const handleNext = useCallback(() => {
+    if (open) {
+      const nextMonth = shiftMonthKey(month, 1);
+      onMonthChange(nextMonth);
+      onSelectDate(defaultDayInMonth(nextMonth));
+    } else {
+      const nextDate = shiftDateByDays(selectedDate, 7);
+      const dateMonth = nextDate.slice(0, 7);
+      if (dateMonth !== month) {
+        onMonthChange(dateMonth);
+      }
+      onSelectDate(nextDate);
+    }
+  }, [month, open, onMonthChange, onSelectDate, selectedDate]);
+
+  const handleGoToday = useCallback(() => {
+    const todayKey = toDateKey(new Date());
+    const todayMonth = toMonthKey(todayKey);
+    if (todayMonth !== month) {
+      onMonthChange(todayMonth);
+    }
+    onSelectDate(todayKey);
+  }, [month, onMonthChange, onSelectDate]);
+
+  function handleTouchStart(e: TouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 1) {
       return;
     }
-    const touch = event.touches[0];
-    panStartRef.current = touch
-      ? { x: touch.clientX, y: touch.clientY }
-      : null;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now(),
+    };
   }
 
-  function handlePanEnd(event: TouchEvent<HTMLDivElement>) {
-    const start = panStartRef.current;
-    panStartRef.current = null;
-    if (!start) {
+  function handleTouchEnd(e: TouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || e.changedTouches.length !== 1) {
       return;
     }
-    const end = event.changedTouches[0];
-    if (!end) {
-      return;
-    }
-    const dx = end.clientX - start.x;
-    const dy = end.clientY - start.y;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
+    const elapsed = Date.now() - start.time;
 
-    if (!open && absX >= PAN_PX && absX > absY) {
-      skipClickRef.current = true;
-      handleSelectDate(shiftWeek(selectedDate, dx < 0 ? 1 : -1));
+    // Reject slow drags or tiny movements
+    if (elapsed > 600 || Math.max(absX, absY) < 36) {
       return;
     }
-    if (open && dy <= -PAN_PX && absY > absX) {
-      onOpenChange(false);
+
+    // Vertical gestures (swipe up to collapse, swipe down to expand)
+    if (absY > absX * 1.2) {
+      if (dy < -36 && open) {
+        onOpenChange(false);
+      } else if (dy > 36 && !open) {
+        onOpenChange(true);
+      }
       return;
     }
-    if (!open && dy >= PAN_PX && absY > absX) {
-      onOpenChange(true);
+
+    // Horizontal gestures (swipe left for next, swipe right for prev)
+    if (absX > absY * 1.2) {
+      if (dx < -36) {
+        handleNext();
+      } else if (dx > 36) {
+        handlePrev();
+      }
     }
   }
 
-  function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
-    if (!skipClickRef.current) {
-      return;
-    }
-    skipClickRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
+  const containerHeight = open ? weeks.length * ROW_STEP - ROW_GAP : ROW_HEIGHT;
 
   return (
     <div
-      className={cn(
-        "flex flex-col bg-background px-4 [--cell-radius:var(--radius-md)]",
-        open ? "pt-2" : "pt-1"
-      )}
-      onTouchStart={handlePanStart}
-      onTouchEnd={handlePanEnd}
-      onClickCapture={handleClickCapture}
+      className="flex flex-col bg-background select-none px-3 pt-1 pb-0.5"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {open ? (
-        <div className="flex h-9 items-center gap-2">
-          <p className="min-w-0 flex-1 truncate font-heading text-sm font-semibold tracking-tight">
+      {/* Header bar: Month title & toggle on left, navigation controls on right */}
+      <div className="flex h-10 items-center justify-between px-1">
+        <button
+          type="button"
+          onClick={() => onOpenChange(!open)}
+          className="group flex items-center gap-1.5 rounded-lg py-1 px-1.5 -ml-1 text-foreground hover:bg-muted/50 active:scale-98 transition-all"
+          aria-expanded={open}
+          aria-label={open ? "Свернуть календарь" : "Развернуть календарь"}
+        >
+          <span className="font-heading text-base font-semibold tracking-tight">
             {formatMonthYear(month)}
-          </p>
-          <div className="flex shrink-0 items-center gap-1" data-cal-nav>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Предыдущий месяц"
-              onClick={() => handleNav(-1)}
-            >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={goToday}
-              className="px-2 text-xs"
-            >
-              Сегодня
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Следующий месяц"
-              onClick={() => handleNav(1)}
-            >
-              <ChevronRightIcon />
-            </Button>
-          </div>
-        </div>
-      ) : null}
+          </span>
+          <ChevronDownIcon
+            className={cn(
+              "size-4 text-muted-foreground transition-transform duration-200",
+              open && "rotate-180"
+            )}
+          />
+        </button>
 
-      <div className={cn("grid grid-cols-7 px-px", open ? "mt-1" : "mt-0")}>
-        {WEEKDAY_LABELS.map((label, index) => (
+        <div className="flex items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label={open ? "Предыдущий месяц" : "Предыдущая неделя"}
+            onClick={handlePrev}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={handleGoToday}
+          >
+            Сегодня
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label={open ? "Следующий месяц" : "Следующая неделя"}
+            onClick={handleNext}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Weekday labels row: Stationary, aligned with day columns */}
+      <div className="grid grid-cols-7 text-center">
+        {WEEKDAY_LABELS.map((label, idx) => (
           <span
             key={label}
             className={cn(
-              "text-center",
-              index >= 5 ? "text-destructive" : "text-muted-foreground",
-              open ? "text-[0.8rem]" : "text-[0.65rem] leading-none"
+              "text-[0.72rem] font-medium leading-6 select-none",
+              idx >= 5 ? "text-muted-foreground/75" : "text-muted-foreground"
             )}
           >
             {label}
@@ -199,126 +335,81 @@ export function WorksMobileCalendar({
         ))}
       </div>
 
-      <div className="grid overflow-hidden">
-        <div
-          className={cn(
-            "min-w-0 self-start [grid-area:1/1]",
-            open ? "invisible pointer-events-none" : "relative z-10"
-          )}
-          aria-hidden={open}
-        >
-          <div className="grid grid-cols-7 px-px">
-            {weekDates.map((date) => {
-              const inMonth = date.slice(0, 7) === month;
-              const hasShift = hasShiftSet.has(date);
-              const isSelected = date === selectedDate;
-              const isToday = date === today;
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => handleSelectDate(date)}
-                  className="flex h-8 w-full items-center justify-center"
-                >
-                  <span
-                    className={cn(
-                      "relative flex size-8 items-center justify-center rounded-full text-sm",
-                      !inMonth && "text-muted-foreground",
-                      isSelected && "ring-1 ring-inset ring-foreground/70",
-                      isToday && !isSelected && "font-medium"
-                    )}
-                  >
-                    {Number(date.slice(8, 10))}
-                    {hasShift ? (
-                      <span className="absolute bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-foreground" />
-                    ) : null}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* Accordion Days Grid: Smooth GPU-accelerated transition */}
+      <div
+        className="relative overflow-hidden transition-[height] duration-[260ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+        style={{ height: `${containerHeight}px` }}
+      >
+        <div className="flex flex-col gap-1">
+          {weeks.map((week, index) => {
+            const isSelectedWeek = index === activeWeekIndex;
 
-        <Collapsible
-          open={open}
-          className={cn(
-            "min-w-0 self-start [grid-area:1/1]",
-            open ? "relative z-10" : "pointer-events-none"
-          )}
-        >
-          <CollapsibleContent className={PANEL_CLASS}>
-            <Calendar
-              mode="single"
-              required
-              locale={ru}
-              weekStartsOn={1}
-              showOutsideDays={false}
-              hideNavigation
-              hideWeekdays
-              month={monthDate}
-              onMonthChange={(next) => {
-                const key = toMonthKey(toDateKey(next));
-                onMonthChange(key);
-                onSelectDate(defaultDayInMonth(key));
-              }}
-              selected={selected}
-              onSelect={(next) => {
-                if (!next) {
-                  return;
-                }
-                handleSelectDate(toDateKey(next));
-              }}
-              modifiers={{
-                hasShift: shiftDates.map((date) => parseLocalDate(date)),
-              }}
-              className={cn(
-                "w-full bg-transparent p-0 [--cell-size:--spacing(7)]",
-                "[&_button[data-selected-single=true]]:bg-transparent [&_button[data-selected-single=true]]:text-foreground [&_button[data-selected-single=true]]:ring-1 [&_button[data-selected-single=true]]:ring-inset [&_button[data-selected-single=true]]:ring-foreground/70"
-              )}
-              classNames={{
-                month_caption: "hidden",
-                nav: "hidden",
-                month: "flex w-full flex-col gap-1",
-                today: "bg-transparent",
-                week: "mt-0.5 flex w-full px-px",
-              }}
-              components={{
-                MonthCaption: () => <></>,
-                Nav: () => <></>,
-                DayButton: (props) => {
-                  const key = toDateKey(props.day.date);
-                  const hasShift = hasShiftSet.has(key);
-                  return (
-                    <CalendarDayButton
-                      locale={ru}
-                      {...props}
-                      className={cn(
-                        "rounded-(--cell-radius)",
-                        hasShift &&
-                          "after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-foreground"
-                      )}
-                    />
-                  );
-                },
-              }}
-            />
-          </CollapsibleContent>
-        </Collapsible>
+            let translateY = 0;
+            let opacity = 1;
+            let pointerEvents: "auto" | "none" = "auto";
+
+            if (!open) {
+              if (isSelectedWeek) {
+                translateY = -activeWeekIndex * ROW_STEP;
+                opacity = 1;
+                pointerEvents = "auto";
+              } else if (index < activeWeekIndex) {
+                translateY = -activeWeekIndex * ROW_STEP - 10;
+                opacity = 0;
+                pointerEvents = "none";
+              } else {
+                translateY = -activeWeekIndex * ROW_STEP + 10;
+                opacity = 0;
+                pointerEvents = "none";
+              }
+            }
+
+            return (
+              <div
+                key={week[0]}
+                className="grid grid-cols-7 transition-[transform,opacity] duration-[260ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                style={{
+                  transform: `translate3d(0, ${translateY}px, 0)`,
+                  opacity,
+                  pointerEvents,
+                }}
+              >
+                {week.map((date) => (
+                  <CalendarDayCell
+                    key={date}
+                    date={date}
+                    month={month}
+                    selectedDate={selectedDate}
+                    today={today}
+                    hasShift={hasShiftSet.has(date)}
+                    onSelectDate={handleDateSelect}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={open ? "Свернуть календарь" : "Развернуть календарь"}
-        onClick={() => onOpenChange(!open)}
-        className={cn(
-          "flex w-full items-center justify-center",
-          open ? "min-h-8" : "min-h-5"
-        )}
-      >
-        <span className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
-      </button>
+      {/* Bottom puller handle */}
+      <div className="flex items-center justify-center py-1">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={open ? "Свернуть календарь" : "Развернуть календарь"}
+          onClick={() => onOpenChange(!open)}
+          className="group flex h-4 w-16 items-center justify-center rounded-full hover:bg-muted/40 transition-colors"
+        >
+          <span
+            className={cn(
+              "h-1 rounded-full transition-all duration-200",
+              open
+                ? "w-8 bg-muted-foreground/35 group-hover:bg-muted-foreground/55"
+                : "w-10 bg-muted-foreground/25 group-hover:bg-muted-foreground/45"
+            )}
+          />
+        </button>
+      </div>
     </div>
   );
 }

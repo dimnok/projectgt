@@ -16,7 +16,6 @@ import { WorkOpenSheet } from "@/features/works/ui/mobile/work-open-sheet";
 import {
   currentMonthKey,
   defaultDayInMonth,
-  formatMonthName,
   formatRuDate,
   toMonthKey,
 } from "@/features/works/utils/work.utils";
@@ -89,7 +88,6 @@ export function WorksMobile() {
       <header className="shrink-0 border-b bg-background">
         <MobileAppBar
           title="Смены"
-          center={calendarOpen ? undefined : formatMonthName(visibleMonth)}
           className="border-b-0"
         />
         <WorksMobileCalendar

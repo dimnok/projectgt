@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { AppUpdateBell } from "@/components/app-update-bell";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,10 @@ export function MobileAppBar({
           {center}
         </p>
       ) : null}
-      {trailing}
+      <div className="flex shrink-0 items-center gap-1">
+        {trailing}
+        <AppUpdateBell />
+      </div>
     </header>
   );
 }

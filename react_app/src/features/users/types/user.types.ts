@@ -12,6 +12,7 @@ export type CompanyUser = {
   isActive: boolean;
   isOwner: boolean;
   employeeId: string | null;
+  objectIds: string[];
   linkedEmployee: LinkedEmployee | null;
 };
 

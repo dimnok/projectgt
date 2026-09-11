@@ -7,5 +7,8 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+  const cacheMode =
+    event.request.mode === "navigate" ? "no-store" : "default";
+
+  event.respondWith(fetch(event.request, { cache: cacheMode }));
 });

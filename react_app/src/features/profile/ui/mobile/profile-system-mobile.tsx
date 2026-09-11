@@ -25,10 +25,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ProfileAppearance } from "@/features/profile/ui/profile-appearance";
 import { ProfileMobileShell } from "@/features/profile/ui/mobile/profile-mobile-shell";
+import { useAppUpdate } from "@/hooks/use-app-update";
 import { useStandalone } from "@/hooks/use-standalone";
+import { formatAppBuildLabel, formatAppVersionLabel } from "@/lib/app-version";
 import { signOut } from "@/lib/supabase/auth";
-
-const APP_VERSION = "0.1.0";
 
 function subscribeOnline(callback: () => void) {
   window.addEventListener("online", callback);
@@ -54,6 +54,9 @@ type ProfileSystemMobileProps = {
 export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
   const router = useRouter();
   const isStandalone = useStandalone();
+  const { current, hasUpdate, applyUpdate } = useAppUpdate();
+  const versionLabel = formatAppVersionLabel(current.version);
+  const buildLabel = formatAppBuildLabel(current.buildId);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isOnline = useSyncExternalStore(
@@ -76,7 +79,7 @@ export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
   }
 
   function handleReload() {
-    window.location.reload();
+    applyUpdate();
   }
 
   return (
@@ -88,9 +91,18 @@ export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
         </div>
 
         <div className="flex flex-col gap-2 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
-          <div className="flex h-11 items-center justify-between gap-3">
+          <div className="flex min-h-11 items-center justify-between gap-3 py-1">
             <span className="text-sm text-muted-foreground">Версия</span>
-            <Badge variant="secondary">v{APP_VERSION}</Badge>
+            <span className="flex flex-col items-end gap-0.5">
+              <Badge variant={hasUpdate ? "warning" : "secondary"}>
+                {versionLabel}
+              </Badge>
+              {buildLabel ? (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {buildLabel}
+                </span>
+              ) : null}
+            </span>
           </div>
           <div className="flex h-11 items-center justify-between gap-3">
             <span className="text-sm text-muted-foreground">Режим</span>
@@ -110,13 +122,13 @@ export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
 
         <Button
           type="button"
-          variant="outline"
+          variant={hasUpdate ? "default" : "outline"}
           size="lg"
           className="w-full"
           onClick={handleReload}
         >
           <RefreshCwIcon data-icon="inline-start" />
-          Перезагрузить
+          {hasUpdate ? "Обновить" : "Перезагрузить"}
         </Button>
 
         <Button

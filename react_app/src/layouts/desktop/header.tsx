@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { Building2Icon } from "lucide-react";
 
+import { AppUpdateBell } from "@/components/app-update-bell";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getPageTitle } from "@/config/navigation";
 import { AppSearchField } from "@/layouts/desktop/app-search";
@@ -61,6 +62,7 @@ export function Header() {
             <AppSearchField />
           </form>
         )}
+        <AppUpdateBell />
         <div className="hidden md:block">
           <UserMenu />
         </div>

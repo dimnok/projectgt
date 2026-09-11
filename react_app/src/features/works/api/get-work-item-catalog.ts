@@ -67,6 +67,7 @@ export async function getObjectFloors(objectId: string): Promise<string[]> {
 /**
  * Estimate lines of an object that can be added to a shift.
  * Same filter as Flutter: `object_id` + `visible_in_estimates_module`.
+ * RLS: estimates.read **or** works catalog access, scoped to assigned objects.
  */
 export async function getObjectEstimatesForWorks(
   objectId: string

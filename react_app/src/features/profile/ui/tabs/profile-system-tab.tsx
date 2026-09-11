@@ -34,10 +34,11 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { ProfileAppearance } from "@/features/profile/ui/profile-appearance";
+import { useAppUpdate } from "@/hooks/use-app-update";
 import { useStandalone } from "@/hooks/use-standalone";
+import { formatAppBuildLabel, formatAppVersionLabel } from "@/lib/app-version";
 import { signOut } from "@/lib/supabase/auth";
 
-const APP_VERSION = "0.1.0";
 const BUILD_INFO = "Next.js 16 • React 19";
 
 function subscribeOnline(callback: () => void) {
@@ -60,6 +61,9 @@ function getOnlineServerSnapshot() {
 export function ProfileSystemTab() {
   const router = useRouter();
   const isStandalone = useStandalone();
+  const { current, hasUpdate, applyUpdate } = useAppUpdate();
+  const versionLabel = formatAppVersionLabel(current.version);
+  const buildLabel = formatAppBuildLabel(current.buildId);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isOnline = useSyncExternalStore(
@@ -82,9 +86,7 @@ export function ProfileSystemTab() {
   }
 
   function handleReload() {
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+    applyUpdate();
   }
 
   return (
@@ -113,7 +115,9 @@ export function ProfileSystemTab() {
               <LaptopIcon className="size-4 text-primary" />
               <CardTitle>О приложении</CardTitle>
             </div>
-            <Badge variant="secondary">v{APP_VERSION}</Badge>
+            <Badge variant={hasUpdate ? "warning" : "secondary"}>
+              {versionLabel}
+            </Badge>
           </div>
           <CardDescription>
             Техническая информация о сборке и текущем режиме работы.
@@ -124,8 +128,15 @@ export function ProfileSystemTab() {
           <div className="grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex items-center justify-between rounded-lg border bg-muted/20 p-3">
               <span className="text-muted-foreground">Версия приложения</span>
-              <span className="font-semibold text-foreground">
-                v{APP_VERSION}
+              <span className="flex flex-col items-end gap-0.5">
+                <span className="font-semibold text-foreground">
+                  {versionLabel}
+                </span>
+                {buildLabel ? (
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {buildLabel}
+                  </span>
+                ) : null}
               </span>
             </div>
 
@@ -176,17 +187,19 @@ export function ProfileSystemTab() {
 
         <CardFooter className="justify-between gap-2">
           <span className="text-xs text-muted-foreground">
-            Обновления применяются автоматически
+            {hasUpdate
+              ? "Доступна новая версия. Обновите страницу."
+              : "У вас актуальная версия"}
           </span>
           <Button
             type="button"
-            variant="outline"
+            variant={hasUpdate ? "default" : "outline"}
             size="sm"
             className="gap-1.5"
             onClick={handleReload}
           >
-            <RefreshCwIcon className="size-3.5" />
-            <span>Перезагрузить страницу</span>
+            <RefreshCwIcon data-icon="inline-start" />
+            <span>{hasUpdate ? "Обновить" : "Перезагрузить страницу"}</span>
           </Button>
         </CardFooter>
       </Card>

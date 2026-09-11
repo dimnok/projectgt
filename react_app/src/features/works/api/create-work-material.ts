@@ -117,6 +117,7 @@ export async function getWorkMaterialContext(
 /**
  * Inserts an estimate line for the current object/system/subsystem
  * (qty and price 0, number `д-N`) and returns it for the shift catalog.
+ * Allowed with estimates.create or works.create / works.update on own objects.
  */
 export async function createWorkMaterial(
   input: CreateWorkMaterialInput

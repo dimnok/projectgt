@@ -1,6 +1,6 @@
 "use client";
 
-import { LinkIcon, ShieldIcon, UnlinkIcon } from "lucide-react";
+import { FolderKanbanIcon, LinkIcon, ShieldIcon, UnlinkIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,27 +16,58 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CompanyUser } from "@/features/users/types/user.types";
-import { userDisplayName, userInitials } from "@/features/users/utils/user.utils";
+import {
+  userDisplayName,
+  userInitials,
+  userObjectNames,
+} from "@/features/users/utils/user.utils";
 import { formatPhone } from "@/lib/utils/phone";
 
 type UsersListProps = {
   users: CompanyUser[];
+  objects: { id: string; name: string }[];
   canLinkEmployee: boolean;
+  canAssignObjects: boolean;
   canAssignRole: boolean;
   onAssign: (user: CompanyUser) => void;
   onAssignRole: (user: CompanyUser) => void;
+  onAssignObjects: (user: CompanyUser) => void;
 };
 
 function EmptyCell() {
   return <span className="text-muted-foreground">—</span>;
 }
 
+function ObjectsCell({
+  objectIds,
+  objects,
+}: {
+  objectIds: string[];
+  objects: { id: string; name: string }[];
+}) {
+  const names = userObjectNames(objectIds, objects);
+  if (names.length === 0) {
+    return <EmptyCell />;
+  }
+  const visible = names.slice(0, 2).join(", ");
+  const rest = names.length - 2;
+  return (
+    <p className="max-w-56 truncate text-sm" title={names.join(", ")}>
+      {visible}
+      {rest > 0 ? ` +${rest}` : ""}
+    </p>
+  );
+}
+
 export function UsersList({
   users,
+  objects,
   canLinkEmployee,
+  canAssignObjects,
   canAssignRole,
   onAssign,
   onAssignRole,
+  onAssignObjects,
 }: UsersListProps) {
   return (
     <Card size="sm" className="gap-0 overflow-hidden py-0 shadow-float">
@@ -48,6 +79,7 @@ export function UsersList({
             <TableHead>Роль</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Карточка сотрудника</TableHead>
+            <TableHead>Объекты</TableHead>
             <TableHead className="text-right">Действие</TableHead>
           </TableRow>
         </TableHeader>
@@ -102,8 +134,23 @@ export function UsersList({
                     <EmptyCell />
                   )}
                 </TableCell>
+                <TableCell>
+                  <ObjectsCell objectIds={user.objectIds} objects={objects} />
+                </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-1.5">
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {canAssignObjects ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => onAssignObjects(user)}
+                      >
+                        <FolderKanbanIcon />
+                        Объекты
+                      </Button>
+                    ) : null}
                     {canAssignRole ? (
                       <Button
                         type="button"
