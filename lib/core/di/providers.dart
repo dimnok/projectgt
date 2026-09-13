@@ -20,6 +20,7 @@ import 'package:projectgt/domain/entities/business_trip_rate.dart';
 import 'package:projectgt/domain/usecases/profile/get_profile_usecase.dart';
 import 'package:projectgt/domain/usecases/profile/get_profiles_usecase.dart';
 import 'package:projectgt/domain/usecases/profile/update_profile_usecase.dart';
+import 'package:projectgt/domain/usecases/profile/update_prefer_web_app_usecase.dart';
 import 'package:projectgt/domain/usecases/employee/get_employee_usecase.dart';
 import 'package:projectgt/domain/usecases/employee/get_employees_usecase.dart';
 import 'package:projectgt/domain/usecases/employee/create_employee_usecase.dart';
@@ -364,6 +365,13 @@ final getProfilesUseCaseProvider = Provider<GetProfilesUseCase>((ref) {
 final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
   final repository = ref.watch(profileRepositoryProvider);
   return UpdateProfileUseCase(repository);
+});
+
+/// Провайдер use-case для перевода пользователя на веб-приложение.
+final updatePreferWebAppUseCaseProvider =
+    Provider<UpdatePreferWebAppUseCase>((ref) {
+  final repository = ref.watch(profileRepositoryProvider);
+  return UpdatePreferWebAppUseCase(repository);
 });
 
 // UseCases - Employee

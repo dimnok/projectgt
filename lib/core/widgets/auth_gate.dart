@@ -10,6 +10,7 @@ import 'package:projectgt/features/auth/presentation/screens/login_screen.dart';
 import 'package:projectgt/features/auth/presentation/screens/access_disabled_screen.dart';
 import 'package:projectgt/features/auth/presentation/screens/profile_completion_screen.dart';
 import 'package:projectgt/features/auth/presentation/screens/onboarding_screen.dart';
+import 'package:projectgt/features/auth/presentation/screens/prefer_web_app_screen.dart';
 
 /// Gate с плавными переходами: возвращает нужный экран по статусу.
 class AuthGate extends ConsumerWidget {
@@ -119,6 +120,10 @@ class AuthGate extends ConsumerWidget {
 
     if (profile.lastCompanyId == null) {
       return const OnboardingScreen(key: ValueKey('onboarding'));
+    }
+
+    if (profile.preferWebApp) {
+      return const PreferWebAppScreen(key: ValueKey('prefer_web_app'));
     }
 
     final roleId = profile.roleId ?? authState.user?.roleId;

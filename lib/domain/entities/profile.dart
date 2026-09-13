@@ -58,6 +58,9 @@ abstract class Profile with _$Profile {
 
     /// Владелец активной компании (`company_members.is_owner`).
     @Default(false) bool isOwner,
+
+    /// Пользователь переведён на веб-приложение (старый клиент блокируется).
+    @Default(false) bool preferWebApp,
   }) = _Profile;
 
   /// Приватный конструктор для расширения функциональности через методы.

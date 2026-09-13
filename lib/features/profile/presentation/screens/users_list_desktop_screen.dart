@@ -9,6 +9,7 @@ import 'package:projectgt/presentation/state/profile_state.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
+import 'package:projectgt/features/profile/presentation/widgets/prefer_web_app_switch.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/utils/formatters.dart';
@@ -331,7 +332,9 @@ class _UsersListDesktopScreenState
                       ),
                       const SizedBox(height: 8),
                       if (isAdmin)
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             ProfileStatusSwitch(
                               value: profile.status == true,
@@ -348,6 +351,19 @@ class _UsersListDesktopScreenState
                                         isActive: value,
                                       );
                                 }
+                              },
+                            ),
+                            PreferWebAppSwitch(
+                              value: profile.preferWebApp,
+                              canToggle: isAdmin,
+                              isBusy: false,
+                              onChanged: (value) {
+                                ref
+                                    .read(profileProvider.notifier)
+                                    .updatePreferWebApp(
+                                      userId: profile.id,
+                                      preferWebApp: value,
+                                    );
                               },
                             ),
                           ],

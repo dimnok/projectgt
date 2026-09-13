@@ -30,6 +30,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
           .toList(),
       lastCompanyId: json['last_company_id'] as String?,
       isOwner: json['is_owner'] as bool? ?? false,
+      preferWebApp: json['prefer_web_app'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
@@ -50,4 +51,5 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'object_ids': instance.objectIds,
       'last_company_id': instance.lastCompanyId,
       'is_owner': instance.isOwner,
+      'prefer_web_app': instance.preferWebApp,
     };

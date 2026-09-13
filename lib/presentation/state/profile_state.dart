@@ -265,6 +265,54 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
+  /// Переводит пользователя на веб-приложение без полной перезагрузки списка.
+  Future<void> updatePreferWebApp({
+    required String userId,
+    required bool preferWebApp,
+  }) async {
+    Profile? applyFlag(Profile? profile) {
+      if (profile == null || profile.id != userId) return profile;
+      return profile.copyWith(preferWebApp: preferWebApp);
+    }
+
+    state = state.copyWith(
+      profile: applyFlag(state.profile),
+      profiles: state.profiles
+          .map((profile) => applyFlag(profile) ?? profile)
+          .toList(),
+    );
+
+    try {
+      final updatedProfile = await _ref
+          .read(updatePreferWebAppUseCaseProvider)
+          .call(userId: userId, preferWebApp: preferWebApp);
+
+      Profile merge(Profile profile) =>
+          profile.id == updatedProfile.id
+              ? profile.copyWith(preferWebApp: updatedProfile.preferWebApp)
+              : profile;
+
+      state = state.copyWith(
+        profile: state.profile == null ? null : merge(state.profile!),
+        profiles: state.profiles.map(merge).toList(),
+      );
+
+      final current = _ref.read(currentUserProfileProvider);
+      if (current.profile?.id == userId) {
+        _ref.read(currentUserProfileProvider.notifier).applyPreferWebApp(
+          preferWebApp: updatedProfile.preferWebApp,
+        );
+      }
+    } catch (e) {
+      await refreshProfile(userId);
+      state = state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
   /// Обновляет профиль без смены статуса на loading (оптимистичное обновление).
   ///
   /// Используется для быстрых обновлений UI (переключение статуса, изменение роли)
@@ -458,6 +506,15 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
+  /// Применяет флаг перевода на веб без повторной загрузки профиля.
+  void applyPreferWebApp({required bool preferWebApp}) {
+    final profile = state.profile;
+    if (profile == null) return;
+    state = state.copyWith(
+      profile: profile.copyWith(preferWebApp: preferWebApp),
+    );
+  }
+
   /// Подписывается на Realtime изменения статуса текущего пользователя.
   ///
   /// При деактивации (status = false) мгновенно переводит на экран "Доступ временно отключён".
@@ -479,6 +536,20 @@ class CurrentUserProfileNotifier extends StateNotifier<ProfileState> {
           ),
           callback: (payload) {
             final status = payload.newRecord['status'] as bool?;
+            final preferWebRaw = payload.newRecord['prefer_web_app'];
+            final preferWebApp = preferWebRaw is bool
+                ? preferWebRaw
+                : preferWebRaw == true;
+
+            final current = state.profile;
+            if (current != null) {
+              state = state.copyWith(
+                profile: current.copyWith(
+                  preferWebApp: preferWebApp,
+                  status: status ?? current.status,
+                ),
+              );
+            }
 
             final authNotifier = _ref.read(authProvider.notifier);
             if (status == false) {

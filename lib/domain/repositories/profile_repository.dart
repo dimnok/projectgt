@@ -19,6 +19,15 @@ abstract class ProfileRepository {
   /// Возвращает обновлённый [Profile]. Бросает [Exception] при ошибке.
   Future<Profile> updateProfile(Profile profile);
 
+  /// Переведи пользователя на веб-приложение или верни в старое.
+  ///
+  /// [userId] — идентификатор профиля.
+  /// [preferWebApp] — `true`, чтобы закрыть Flutter-клиент.
+  Future<Profile> updatePreferWebApp({
+    required String userId,
+    required bool preferWebApp,
+  });
+
   /// Удали профиль пользователя по [userId].
   ///
   /// Возвращает void. Бросает [Exception] при ошибке.

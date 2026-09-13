@@ -36,6 +36,16 @@ abstract class ProfileDataSource {
   /// Может выбросить исключение, если профиль не найден или не удалось обновить.
   Future<ProfileModel> updateProfile(ProfileModel profile);
 
+  /// Обновить флаг перевода пользователя на веб-приложение.
+  ///
+  /// [userId] — идентификатор профиля.
+  /// [preferWebApp] — `true`, если нужно закрыть старое приложение.
+  /// Возвращает обновлённый [ProfileModel].
+  Future<ProfileModel> updatePreferWebApp({
+    required String userId,
+    required bool preferWebApp,
+  });
+
   /// Удалить профиль пользователя по идентификатору [userId].
   ///
   /// [userId] — уникальный идентификатор пользователя.
@@ -302,6 +312,50 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       return ProfileModel.fromJson(json);
     } catch (e) {
       Logger().e('Error updating profile: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ProfileModel> updatePreferWebApp({
+    required String userId,
+    required bool preferWebApp,
+  }) async {
+    try {
+      final response = await client
+          .from('profiles')
+          .update({
+            'prefer_web_app': preferWebApp,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId)
+          .select('*, slot_times, employees(position)')
+          .maybeSingle();
+
+      if (response == null) {
+        throw Exception('Profile not found or access denied after update');
+      }
+
+      final json = Map<String, dynamic>.from(response);
+      final slotTimes = json['slot_times'];
+      final obj = Map<String, dynamic>.from((json['object'] ?? {}) as Map);
+      final employee = json['employees'];
+      if (employee != null && employee is Map) {
+        final position = employee['position'];
+        if (position != null) {
+          json['position'] = position;
+        }
+      }
+      if (slotTimes != null) {
+        obj['slot_times'] = slotTimes;
+      }
+      if (json['employee_id'] != null) {
+        obj['employee_id'] = json['employee_id'];
+      }
+      json['object'] = obj;
+      return ProfileModel.fromJson(json);
+    } catch (e) {
+      Logger().e('Error updating prefer_web_app: $e');
       rethrow;
     }
   }

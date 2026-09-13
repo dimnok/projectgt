@@ -8,6 +8,7 @@ import 'package:projectgt/core/widgets/app_snackbar.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_edit_form.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_employee_link_info.dart';
 import 'package:projectgt/features/profile/presentation/widgets/profile_status_switch.dart';
+import 'package:projectgt/features/profile/presentation/widgets/prefer_web_app_switch.dart';
 import 'package:projectgt/features/roles/application/permission_service.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -186,6 +187,48 @@ class _UsersListMobileScreenState extends ConsumerState<UsersListMobileScreen> {
                                 isActive: value,
                               );
                         }
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                ctx,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Версия приложения',
+                    style: Theme.of(ctx).textTheme.titleSmall,
+                  ),
+                ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final profileState = ref.watch(profileProvider);
+                    final currentProfile = profileState.profiles.firstWhere(
+                      (p) => p.id == profile.id,
+                      orElse: () => profile,
+                    );
+
+                    return PreferWebAppSwitch(
+                      value: currentProfile.preferWebApp,
+                      canToggle: isAdmin,
+                      isBusy: false,
+                      onChanged: (value) {
+                        ref.read(profileProvider.notifier).updatePreferWebApp(
+                              userId: currentProfile.id,
+                              preferWebApp: value,
+                            );
                       },
                     );
                   },
@@ -404,6 +447,26 @@ class _UserListTile extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (profile.preferWebApp) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Сайт',
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                           if (profile.roleId != null ||
                               profile.systemRole != null) ...[
                             const SizedBox(width: 8),

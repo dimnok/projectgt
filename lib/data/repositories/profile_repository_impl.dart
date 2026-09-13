@@ -33,6 +33,18 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<Profile> updatePreferWebApp({
+    required String userId,
+    required bool preferWebApp,
+  }) async {
+    final profileModel = await dataSource.updatePreferWebApp(
+      userId: userId,
+      preferWebApp: preferWebApp,
+    );
+    return profileModel.toDomain();
+  }
+
+  @override
   Future<void> deleteProfile(String userId) async {
     await dataSource.deleteProfile(userId);
   }

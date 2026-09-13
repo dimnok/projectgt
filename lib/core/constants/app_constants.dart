@@ -11,6 +11,12 @@ class AppConstants {
   /// Используйте скрипт: bash tools/update_version.sh
   static const String appVersion = '1.0.22';
 
+  /// Адрес новой версии приложения (веб).
+  static const String webAppUrl = 'https://app.progt.ru';
+
+  /// Короткое имя сайта для подписи на экране перехода.
+  static const String webAppHostLabel = 'app.progt.ru';
+
   /// Платформа приложения для проверки версии.
   ///
   /// Значения: 'web', 'ios', 'android'.

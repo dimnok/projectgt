@@ -25,6 +25,9 @@ import 'package:projectgt/features/version_control/providers/version_providers.d
 import 'package:projectgt/core/utils/version_utils.dart';
 import 'package:projectgt/core/constants/app_constants.dart';
 import 'package:projectgt/core/refresh/app_focus_refresh_coordinator.dart';
+import 'package:projectgt/features/auth/presentation/screens/prefer_web_app_screen.dart';
+import 'package:projectgt/presentation/state/auth_state.dart';
+import 'package:projectgt/presentation/state/profile_state.dart';
 
 /// Обработчик фоновых сообщений Firebase Cloud Messaging.
 ///
@@ -305,11 +308,24 @@ class _MyAppState extends ConsumerState<MyApp> {
       builder: (context, child) {
         // Применяем масштабирование текста
         final mediaQuery = MediaQuery.of(context);
+        Widget content = child ?? const SizedBox.shrink();
+
+        final auth = ref.watch(authProvider);
+        final profile = ref.watch(currentUserProfileProvider).profile;
+        final blockOldApp = auth.status == AuthStatus.authenticated &&
+            profile != null &&
+            profile.preferWebApp &&
+            (profile.fullName?.trim().isNotEmpty ?? false) &&
+            profile.lastCompanyId != null;
+        if (blockOldApp) {
+          content = const PreferWebAppScreen();
+        }
+
         return MediaQuery(
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(settings.textScale),
           ),
-          child: child!,
+          child: content,
         );
       },
     );
