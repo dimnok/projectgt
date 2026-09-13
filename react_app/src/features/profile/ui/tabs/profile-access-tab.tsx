@@ -28,6 +28,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSwitchActiveCompany } from "@/features/profile/hooks/use-current-profile";
 import type { CurrentProfile } from "@/features/profile/types/profile.types";
+import { ProfileCompanyOutputNorm } from "@/features/profile/ui/shared/profile-company-output-norm";
 import { membershipRoleLabel } from "@/features/profile/utils/profile.utils";
 
 type ProfileAccessTabProps = {
@@ -151,6 +152,22 @@ export function ProfileAccessTab({ profile }: ProfileAccessTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Производство: норма выработки компании */}
+      {active ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Производство</CardTitle>
+            <CardDescription>
+              Минимум выработки по организации. На графике главной страницы из
+              него будет считаться план дня.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProfileCompanyOutputNorm profile={profile} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* 2. Закрепленные объекты */}
       <Card>

@@ -8,6 +8,8 @@ export type ProfileCompanyMembership = {
   roleName: string | null;
   isActive: boolean;
   isOwner: boolean;
+  /** Минимум выработки, ₽ / чел. / час. Пусто — план не задан. */
+  minOutputPerPersonHour: number | null;
 };
 
 export type ProfileObject = {

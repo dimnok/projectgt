@@ -1,5 +1,3 @@
-import type { Worksheet } from "exceljs";
-
 import type { Employee } from "@/features/employees/types/employee.types";
 import { employeeFullName } from "@/features/employees/utils/employee.utils";
 import type {
@@ -12,9 +10,9 @@ import {
   getStartAndEndDates,
 } from "@/features/timesheet/utils/timesheet-date";
 import {
+  buildEmployeeHoursMap,
   filterEmployeesByPositionKeys,
-  isTimesheetGridEmployeeVisible,
-  TimesheetHoursIndex,
+  isEmployeeBaseVisible,
 } from "@/features/timesheet/utils/timesheet-visibility";
 
 const SHEET_FONT_NAME = "Times New Roman";
@@ -25,14 +23,6 @@ const borderThin = {
   bottom: { style: "thin" as const, color: { argb: "22000000" } },
   right: { style: "thin" as const, color: { argb: "22000000" } },
 };
-
-function formatHoursValue(hours: number): string {
-  if (hours <= 0) return "";
-  if (Number.isInteger(hours)) {
-    return String(hours);
-  }
-  return hours.toFixed(1).replace(".", ",");
-}
 
 export type ExportTimesheetExcelOptions = {
   year: number;
@@ -66,18 +56,18 @@ export async function exportTimesheetToExcel({
   const daysHeader = getMonthDaysHeader(year, month);
   const totalColumns = daysCount + 3; // #, Сотрудник, days 1..N, Итого
 
-  const hoursIndex = new TimesheetHoursIndex(entries);
+  const hoursMap = buildEmployeeHoursMap(entries);
 
   // 1. Filter visible employees for export
-  let visible = employees.filter((e) =>
-    isTimesheetGridEmployeeVisible({
+  let visible = employees.filter((e) => {
+    const stats = hoursMap.get(e.id);
+    return isEmployeeBaseVisible({
       isFired: e.status === "fired",
       includeInTimesheet: e.includeInTimesheet,
-      employeeId: e.id,
-      hoursIndex,
+      hasEntries: stats?.hasEntries ?? false,
       hasObjectFilter,
-    })
-  );
+    });
+  });
 
   visible = filterEmployeesByPositionKeys(visible, selectedPositionKeys);
 

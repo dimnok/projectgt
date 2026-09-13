@@ -46,7 +46,7 @@ export type AppNavItem = AppNavLink | AppNavGroup;
  * collapsible tree on the left.
  */
 export const navigation: AppNavItem[] = [
-  { href: "/", label: "Главная", icon: HouseIcon, migrated: true },
+  { href: "/", label: "Главная", icon: HouseIcon, migrated: true, mobile: true },
   { href: "/cash-flow", label: "CASH FLOW", icon: WalletIcon, module: "cash_flow" },
   { href: "/settlements", label: "Взаиморасчёты", icon: FileTextIcon, module: "settlements" },
   {
@@ -194,6 +194,7 @@ export function filterNavigationForViewport(
 export function isMobileAllowedPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/" ||
     isActivePath(pathname, "/works") ||
     isActivePath(pathname, "/profile")
   );
@@ -203,24 +204,7 @@ export function getPostLoginPath(
   isMobile: boolean,
   can?: (module: string, action: string) => boolean
 ) {
-  if (isMobile) {
-    if (!can || can("works", "read")) {
-      return "/works";
-    }
-    return "/profile";
-  }
-
-  if (!can) {
-    return "/objects";
-  }
-
-  for (const entry of DESKTOP_POST_LOGIN) {
-    if (can(entry.module, "read")) {
-      return entry.href;
-    }
-  }
-
-  return "/profile";
+  return "/";
 }
 
 export function getModuleForPath(pathname: string): string | null {

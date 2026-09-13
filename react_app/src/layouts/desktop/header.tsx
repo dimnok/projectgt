@@ -37,7 +37,7 @@ export function Header() {
     <header
       className={cn(
         "flex h-16 shrink-0 items-center gap-4 px-4 pr-8 text-sidebar-foreground md:px-6 md:pr-8",
-        pathname === "/works" || pathname === "/profile"
+        pathname === "/" || pathname === "/works" || pathname === "/profile"
           ? "max-md:hidden"
           : undefined
       )}

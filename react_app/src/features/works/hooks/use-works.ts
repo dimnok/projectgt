@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getMonthHeaders } from "@/features/works/api/get-month-headers";
 import { getMonthWorks, getWork } from "@/features/works/api/get-month-works";
-import { getWorkHours } from "@/features/works/api/get-work-hours";
+import { getWorkHours, getWorkHoursTotalsByWorkIds } from "@/features/works/api/get-work-hours";
 import { getWorkItems } from "@/features/works/api/get-work-items";
 import {
   getMonthEmployeesSummary,
@@ -18,6 +18,9 @@ export const worksMonthsQueryKey = (openedBy?: string) =>
 
 export const monthWorksQueryKey = (month: string, openedBy?: string) =>
   ["works", "month-works", month, openedBy ?? "all"] as const;
+
+export const monthWorkHoursQueryKey = (month: string) =>
+  ["works", "hour-totals", month] as const;
 
 export const workQueryKey = (workId: string) =>
   ["works", "work", workId] as const;
@@ -44,6 +47,20 @@ export function useMonthWorks(
     queryKey: monthWorksQueryKey(month, openedBy),
     queryFn: () => getMonthWorks(month, openedBy),
     enabled,
+  });
+}
+
+export function useMonthWorkHourTotals(
+  month: string,
+  workIds: string[],
+  enabled: boolean
+) {
+  const idsKey = workIds.slice().sort().join(",");
+
+  return useQuery({
+    queryKey: [...monthWorkHoursQueryKey(month), idsKey],
+    queryFn: () => getWorkHoursTotalsByWorkIds(workIds),
+    enabled: enabled && workIds.length > 0,
   });
 }
 

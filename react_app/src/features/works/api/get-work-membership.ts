@@ -1,6 +1,65 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
 
+export type WorkAccessScope = {
+  userId: string;
+  isAllObjectsAccess: boolean;
+  objectIds: string[];
+};
+
+/**
+ * Access scope for shifts in the Works module:
+ * Company owner or super-admin sees all shifts in the company.
+ * Everyone else sees only shifts belonging to assigned objects (`profiles.object_ids`).
+ */
+export async function getWorkAccessScope(): Promise<WorkAccessScope> {
+  const client = getRequiredClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await client.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Нужно войти в аккаунт");
+  }
+
+  const companyId = await getActiveCompanyId();
+
+  const [memberRes, profileRes, superAdminRes] = await Promise.all([
+    client
+      .from("company_members")
+      .select("is_owner, system_role")
+      .eq("company_id", companyId)
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle(),
+    client
+      .from("profiles")
+      .select("object_ids")
+      .eq("id", user.id)
+      .maybeSingle(),
+    client.rpc("is_super_admin", { user_id: user.id }),
+  ]);
+
+  const isOwner =
+    memberRes.data?.is_owner === true ||
+    memberRes.data?.system_role === "owner";
+  const isSuperAdmin = superAdminRes.data === true;
+
+  const rawObjectIds = profileRes.data?.object_ids;
+  const objectIds = Array.isArray(rawObjectIds)
+    ? rawObjectIds.filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      )
+    : [];
+
+  return {
+    userId: user.id,
+    isAllObjectsAccess: isOwner || isSuperAdmin,
+    objectIds,
+  };
+}
+
 /**
  * Current user and whether they have system role «Супер-админ».
  * Closed shifts may be edited only by that role.

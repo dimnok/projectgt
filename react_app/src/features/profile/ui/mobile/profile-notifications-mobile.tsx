@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BellIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,6 +65,14 @@ export function ProfileNotificationsMobile({
     () => getPushPermission()
   );
 
+  useEffect(() => {
+    const hasSlots = profile.slotTimes.length > 0;
+    setRemindersEnabled(hasSlots);
+    if (hasSlots) {
+      setSlots(profile.slotTimes);
+    }
+  }, [profile.slotTimes]);
+
   async function requestPushPermission() {
     if (typeof window === "undefined" || !("Notification" in window)) {
       toast.error("Ваш браузер не поддерживает Push-уведомления");
@@ -84,46 +92,86 @@ export function ProfileNotificationsMobile({
     }
   }
 
+  function handleToggleReminders(enabled: boolean) {
+    setRemindersEnabled(enabled);
+    const toSave = enabled ? (slots.length > 0 ? slots : DEFAULT_SLOTS) : [];
+    if (enabled && slots.length === 0) {
+      setSlots(DEFAULT_SLOTS);
+    }
+
+    updateNotifications.mutate(toSave, {
+      onSuccess: () => {
+        toast.success(
+          enabled ? "Напоминания включены" : "Напоминания выключены"
+        );
+      },
+      onError: (err) => {
+        setRemindersEnabled(profile.slotTimes.length > 0);
+        setSlots(
+          profile.slotTimes.length > 0 ? profile.slotTimes : DEFAULT_SLOTS
+        );
+        toast.error(
+          err instanceof Error ? err.message : "Не удалось сохранить настройки"
+        );
+      },
+    });
+  }
+
   function handleSlotChange(index: number, newTime: string | null) {
-    if (!newTime) return;
+    if (!newTime || newTime === slots[index]) return;
     const next = [...slots];
     next[index] = newTime;
     setSlots(next);
+
+    updateNotifications.mutate(next, {
+      onSuccess: () => {
+        toast.success("Время напоминания сохранено");
+      },
+      onError: (err) => {
+        setSlots(
+          profile.slotTimes.length > 0 ? profile.slotTimes : DEFAULT_SLOTS
+        );
+        toast.error(
+          err instanceof Error ? err.message : "Не удалось сохранить настройки"
+        );
+      },
+    });
   }
 
   function handleAddSlot() {
     if (slots.length >= 4) return;
     const last = slots[slots.length - 1] ?? "18:00";
-    setSlots([...slots, last]);
+    const next = [...slots, last];
+    setSlots(next);
+
+    updateNotifications.mutate(next, {
+      onSuccess: () => {
+        toast.success("Слот времени добавлен");
+      },
+      onError: (err) => {
+        setSlots(
+          profile.slotTimes.length > 0 ? profile.slotTimes : DEFAULT_SLOTS
+        );
+        toast.error(
+          err instanceof Error ? err.message : "Не удалось сохранить настройки"
+        );
+      },
+    });
   }
 
   function handleRemoveSlot(index: number) {
     if (slots.length <= 1) return;
-    setSlots(slots.filter((_, i) => i !== index));
-  }
+    const next = slots.filter((_, i) => i !== index);
+    setSlots(next);
 
-  const isSlotsDirty = useMemo(() => {
-    if (!remindersEnabled && profile.slotTimes.length > 0) return true;
-    if (remindersEnabled && profile.slotTimes.length === 0) return true;
-    if (remindersEnabled) {
-      if (slots.length !== profile.slotTimes.length) return true;
-      return slots.some((slot, i) => slot !== profile.slotTimes[i]);
-    }
-    return false;
-  }, [remindersEnabled, slots, profile.slotTimes]);
-
-  function handleSaveReminders() {
-    const toSave = remindersEnabled ? slots : [];
-
-    updateNotifications.mutate(toSave, {
+    updateNotifications.mutate(next, {
       onSuccess: () => {
-        toast.success(
-          remindersEnabled
-            ? "Слоты напоминаний обновлены"
-            : "Напоминания выключены"
-        );
+        toast.success("Слот времени удален");
       },
       onError: (err) => {
+        setSlots(
+          profile.slotTimes.length > 0 ? profile.slotTimes : DEFAULT_SLOTS
+        );
         toast.error(
           err instanceof Error ? err.message : "Не удалось сохранить настройки"
         );
@@ -137,14 +185,20 @@ export function ProfileNotificationsMobile({
         <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium">Напоминания о сменах</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Напоминания о сменах</p>
+                {updateNotifications.isPending ? (
+                  <Spinner className="size-3.5" />
+                ) : null}
+              </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Время оповещений о заполнении смен
               </p>
             </div>
             <Switch
               checked={remindersEnabled}
-              onCheckedChange={setRemindersEnabled}
+              disabled={updateNotifications.isPending}
+              onCheckedChange={handleToggleReminders}
               aria-label="Включить напоминания"
             />
           </div>
@@ -156,6 +210,7 @@ export function ProfileNotificationsMobile({
                   <Select
                     value={slotTime}
                     items={timeOptions}
+                    disabled={updateNotifications.isPending}
                     onValueChange={(val) => handleSlotChange(index, val)}
                   >
                     <SelectTrigger className="h-11 min-w-0 flex-1">
@@ -176,6 +231,7 @@ export function ProfileNotificationsMobile({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      disabled={updateNotifications.isPending}
                       className="size-11 shrink-0 text-muted-foreground hover:text-destructive"
                       aria-label={`Удалить слот ${index + 1}`}
                       onClick={() => handleRemoveSlot(index)}
@@ -192,6 +248,7 @@ export function ProfileNotificationsMobile({
                   variant="outline"
                   size="lg"
                   className="w-full"
+                  disabled={updateNotifications.isPending}
                   onClick={handleAddSlot}
                 >
                   <PlusIcon data-icon="inline-start" />
@@ -204,19 +261,6 @@ export function ProfileNotificationsMobile({
               Напоминания выключены.
             </p>
           )}
-
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={!isSlotsDirty || updateNotifications.isPending}
-            onClick={handleSaveReminders}
-          >
-            {updateNotifications.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : null}
-            Сохранить
-          </Button>
         </div>
 
         <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">

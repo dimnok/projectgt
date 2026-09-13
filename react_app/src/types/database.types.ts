@@ -208,6 +208,7 @@ export type CompaniesRow = {
   id: string;
   name_full: string | null;
   name_short: string | null;
+  min_output_per_person_hour?: number | string | null;
 };
 
 export type RolesRow = {

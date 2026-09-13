@@ -15,12 +15,10 @@ import {
 export type MultiSelectOption = {
   key: string;
   label: string;
-  badgeClass?: string;
 };
 
 type TimesheetMultiSelectProps = {
   title: string;
-  placeholder?: string;
   options: MultiSelectOption[];
   selectedKeys: string[];
   onChange: (keys: string[]) => void;
@@ -43,22 +41,31 @@ export function TimesheetMultiSelect({
             variant="outline"
             size="sm"
             disabled={disabled}
-            className="h-9 rounded-lg bg-card px-3 text-xs sm:text-sm hover:bg-muted/40"
+            className="h-9 rounded-xl border-border/70 bg-card px-3 text-xs sm:text-[13px] font-medium hover:bg-muted/30 transition-colors shadow-2xs"
           />
         }
       >
         <span>{title}</span>
         {selectedKeys.length > 0 ? (
-          <Badge variant="secondary">{selectedKeys.length}</Badge>
+          <Badge
+            variant="secondary"
+            className="h-5 px-1.5 rounded-full text-[11px] font-semibold"
+          >
+            {selectedKeys.length}
+          </Badge>
         ) : null}
-        <ChevronDownIcon data-icon="inline-end" />
+        <ChevronDownIcon data-icon="inline-end" className="size-3.5 opacity-60" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-56 max-h-72 overflow-y-auto" align="start">
+      <DropdownMenuContent
+        className="min-w-56 max-h-72 overflow-y-auto rounded-xl p-1 shadow-md border-border/70"
+        align="start"
+      >
         <DropdownMenuGroup>
           {options.map((option) => (
             <DropdownMenuCheckboxItem
               key={option.key}
               checked={selectedKeys.includes(option.key)}
+              className="text-xs sm:text-[13px] py-1.5 rounded-lg"
               onCheckedChange={(checked) => {
                 if (checked) {
                   onChange([...selectedKeys, option.key]);

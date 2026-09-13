@@ -196,10 +196,12 @@ export function WorkItemAddForm({
 
   const contractorItems: FilterOption[] = [
     { value: "own", label: "Свои" },
-    ...(contractorsQuery.data ?? []).map((contractor) => ({
-      value: contractor.id,
-      label: contractor.shortName || contractor.fullName,
-    })),
+    ...(contractorsQuery.data ?? [])
+      .filter((contractor) => contractor.type === "contractor")
+      .map((contractor) => ({
+        value: contractor.id,
+        label: contractor.shortName || contractor.fullName,
+      })),
   ];
   const placeReady = Boolean(section && floor && system && subsystem);
   const showCatalog = layout === "dialog" || placeReady;

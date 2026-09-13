@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSwitchActiveCompany } from "@/features/profile/hooks/use-current-profile";
 import type { CurrentProfile } from "@/features/profile/types/profile.types";
 import { ProfileMobileShell } from "@/features/profile/ui/mobile/profile-mobile-shell";
+import { ProfileCompanyOutputNorm } from "@/features/profile/ui/shared/profile-company-output-norm";
 import { membershipRoleLabel } from "@/features/profile/utils/profile.utils";
 
 type ProfileAccessMobileProps = {
@@ -106,6 +107,18 @@ export function ProfileAccessMobile({
             </div>
           ) : null}
         </div>
+
+        {active ? (
+          <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
+            <div>
+              <p className="text-sm font-medium">Производство</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Минимум выработки по организации, ₽ на человека в час.
+              </p>
+            </div>
+            <ProfileCompanyOutputNorm profile={profile} compact />
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2 px-1">

@@ -37,6 +37,7 @@ type EmployeeDetailsProps = {
   objects: EmployeeObjectOption[];
   objectNamesById: Map<string, string>;
   canUpdate: boolean;
+  canViewFinances?: boolean;
 };
 
 function filled(value: string | null | undefined): string | null {
@@ -228,6 +229,7 @@ export function EmployeeDetails({
   objects,
   objectNamesById,
   canUpdate,
+  canViewFinances = true,
 }: EmployeeDetailsProps) {
   const hireDate = employee.employmentDate
     ? formatRuDate(employee.employmentDate)
@@ -334,21 +336,23 @@ export function EmployeeDetails({
           </div>
 
           {/* Финансы и ставки */}
-          <div className="pt-2 border-t border-border/50">
-            <div className="mb-2.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-              <CoinsIcon className="size-3.5" />
-              <span>СТАВКИ И ВЫПЛАТЫ</span>
+          {canViewFinances ? (
+            <div className="pt-2 border-t border-border/50">
+              <div className="mb-2.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <CoinsIcon className="size-3.5" />
+                <span>СТАВКИ И ВЫПЛАТЫ</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <EmployeeRateSummary employee={employee} canUpdate={canUpdate} />
+                <EmployeeTripSummary
+                  employee={employee}
+                  objects={objects}
+                  objectNamesById={objectNamesById}
+                  canUpdate={canUpdate}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <EmployeeRateSummary employee={employee} canUpdate={canUpdate} />
-              <EmployeeTripSummary
-                employee={employee}
-                objects={objects}
-                objectNamesById={objectNamesById}
-                canUpdate={canUpdate}
-              />
-            </div>
-          </div>
+          ) : null}
         </div>
       </SectionCard>
 

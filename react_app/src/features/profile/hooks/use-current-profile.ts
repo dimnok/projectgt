@@ -11,6 +11,7 @@ import {
   linkProfileEmployee,
   type LinkProfileEmployeeInput,
 } from "@/features/profile/api/link-profile-employee";
+import { updateCompanyMinOutputPerPersonHour } from "@/features/profile/api/update-company-output-norm";
 import type { ProfileDraft } from "@/features/profile/types/profile.types";
 import { companyUsersQueryKey } from "@/features/users/api/get-company-users";
 import { useAuth } from "@/hooks/use-auth";
@@ -76,6 +77,18 @@ export function useUpdateProfileNotifications() {
 
   return useMutation({
     mutationFn: (slotTimes: string[]) => updateProfileNotifications(slotTimes),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: currentProfileQueryKey });
+    },
+  });
+}
+
+export function useUpdateCompanyMinOutput() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (value: number | null) =>
+      updateCompanyMinOutputPerPersonHour(value),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: currentProfileQueryKey });
     },

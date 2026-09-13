@@ -1,19 +1,12 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 
 import type { Employee } from "@/features/employees/types/employee.types";
 import { employeeFullName } from "@/features/employees/utils/employee.utils";
-import {
-  getTimesheetData,
-  type TimesheetDataResult,
-} from "@/features/timesheet/api/get-timesheet-data";
-import {
-  saveEmployeeAttendanceBatch,
-  type AttendanceBatchRow,
-} from "@/features/timesheet/api/save-employee-attendance";
+import { useCurrentProfile } from "@/features/profile/hooks/use-current-profile";
+import { getTimesheetData } from "@/features/timesheet/api/get-timesheet-data";
 import type {
   DayCellData,
   TimesheetEmployeeListScope,
@@ -30,19 +23,25 @@ import {
   isCurrentMonth,
 } from "@/features/timesheet/utils/timesheet-date";
 import {
+  buildEmployeeHoursMap,
   buildPositionFilterOptions,
-  employeesInTodayOpenShift,
-  filterEmployeesByNameSearch,
-  filterEmployeesByOpenShiftScope,
-  filterEmployeesByPositionKeys,
-  filterEmployeesByTimesheetListScope,
-  isTimesheetGridEmployeeVisible,
-  mergeTodayOpenShiftEmployees,
-  TimesheetHoursIndex,
+  filterTimesheetEmployees,
 } from "@/features/timesheet/utils/timesheet-visibility";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export function useTimesheet() {
-  const queryClient = useQueryClient();
+  const { can, isOwner, isReady: permissionsReady } = usePermissions();
+  const { data: profile, isFetched: profileFetched } = useCurrentProfile();
+
+  const hasAllObjectsAccess =
+    isOwner || can("objects", "read") || can("employees", "read");
+
+  const allowedObjectIds = useMemo(() => {
+    if (hasAllObjectsAccess) return undefined;
+    return profile?.objectIds ?? [];
+  }, [hasAllObjectsAccess, profile?.objectIds]);
+
+  const isAccessReady = permissionsReady && profileFetched;
 
   const now = new Date();
   const [filters, setFilters] = useState<TimesheetFilters>({
@@ -55,6 +54,16 @@ export function useTimesheet() {
     searchQuery: "",
   });
 
+  // Debounced search query to eliminate input latency on large datasets
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.searchQuery);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.searchQuery);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [filters.searchQuery]);
+
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -65,16 +74,20 @@ export function useTimesheet() {
       filters.year,
       filters.month,
       filters.selectedObjectIds,
+      allowedObjectIds,
     ],
     queryFn: () =>
       getTimesheetData({
         year: filters.year,
         month: filters.month,
         selectedObjectIds: filters.selectedObjectIds,
+        allowedObjectIds,
       }),
+    enabled: isAccessReady,
+    placeholderData: keepPreviousData,
   });
 
-  // Navigation functions
+  // Month navigation
   const goToPreviousMonth = () => {
     const prev = getPreviousMonth(filters.year, filters.month);
     setFilters((current) => ({
@@ -98,18 +111,11 @@ export function useTimesheet() {
     setSelectedEmployeeIds(new Set());
   };
 
-  const setYearAndMonth = (year: number, month: number) => {
-    setFilters((current) => ({
-      ...current,
-      year,
-      month,
-      openShiftScope: "all",
-    }));
-    setSelectedEmployeeIds(new Set());
-  };
-
   const setSelectedObjectIds = (ids: string[]) => {
-    setFilters((current) => ({ ...current, selectedObjectIds: ids }));
+    const validIds = allowedObjectIds
+      ? ids.filter((id) => allowedObjectIds.includes(id))
+      : ids;
+    setFilters((current) => ({ ...current, selectedObjectIds: validIds }));
     setSelectedEmployeeIds(new Set());
   };
 
@@ -150,7 +156,6 @@ export function useTimesheet() {
     setSelectedEmployeeIds(new Set());
   };
 
-  // Computed data
   const data = query.data;
 
   const daysHeader = useMemo(() => {
@@ -162,21 +167,7 @@ export function useTimesheet() {
     return buildPositionFilterOptions(data.employees);
   }, [data?.employees]);
 
-  const hoursIndex = useMemo(() => {
-    return new TimesheetHoursIndex(data?.entries ?? []);
-  }, [data?.entries]);
-
-  // Object color mapping
-  const objectColorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (!data?.objectOptions) return map;
-    for (const opt of data.objectOptions) {
-      map.set(opt.id, opt.colorClass);
-    }
-    return map;
-  }, [data?.objectOptions]);
-
-  // Filter and build visible grid rows
+  // Compute visible rows and totals in a single optimized pass
   const { visibleEmployees, gridRows, dayTotals, grandTotalHours } = useMemo(() => {
     if (!data) {
       return {
@@ -195,86 +186,23 @@ export function useTimesheet() {
       daysCount,
     } = data;
 
-    const hasObjectFilter = filters.selectedObjectIds.length > 0;
+    // 1. Build fast employee hours map
+    const hoursMap = buildEmployeeHoursMap(entries);
 
-    let baseFiltered: Employee[];
+    // 2. Filter employees in single pass
+    const filtered = filterTimesheetEmployees({
+      employees,
+      hoursMap,
+      todayOpenShift,
+      periodContainsToday,
+      selectedObjectIds: filters.selectedObjectIds,
+      selectedPositionKeys: filters.selectedPositionKeys,
+      listScope: filters.listScope,
+      openShiftScope: filters.openShiftScope,
+      searchQuery: debouncedSearch,
+    });
 
-    if (
-      periodContainsToday &&
-      filters.openShiftScope === "inOpenShift"
-    ) {
-      let pool = employeesInTodayOpenShift({
-        allEmployees: employees,
-        todayOpenShift,
-        positionKeys: filters.selectedPositionKeys,
-        selectedObjectIds: filters.selectedObjectIds,
-      });
-      pool = filterEmployeesByTimesheetListScope(
-        pool,
-        hoursIndex,
-        filters.listScope
-      );
-      pool.sort((a, b) =>
-        employeeFullName(a).localeCompare(employeeFullName(b), "ru")
-      );
-      baseFiltered = pool;
-    } else {
-      const scopeFiltered = employees.filter((e) =>
-        isTimesheetGridEmployeeVisible({
-          isFired: e.status === "fired",
-          includeInTimesheet: e.includeInTimesheet,
-          employeeId: e.id,
-          hoursIndex,
-          hasObjectFilter,
-        })
-      );
-
-      const scopedByHours = filterEmployeesByTimesheetListScope(
-        scopeFiltered,
-        hoursIndex,
-        filters.listScope
-      );
-
-      const positionFiltered = filterEmployeesByPositionKeys(
-        scopedByHours,
-        filters.selectedPositionKeys
-      );
-
-      if (
-        periodContainsToday &&
-        filters.openShiftScope === "notInOpenShift"
-      ) {
-        baseFiltered = filterEmployeesByOpenShiftScope(
-          positionFiltered,
-          todayOpenShift,
-          "notInOpenShift",
-          true
-        );
-      } else {
-        baseFiltered = mergeTodayOpenShiftEmployees({
-          currentList: positionFiltered,
-          allEmployees: employees,
-          todayOpenShift,
-          positionKeys: filters.selectedPositionKeys,
-          selectedObjectIds: filters.selectedObjectIds,
-          hoursIndex,
-          listScope: filters.listScope,
-          periodContainsToday,
-        });
-      }
-    }
-
-    const matchingSearch = filterEmployeesByNameSearch(
-      baseFiltered,
-      filters.searchQuery
-    );
-
-    matchingSearch.sort((a, b) =>
-      employeeFullName(a).localeCompare(employeeFullName(b), "ru")
-    );
-
-    // Fast entry index by employeeId and date
-    // employeeId -> date -> TimesheetEntry[]
+    // 3. Fast entry indexing: employeeId -> date -> TimesheetEntry[]
     const entriesMap = new Map<string, Map<string, TimesheetEntry[]>>();
     for (const entry of entries) {
       let empMap = entriesMap.get(entry.employeeId);
@@ -291,12 +219,11 @@ export function useTimesheet() {
     }
 
     const todayStr = getTodayDateString();
-
     const rows: TimesheetGridRow[] = [];
     const totalsPerDay = new Array<number>(daysCount).fill(0);
     let totalAllHours = 0;
 
-    for (const employee of matchingSearch) {
+    for (const employee of filtered) {
       const empMap = entriesMap.get(employee.id);
       const days: DayCellData[] = [];
       let empTotalHours = 0;
@@ -349,56 +276,27 @@ export function useTimesheet() {
     }
 
     return {
-      visibleEmployees: matchingSearch,
+      visibleEmployees: filtered,
       gridRows: rows,
       dayTotals: totalsPerDay,
       grandTotalHours: totalAllHours,
     };
-  }, [data, filters, hoursIndex, daysHeader]);
-
-  // Attendance Save Mutation
-  const saveAttendanceMutation = useMutation({
-    mutationFn: async ({
-      employeeId,
-      objectId,
-      rows,
-    }: {
-      employeeId: string;
-      objectId: string;
-      rows: AttendanceBatchRow[];
-    }) => {
-      await saveEmployeeAttendanceBatch({ employeeId, objectId, rows });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["timesheet"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["employee-timesheet"],
-      });
-      toast.success("Данные посещаемости сохранены");
-    },
-    onError: (err) => {
-      toast.error(
-        err instanceof Error ? err.message : "Не удалось сохранить посещаемость"
-      );
-    },
-  });
+  }, [data, filters.year, filters.month, filters.selectedObjectIds, filters.selectedPositionKeys, filters.listScope, filters.openShiftScope, debouncedSearch, daysHeader]);
 
   return {
     filters,
-    setFilters,
     selectedEmployeeIds,
     toggleEmployeeSelection,
     selectAllEmployees,
     clearEmployeeSelection,
     goToPreviousMonth,
     goToNextMonth,
-    setYearAndMonth,
     setSelectedObjectIds,
     setSelectedPositionKeys,
     setListScope,
     setOpenShiftScope,
     setSearchQuery,
-    isLoading: query.isLoading,
+    isLoading: !isAccessReady || query.isLoading,
     isFetching: query.isFetching,
     isError: query.isError,
     error: query.error,
@@ -410,8 +308,5 @@ export function useTimesheet() {
     gridRows,
     dayTotals,
     grandTotalHours,
-    objectColorMap,
-    saveAttendance: saveAttendanceMutation.mutateAsync,
-    isSavingAttendance: saveAttendanceMutation.isPending,
   };
 }

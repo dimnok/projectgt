@@ -24,6 +24,7 @@ import { EmployeeApplicationsTab } from "@/features/employees/ui/shared/employee
 import { EmployeeDetails } from "@/features/employees/ui/shared/employee-details";
 import { EmployeeTimesheetTab } from "@/features/employees/ui/shared/employee-timesheet-tab";
 import { EmployeeTmcTab } from "@/features/employees/ui/shared/employee-tmc-tab";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type TabItem = {
   value: string;
@@ -31,13 +32,18 @@ type TabItem = {
   icon: LucideIcon;
 };
 
-const EMPLOYEE_TABS: readonly TabItem[] = [
+const BASE_EMPLOYEE_TABS: readonly TabItem[] = [
   { value: "overview", label: "Обзор", icon: UserCheckIcon },
   { value: "timesheet", label: "Табель", icon: CalendarCheckIcon },
   { value: "tmc", label: "ТМЦ", icon: BoxesIcon },
   { value: "applications", label: "Заявления", icon: FileTextIcon },
-  { value: "finances", label: "Финансы", icon: WalletIcon },
 ];
+
+const FINANCES_TAB: TabItem = {
+  value: "finances",
+  label: "Финансы",
+  icon: WalletIcon,
+};
 
 type EmployeeDetailsTabsProps = {
   employee: Employee;
@@ -52,6 +58,13 @@ export function EmployeeDetailsTabs({
   objectNamesById,
   canUpdate,
 }: EmployeeDetailsTabsProps) {
+  const { isOwner, can } = usePermissions();
+  const canViewFinances = isOwner || can("payroll", "read") || can("employees", "update");
+
+  const tabs = canViewFinances
+    ? [...BASE_EMPLOYEE_TABS, FINANCES_TAB]
+    : BASE_EMPLOYEE_TABS;
+
   return (
     <Tabs
       key={employee.id}
@@ -61,7 +74,7 @@ export function EmployeeDetailsTabs({
       <div className="shrink-0 border-b border-border/60 bg-muted/25 px-6 pb-5">
         <TabsList variant="pills" className="h-10">
           <TabsIndicator />
-          {EMPLOYEE_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <TabsTrigger key={tab.value} value={tab.value}>
@@ -80,6 +93,7 @@ export function EmployeeDetailsTabs({
             objects={objects}
             objectNamesById={objectNamesById}
             canUpdate={canUpdate}
+            canViewFinances={canViewFinances}
           />
         </TabsContent>
 
@@ -104,20 +118,22 @@ export function EmployeeDetailsTabs({
           />
         </TabsContent>
 
-        <TabsContent value="finances">
-          <div className="flex min-h-60 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-8 text-center">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-              <WalletIcon className="size-6" />
+        {canViewFinances ? (
+          <TabsContent value="finances">
+            <div className="flex min-h-60 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                <WalletIcon className="size-6" />
+              </div>
+              <h4 className="text-base font-semibold text-foreground">
+                Финансы и взаиморасчёты
+              </h4>
+              <p className="max-w-md text-xs text-muted-foreground">
+                Раздел финансовой аналитики, начислений, выплат заработной платы и
+                авансов сотрудника находится в разработке.
+              </p>
             </div>
-            <h4 className="text-base font-semibold text-foreground">
-              Финансы и взаиморасчёты
-            </h4>
-            <p className="max-w-md text-xs text-muted-foreground">
-              Раздел финансовой аналитики, начислений, выплат заработной платы и
-              авансов сотрудника находится в разработке.
-            </p>
-          </div>
-        </TabsContent>
+          </TabsContent>
+        ) : null}
       </div>
     </Tabs>
   );

@@ -103,25 +103,6 @@ export function isTodayInMonth(month: string, day: number): boolean {
   return today === date;
 }
 
-export function dailyWorkAmounts(
-  works: Work[],
-  month: string,
-  objectId?: string | null
-): { day: number; amount: number }[] {
-  const days = daysInMonth(month);
-  const sums = Array.from({ length: days }, () => 0);
-  for (const work of works) {
-    if (objectId && work.objectId !== objectId) {
-      continue;
-    }
-    const day = Number(work.date.slice(8, 10));
-    if (day >= 1 && day <= days) {
-      sums[day - 1] += work.totalAmount;
-    }
-  }
-  return sums.map((amount, index) => ({ day: index + 1, amount }));
-}
-
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -436,13 +417,18 @@ export function formatWorkItemPlace(section: string, floor: string): string {
 
 export function filterWorkHours(hours: WorkHour[], search: string): WorkHour[] {
   const query = search.trim().toLowerCase();
-  if (!query) {
-    return hours;
-  }
-  return hours.filter((row) =>
-    [row.employeeName, row.employeePosition, row.comment]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(query))
+  const list = !query
+    ? hours
+    : hours.filter((row) =>
+        [row.employeeName, row.employeePosition, row.comment]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      );
+
+  return [...list].sort(
+    (a, b) =>
+      a.employeeName.localeCompare(b.employeeName, "ru", { sensitivity: "base" }) ||
+      a.id.localeCompare(b.id)
   );
 }
 

@@ -20,6 +20,7 @@ export function TimesheetDesktop() {
   const { can } = usePermissions();
   const canEditAttendance = can("timesheet", "update") || can("timesheet", "create");
   const canExport = can("timesheet", "export");
+
   const {
     filters,
     selectedEmployeeIds,
@@ -44,7 +45,6 @@ export function TimesheetDesktop() {
     gridRows,
     dayTotals,
     grandTotalHours,
-    objectColorMap,
   } = useTimesheet();
 
   const [attendanceEmployee, setAttendanceEmployee] = useState<Employee | null>(
@@ -114,7 +114,10 @@ export function TimesheetDesktop() {
   }
 
   return (
-    <div className="flex flex-col gap-3 min-w-0 w-full flex-1">
+    <div
+      data-fill-viewport
+      className="flex flex-col gap-3 min-w-0 w-full flex-1 h-full min-h-0 overflow-hidden"
+    >
       {/* Header toolbar */}
       <TimesheetToolbar
         year={filters.year}
@@ -145,9 +148,9 @@ export function TimesheetDesktop() {
       {isLoading && !data ? (
         <Loading />
       ) : (
-        <div className="relative">
+        <div className="relative flex-1 min-h-0 min-w-0">
           {isFetching ? (
-            <div className="absolute top-2 right-4 z-50 flex items-center gap-1.5 rounded-full bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground shadow-xs border backdrop-blur-xs">
+            <div className="absolute top-2 right-4 z-50 flex items-center gap-1.5 rounded-full bg-background/85 px-3 py-1 text-[11px] text-muted-foreground shadow-xs border border-border/80 backdrop-blur-md">
               <Loader2Icon className="h-3 w-3 animate-spin text-primary" />
               <span>Обновление данных...</span>
             </div>
@@ -158,7 +161,6 @@ export function TimesheetDesktop() {
             daysHeader={daysHeader}
             dayTotals={dayTotals}
             grandTotalHours={grandTotalHours}
-            objectColorMap={objectColorMap}
             objectOptions={data?.objectOptions ?? []}
             selectedEmployeeIds={selectedEmployeeIds}
             onToggleSelectEmployee={toggleEmployeeSelection}

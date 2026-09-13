@@ -1,11 +1,12 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, SmartphoneIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useIsLandscapeMobile } from "@/hooks/use-mobile";
 import { useMyOpenWorkId } from "@/features/works/hooks/use-open-work";
 import { useMonthWorks } from "@/features/works/hooks/use-works";
 import type { Work } from "@/features/works/types/work.types";
@@ -29,6 +30,7 @@ export function WorksMobile() {
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(true);
   const [openShiftOpen, setOpenShiftOpen] = useState(false);
+  const isLandscape = useIsLandscapeMobile();
   const { can } = usePermissions();
   const myOpenQuery = useMyOpenWorkId();
   const canOpenShift = can("works", "create");
@@ -67,6 +69,23 @@ export function WorksMobile() {
       return;
     }
     setOpenShiftOpen(true);
+  }
+
+  if (isLandscape) {
+    return (
+      <div
+        data-fill-viewport
+        className="-m-4 flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center bg-background p-6 text-center"
+      >
+        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-foreground">
+          <SmartphoneIcon className="size-6" />
+        </div>
+        <h2 className="text-base font-semibold">Поверните устройство</h2>
+        <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+          Модуль «Работы» работает в вертикальном (портретном) режиме.
+        </p>
+      </div>
+    );
   }
 
   if (selectedWorkFresh) {

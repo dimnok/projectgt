@@ -1,5 +1,6 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
+import { getWorkAccessScope } from "@/features/works/api/get-work-membership";
 import type { Work, WorksRow } from "@/features/works/types/work.types";
 import {
   isWorkStatus,
@@ -50,7 +51,8 @@ export function mapWorkRow(row: WorksRow): Work {
 }
 
 /**
- * Loads shifts of one month. Same filters as Flutter `getMonthWorks`.
+ * Loads shifts of one month.
+ * Strictly scoped to user's assigned objects (unless company owner / super-admin).
  */
 export async function getMonthWorks(
   month: string,
@@ -58,6 +60,13 @@ export async function getMonthWorks(
 ): Promise<Work[]> {
   const client = getRequiredClient();
   const companyId = await getActiveCompanyId();
+  const accessScope = await getWorkAccessScope();
+
+  // Не-владелец без привязанных объектов не имеет доступа к сменам
+  if (!accessScope.isAllObjectsAccess && accessScope.objectIds.length === 0) {
+    return [];
+  }
+
   const { start, end } = monthRange(month);
 
   let query = client
@@ -66,6 +75,10 @@ export async function getMonthWorks(
     .eq("company_id", companyId)
     .gte("date", start)
     .lt("date", end);
+
+  if (!accessScope.isAllObjectsAccess) {
+    query = query.in("object_id", accessScope.objectIds);
+  }
 
   if (openedBy) {
     query = query.eq("opened_by", openedBy);
@@ -81,18 +94,28 @@ export async function getMonthWorks(
 }
 
 /**
- * Loads one shift by id. Same row mapping as `getMonthWorks`.
+ * Loads one shift by id. Same row mapping and scope as `getMonthWorks`.
  */
 export async function getWork(workId: string): Promise<Work> {
   const client = getRequiredClient();
   const companyId = await getActiveCompanyId();
+  const accessScope = await getWorkAccessScope();
 
-  const { data, error } = await client
+  if (!accessScope.isAllObjectsAccess && accessScope.objectIds.length === 0) {
+    throw new Error("Смена не найдена");
+  }
+
+  let query = client
     .from("works")
     .select(WORK_SELECT)
     .eq("company_id", companyId)
-    .eq("id", workId)
-    .maybeSingle();
+    .eq("id", workId);
+
+  if (!accessScope.isAllObjectsAccess) {
+    query = query.in("object_id", accessScope.objectIds);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(error.message);

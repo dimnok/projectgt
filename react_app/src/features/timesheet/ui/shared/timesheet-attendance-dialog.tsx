@@ -397,22 +397,22 @@ export function TimesheetAttendanceDialog({
             </div>
 
             {/* Calendar card */}
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
               {/* Period banner */}
-              <div className="bg-muted/40 px-3 py-1.5 text-center text-xs font-semibold text-foreground border-b border-border">
-                Период: {monthTitle}
+              <div className="bg-muted/40 px-3 py-2 text-center text-xs font-semibold text-foreground border-b border-border/70 capitalize">
+                {monthTitle}
               </div>
 
               {/* Weekday headers row */}
-              <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center text-xs font-semibold">
+              <div className="grid grid-cols-7 border-b border-border/70 bg-muted/20 text-center text-[11px] font-semibold">
                 {weekdaysLabels.map((lbl, idx) => (
                   <div
                     key={lbl}
                     className={cn(
-                      "py-2 border-r border-border last:border-r-0 select-none",
+                      "py-2 border-r border-border/60 last:border-r-0 select-none",
                       idx === 5 || idx === 6
-                        ? "text-destructive font-bold bg-destructive/5"
-                        : "text-muted-foreground"
+                        ? "text-rose-500/90 dark:text-rose-400 font-semibold bg-muted/30"
+                        : "text-muted-foreground/75"
                     )}
                   >
                     {lbl}
@@ -421,7 +421,7 @@ export function TimesheetAttendanceDialog({
               </div>
 
               {/* Day cells grid with single-pixel dividers */}
-              <div className="grid grid-cols-7 divide-x divide-y divide-border border-b-0">
+              <div className="grid grid-cols-7 divide-x divide-y divide-border/60 border-b-0">
                 {/* Empty prefix cells for alignment */}
                 {Array.from({ length: firstDayOffset }).map((_, i) => (
                   <div
@@ -440,23 +440,23 @@ export function TimesheetAttendanceDialog({
                       key={d.date}
                       className={cn(
                         "relative flex flex-col justify-between p-1.5 min-h-[58px] transition-colors",
-                        d.isWeekend && "bg-destructive/5 dark:bg-destructive/10",
-                        !d.isWeekend && hasShift && "bg-muted/30",
+                        d.isWeekend && "bg-muted/20 dark:bg-muted/10",
+                        !d.isWeekend && hasShift && "bg-muted/25",
                         !d.isWeekend && !hasShift && "bg-card hover:bg-muted/15"
                       )}
                     >
                       {/* Top row: day number + shift indicator */}
                       <div className="flex items-center justify-between leading-none select-none">
                         {d.isToday ? (
-                          <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+                          <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold shadow-2xs">
                             {d.dayNumber}
                           </span>
                         ) : (
                           <span
                             className={cn(
-                              "text-xs font-semibold px-0.5",
+                              "text-xs font-semibold px-0.5 tabular-nums",
                               d.isWeekend
-                                ? "text-destructive font-bold"
+                                ? "text-rose-500/90 dark:text-rose-400 font-semibold"
                                 : "text-foreground"
                             )}
                           >
@@ -466,7 +466,7 @@ export function TimesheetAttendanceDialog({
 
                         {hasShift ? (
                           <span
-                            className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground bg-muted px-1 py-0.5 rounded"
+                            className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md"
                             title="Часы учтены в смене"
                           >
                             <LockIcon className="size-2.5" />
@@ -477,7 +477,7 @@ export function TimesheetAttendanceDialog({
 
                       {/* Bottom row: hours display or borderless input */}
                       {hasShift ? (
-                        <div className="flex flex-1 items-center justify-center text-sm font-bold text-foreground">
+                        <div className="flex flex-1 items-center justify-center text-sm font-bold text-foreground tabular-nums">
                           {shiftH} ч
                         </div>
                       ) : (
@@ -492,7 +492,7 @@ export function TimesheetAttendanceDialog({
                               handleHourChange(d.date, e.target.value)
                             }
                             className={cn(
-                              "w-full text-center text-sm font-bold bg-transparent border-0 rounded py-0.5 transition-colors focus:outline-none focus:bg-muted/50 focus:ring-1 focus:ring-primary/40",
+                              "w-full text-center text-sm font-bold bg-transparent border-0 rounded-md py-0.5 transition-colors focus:outline-none focus:bg-muted/50 focus:ring-1 focus:ring-primary/40 tabular-nums",
                               manualH
                                 ? "text-foreground font-extrabold"
                                 : "text-muted-foreground/30"

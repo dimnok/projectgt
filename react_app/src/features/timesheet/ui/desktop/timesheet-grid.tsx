@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarIcon, UsersIcon } from "lucide-react";
+import React, { memo, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { Employee } from "@/features/employees/types/employee.types";
 import type {
+  DayCellData,
   TimesheetGridRow,
   TimesheetObjectOption,
 } from "@/features/timesheet/types/timesheet.types";
@@ -24,7 +26,6 @@ type TimesheetGridProps = {
   daysHeader: DayHeaderInfo[];
   dayTotals: number[];
   grandTotalHours: number;
-  objectColorMap?: Map<string, string>;
   objectOptions: TimesheetObjectOption[];
   selectedEmployeeIds: Set<string>;
   onToggleSelectEmployee: (employeeId: string) => void;
@@ -34,6 +35,230 @@ type TimesheetGridProps = {
   onOpenEmployeeDetails?: (employee: Employee) => void;
   isLoading?: boolean;
 };
+
+type RowItemProps = {
+  row: TimesheetGridRow;
+  isSelected: boolean;
+  objectNameMap: Map<string, string>;
+  onToggleSelect: (id: string) => void;
+  onOpenAttendance?: (employee: Employee) => void;
+  onOpenEmployeeDetails?: (employee: Employee) => void;
+};
+
+// Memoized individual row for zero-lag interaction
+const TimesheetGridRowItem = memo(function TimesheetGridRowItem({
+  row,
+  isSelected,
+  objectNameMap,
+  onToggleSelect,
+  onOpenAttendance,
+  onOpenEmployeeDetails,
+}: RowItemProps) {
+  return (
+    <tr
+      className={cn(
+        "group h-10 transition-colors border-b border-border/40",
+        isSelected ? "bg-muted/70" : "hover:bg-muted/20"
+      )}
+    >
+      {/* Checkbox cell (sticky left 0) */}
+      <td
+        className={cn(
+          "sticky left-0 z-20 w-8 min-w-8 max-w-8 h-10 pl-2.5 pr-1 text-center align-middle transition-colors border-b border-border/40",
+          isSelected ? "bg-muted" : "bg-card group-hover:bg-muted/70"
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(row.employee.id)}
+          aria-label={`Выбрать ${row.fullName}`}
+          className="size-4 rounded border-border/80 text-primary accent-primary cursor-pointer align-middle transition-all"
+        />
+      </td>
+
+      {/* Employee cell (sticky left 8) */}
+      <td
+        className={cn(
+          "sticky left-8 z-20 w-80 min-w-80 max-w-80 h-10 pl-2 pr-2.5 py-1 align-middle border-r border-b border-border/70 shadow-[3px_0_8px_-2px_rgba(0,0,0,0.08)] dark:shadow-[3px_0_8px_-2px_rgba(0,0,0,0.4)] transition-colors",
+          isSelected ? "bg-muted" : "bg-card group-hover:bg-muted/70"
+        )}
+      >
+        <div className="flex items-center justify-between gap-1.5 min-w-0">
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => onOpenEmployeeDetails?.(row.employee)}
+              className={cn(
+                "block text-left truncate font-medium text-foreground text-[12px] sm:text-[13px] leading-tight tracking-tight hover:underline focus:outline-none transition-colors",
+                onOpenEmployeeDetails && "hover:text-primary cursor-pointer"
+              )}
+              title={row.fullName}
+            >
+              {row.fullName}
+            </button>
+            {row.position ? (
+              <span
+                className="block truncate text-[10px] text-muted-foreground/75 leading-tight mt-0.5"
+                title={row.position}
+              >
+                {row.position}
+              </span>
+            ) : null}
+          </div>
+
+          {onOpenAttendance ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenAttendance(row.employee)}
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary shrink-0 transition-opacity rounded-md text-muted-foreground"
+              title="Проставить часы посещаемости"
+              aria-label="Проставить часы"
+            >
+              <CalendarIcon className="size-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      </td>
+
+      {/* Square day cells */}
+      {row.days.map((day) => (
+        <TimesheetDayCell
+          key={`${row.employee.id}-${day.date}`}
+          day={day}
+          objectNameMap={objectNameMap}
+        />
+      ))}
+
+      {/* Row total hours cell (sticky right 0) */}
+      <td
+        className={cn(
+          "sticky right-0 z-20 w-16 min-w-16 max-w-16 h-10 px-2 text-center font-bold tabular-nums align-middle border-l border-b border-border/70 shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.08)] dark:shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.4)] text-[12px] transition-colors",
+          row.totalHours > 0
+            ? "text-foreground font-semibold"
+            : "text-muted-foreground/25",
+          isSelected ? "bg-muted" : "bg-card group-hover:bg-muted/70"
+        )}
+      >
+        {row.totalHours > 0 ? formatHours(row.totalHours) : ""}
+      </td>
+    </tr>
+  );
+});
+
+type DayCellProps = {
+  day: DayCellData;
+  objectNameMap: Map<string, string>;
+};
+
+const TimesheetDayCell = memo(function TimesheetDayCell({
+  day,
+  objectNameMap,
+}: DayCellProps) {
+  const hasHours = day.totalHours > 0;
+  const hasManualEntry = day.entries.some((e) => e.isManualEntry);
+
+  const comments = useMemo(() => {
+    const list: { objectName: string; text: string }[] = [];
+    const seen = new Set<string>();
+    for (const entry of day.entries) {
+      const text = entry.comment?.trim();
+      if (text) {
+        const objName = objectNameMap.get(entry.objectId) ?? "Объект";
+        const key = `${objName}:::${text}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ objectName: objName, text });
+        }
+      }
+    }
+    return list;
+  }, [day.entries, objectNameMap]);
+
+  const hasComment = comments.length > 0;
+  const hasOpenShiftHint = Boolean(
+    day.isInTodayOpenShift && day.todayOpenShiftHint
+  );
+  const hasNote = hasComment || hasOpenShiftHint;
+
+  const cellContent = (
+    <div
+      className={cn(
+        "relative flex size-10 items-center justify-center cursor-default select-none text-[12px] tabular-nums",
+        hasHours
+          ? "font-medium text-foreground"
+          : "text-muted-foreground/20 hover:bg-muted/20"
+      )}
+    >
+      {hasHours ? (
+        hasManualEntry ? (
+          <span className="inline-flex items-center justify-center size-7 rounded-md border border-border/80 bg-background text-[11px] font-semibold text-foreground shadow-2xs tabular-nums">
+            {formatHours(day.totalHours)}
+          </span>
+        ) : (
+          <span className="font-medium">{formatHours(day.totalHours)}</span>
+        )
+      ) : null}
+
+      {/* Today open shift indicator */}
+      {day.isInTodayOpenShift ? (
+        <span
+          className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500 ring-1 ring-background"
+          title="В открытой смене сегодня"
+        />
+      ) : null}
+
+      {/* Comment indicator dot */}
+      {hasComment && !day.isInTodayOpenShift ? (
+        <span
+          className="absolute top-1 right-1 size-1.5 rounded-full bg-primary/70 ring-1 ring-background"
+          title="Есть примечание"
+        />
+      ) : null}
+    </div>
+  );
+
+  return (
+    <td
+      className={cn(
+        "w-10 min-w-10 max-w-10 h-10 p-0 text-center align-middle border-r border-b border-border/40 transition-colors",
+        day.isToday && "bg-primary/[0.02] dark:bg-primary/[0.04]"
+      )}
+    >
+      {hasNote ? (
+        <Tooltip>
+          <TooltipTrigger render={cellContent} />
+          <TooltipContent
+            side="top"
+            className="text-xs p-2.5 max-w-xs space-y-1.5 shadow-md border border-border/60"
+          >
+            {hasOpenShiftHint ? (
+              <div className="text-amber-400 font-medium text-[11px] flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>{day.todayOpenShiftHint}</span>
+              </div>
+            ) : null}
+
+            {comments.map((c, idx) => (
+              <div key={idx} className="text-xs leading-relaxed flex flex-col gap-0.5">
+                <span className="font-semibold text-background/70 text-[10px] uppercase tracking-wider">
+                  {c.objectName}
+                </span>
+                <span className="text-background font-medium text-[12px] whitespace-pre-wrap">
+                  {c.text}
+                </span>
+              </div>
+            ))}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        cellContent
+      )}
+    </td>
+  );
+});
 
 export function TimesheetGrid({
   rows,
@@ -49,10 +274,12 @@ export function TimesheetGrid({
   onOpenEmployeeDetails,
   isLoading = false,
 }: TimesheetGridProps) {
-  const allVisibleIds = rows.map((r) => r.employee.id);
+  const allVisibleIds = useMemo(() => rows.map((r) => r.employee.id), [rows]);
+
   const isAllSelected =
     allVisibleIds.length > 0 &&
     allVisibleIds.every((id) => selectedEmployeeIds.has(id));
+
   const isSomeSelected =
     !isAllSelected && allVisibleIds.some((id) => selectedEmployeeIds.has(id));
 
@@ -64,19 +291,24 @@ export function TimesheetGrid({
     }
   };
 
-  const objectNameMap = new Map<string, string>();
-  for (const o of objectOptions) {
-    objectNameMap.set(o.id, o.name);
-  }
+  const objectNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of objectOptions) {
+      map.set(o.id, o.name);
+    }
+    return map;
+  }, [objectOptions]);
 
   if (rows.length === 0 && !isLoading) {
     return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-dashed border-border p-8 text-center bg-card/40">
-        <UsersIcon className="h-10 w-10 text-muted-foreground/40 mb-3" />
-        <h3 className="text-base font-semibold text-foreground">
+      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 p-8 text-center bg-card/40">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/50 mb-3 text-muted-foreground">
+          <UsersIcon className="size-6" />
+        </div>
+        <h3 className="text-sm font-semibold text-foreground tracking-tight">
           Нет записей для отображения
         </h3>
-        <p className="mt-1 text-xs sm:text-sm text-muted-foreground max-w-sm">
+        <p className="mt-1 text-xs text-muted-foreground max-w-sm">
           Попробуйте изменить период, сбросить фильтры или ввести поисковый запрос
         </p>
       </div>
@@ -84,16 +316,14 @@ export function TimesheetGrid({
   }
 
   return (
-    <div className="relative w-full rounded-xl border border-border bg-card shadow-xs [clip-path:inset(0_round_var(--radius-xl))]">
-      <div className="relative max-h-[calc(100vh-14rem)] overflow-auto [clip-path:inset(0_round_calc(var(--radius-xl)-1px))]">
+    <div className="relative w-full h-full min-h-0 flex flex-col rounded-2xl border border-border/70 bg-card shadow-xs overflow-hidden [clip-path:inset(0_round_var(--radius-2xl))]">
+      <div className="relative flex-1 min-h-0 overflow-auto scrollbar-thin [clip-path:inset(0_round_calc(var(--radius-2xl)-1px))]">
         <table className="w-full border-separate border-spacing-0 text-sm">
           {/* Header */}
-          <thead className="sticky top-0 z-30">
-            <tr>
-              {/* Checkbox col (top-left corner) */}
-              <th
-                className="sticky top-0 left-0 z-40 w-10 min-w-10 bg-muted px-2 py-2 text-center align-middle border-r border-b border-border"
-              >
+          <thead className="sticky top-0 z-40">
+            <tr className="border-b border-border/70">
+              {/* Checkbox column (sticky top-left corner) */}
+              <th className="sticky top-0 left-0 z-50 w-8 min-w-8 max-w-8 h-11 bg-muted pl-2.5 pr-1 text-center align-middle border-b border-border/70 rounded-tl-2xl">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -101,45 +331,50 @@ export function TimesheetGrid({
                     if (input) input.indeterminate = isSomeSelected;
                   }}
                   onChange={handleHeaderCheckbox}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-primary/20 cursor-pointer"
+                  aria-label="Выбрать всех сотрудников"
+                  className="size-4 rounded border-border/80 text-primary accent-primary cursor-pointer align-middle transition-all"
                 />
               </th>
 
-              {/* Employee col */}
-              <th
-                className="sticky top-0 left-10 z-40 w-60 min-w-60 bg-muted px-3 py-2 text-left text-sm font-semibold text-foreground align-middle border-r border-b border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-              >
+              {/* Employee column (sticky left 8) */}
+              <th className="sticky top-0 left-8 z-50 w-80 min-w-80 max-w-80 h-11 bg-muted pl-2 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground align-middle border-r border-b border-border/70 shadow-[3px_0_8px_-2px_rgba(0,0,0,0.04)] dark:shadow-[3px_0_8px_-2px_rgba(0,0,0,0.2)]">
                 Сотрудник
               </th>
 
-              {/* Days header: weekend dates highlighted in red */}
+              {/* Square day headers */}
               {daysHeader.map((d) => (
                 <th
                   key={`day-${d.date}`}
                   className={cn(
-                    "w-10 min-w-10 px-0.5 py-1.5 text-center align-middle border-r border-b border-border transition-colors",
-                    d.isWeekend
-                      ? "bg-destructive/10 dark:bg-destructive/20"
-                      : "bg-muted",
-                    d.isToday && "ring-1 ring-inset ring-primary/40"
+                    "sticky top-0 z-40 w-10 min-w-10 max-w-10 h-11 p-0 text-center align-middle border-r border-b border-border/70 transition-colors bg-muted",
+                    d.isWeekend && "bg-muted/80 dark:bg-muted/40",
+                    d.isToday && "bg-primary/[0.04]"
                   )}
                 >
-                  <div className="flex flex-col items-center justify-center gap-0.5 leading-none">
+                  <div className="flex size-10 mx-auto flex-col items-center justify-center gap-0.5 leading-none">
+                    {d.isToday ? (
+                      <span className="size-5 rounded-full bg-primary text-primary-foreground font-bold inline-flex items-center justify-center text-[11px] shadow-2xs tabular-nums">
+                        {d.dayNumber}
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "text-[12px] font-semibold leading-none tabular-nums",
+                          d.isWeekend
+                            ? "text-rose-500/90 dark:text-rose-400 font-semibold"
+                            : "text-foreground/90"
+                        )}
+                      >
+                        {d.dayNumber}
+                      </span>
+                    )}
+
                     <span
                       className={cn(
-                        "text-xs font-bold leading-none",
-                        d.isWeekend ? "text-destructive" : "text-foreground",
-                        d.isToday && "text-primary font-extrabold"
-                      )}
-                    >
-                      {d.dayNumber}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[10px] font-semibold leading-none",
+                        "text-[10px] font-medium leading-none uppercase tracking-tight",
                         d.isWeekend
-                          ? "text-destructive/80 font-bold"
-                          : "text-muted-foreground",
+                          ? "text-rose-500/70 dark:text-rose-400/80 font-semibold"
+                          : "text-muted-foreground/60",
                         d.isToday && "text-primary font-bold"
                       )}
                     >
@@ -149,10 +384,8 @@ export function TimesheetGrid({
                 </th>
               ))}
 
-              {/* Total col (top-right corner) */}
-              <th
-                className="sticky top-0 right-0 z-40 w-14 min-w-14 bg-muted px-2 py-2 text-center text-xs font-bold text-foreground align-middle border-l border-b border-border shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-              >
+              {/* Total column (sticky top-right corner) */}
+              <th className="sticky top-0 right-0 z-50 w-16 min-w-16 max-w-16 h-11 bg-muted px-2 text-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground align-middle border-l border-b border-border/70 shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.04)] dark:shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.2)] rounded-tr-2xl">
                 Итого
               </th>
             </tr>
@@ -160,227 +393,43 @@ export function TimesheetGrid({
 
           {/* Body */}
           <tbody>
-            {rows.map((row) => {
-              const isSelected = selectedEmployeeIds.has(row.employee.id);
-
-              return (
-                <tr
-                  key={row.employee.id}
-                  className={cn(
-                    "group transition-colors hover:bg-muted/40",
-                    isSelected && "bg-primary/5"
-                  )}
-                >
-                  {/* Checkbox cell */}
-                  <td
-                    className={cn(
-                      "sticky left-0 z-20 w-10 min-w-10 bg-card px-2 py-1 text-center align-middle border-r border-b border-border group-hover:bg-muted/40",
-                      isSelected && "bg-primary/5 group-hover:bg-primary/10"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggleSelectEmployee(row.employee.id)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary/20 cursor-pointer"
-                    />
-                  </td>
-
-                  {/* Employee name & actions cell */}
-                  <td
-                    className={cn(
-                      "sticky left-10 z-20 w-60 min-w-60 bg-card px-3 py-1 align-middle border-r border-b border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-muted/40",
-                      isSelected && "bg-primary/5 group-hover:bg-primary/10"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <span
-                          onClick={() => onOpenEmployeeDetails?.(row.employee)}
-                          className={cn(
-                            "block truncate font-medium text-foreground text-sm leading-snug",
-                            onOpenEmployeeDetails &&
-                              "cursor-pointer hover:text-primary hover:underline"
-                          )}
-                          title={row.fullName}
-                        >
-                          {row.fullName}
-                        </span>
-                        {row.position ? (
-                          <span
-                            className="block truncate text-xs text-muted-foreground leading-snug"
-                            title={row.position}
-                          >
-                            {row.position}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      {/* Attendance edit button */}
-                      {onOpenAttendance ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onOpenAttendance(row.employee)}
-                        className="h-6 w-6 opacity-70 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary shrink-0 transition-opacity"
-                        title="Проставить часы посещаемости"
-                      >
-                        <CalendarIcon className="h-3.5 w-3.5" />
-                      </Button>
-                      ) : null}
-                    </div>
-                  </td>
-
-                  {/* Day cells */}
-                  {row.days.map((day) => {
-                    const hasHours = day.totalHours > 0;
-                    const hasManualEntry = day.entries.some((e) => e.isManualEntry);
-
-                    // Collect unique non-empty comments
-                    const comments: { objectName: string; text: string }[] = [];
-                    const seenComments = new Set<string>();
-                    for (const entry of day.entries) {
-                      const text = entry.comment?.trim();
-                      if (text && !seenComments.has(text)) {
-                        seenComments.add(text);
-                        const objName =
-                          entry.objectName ||
-                          objectNameMap.get(entry.objectId) ||
-                          "Объект";
-                        comments.push({ objectName: objName, text });
-                      }
-                    }
-
-                    const hasComment = comments.length > 0;
-                    const hasOpenShiftHint = Boolean(
-                      day.isInTodayOpenShift && day.todayOpenShiftHint
-                    );
-                    const hasNote = hasComment || hasOpenShiftHint;
-
-                    const cellBody = (
-                      <div
-                        className={cn(
-                          "relative flex h-8 w-full items-center justify-center cursor-default transition-transform select-none text-xs",
-                          hasHours
-                            ? "font-semibold text-foreground"
-                            : "text-muted-foreground/25 hover:bg-muted/20"
-                        )}
-                      >
-                        {hasHours ? (
-                          hasManualEntry ? (
-                            <span className="inline-flex items-center justify-center rounded border border-foreground/30 px-1 py-0.5 leading-none font-semibold">
-                              {formatHours(day.totalHours)}
-                            </span>
-                          ) : (
-                            formatHours(day.totalHours)
-                          )
-                        ) : (
-                          ""
-                        )}
-
-                        {/* Today open shift asterisk badge */}
-                        {day.isInTodayOpenShift ? (
-                          <span
-                            className={cn(
-                              "absolute top-0.5 right-0.5 text-[11px] font-bold text-amber-500 leading-none"
-                            )}
-                          >
-                            *
-                          </span>
-                        ) : null}
-
-                        {/* Small dot indicator if there is a comment */}
-                        {hasComment && !day.isInTodayOpenShift ? (
-                          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary/80" />
-                        ) : null}
-                      </div>
-                    );
-
-                    return (
-                      <td
-                        key={`${row.employee.id}-${day.date}`}
-                        className={cn(
-                          "relative w-10 min-w-10 p-0 text-center align-middle border-r border-b border-border transition-colors",
-                          day.isWeekend && "bg-muted/35 dark:bg-muted/20",
-                          day.isToday && "ring-1 ring-inset ring-primary/40"
-                        )}
-                      >
-                        {hasNote ? (
-                          <Tooltip>
-                            <TooltipTrigger render={cellBody} />
-
-                            <TooltipContent side="top" className="text-xs p-2 max-w-xs space-y-1">
-                              {hasOpenShiftHint ? (
-                                <div className="text-amber-500 font-medium text-[11px]">
-                                  ⚡ {day.todayOpenShiftHint}
-                                </div>
-                              ) : null}
-
-                              {comments.map((c, idx) => (
-                                <div key={idx} className="text-xs leading-relaxed">
-                                  <span className="font-semibold text-muted-foreground mr-1.5">
-                                    {c.objectName}:
-                                  </span>
-                                  <span className="text-foreground">{c.text}</span>
-                                </div>
-                              ))}
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          cellBody
-                        )}
-                      </td>
-                    );
-                  })}
-
-                  {/* Total cell */}
-                  <td
-                    className={cn(
-                      "sticky right-0 z-20 w-14 min-w-14 bg-card px-1 py-1 text-center font-bold align-middle border-l border-b border-border shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-muted/40 text-xs",
-                      row.totalHours > 0
-                        ? "text-foreground font-semibold"
-                        : "text-muted-foreground/40",
-                      isSelected && "bg-primary/5 group-hover:bg-primary/10"
-                    )}
-                  >
-                    {row.totalHours > 0 ? formatHours(row.totalHours) : ""}
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((row) => (
+              <TimesheetGridRowItem
+                key={row.employee.id}
+                row={row}
+                isSelected={selectedEmployeeIds.has(row.employee.id)}
+                objectNameMap={objectNameMap}
+                onToggleSelect={onToggleSelectEmployee}
+                onOpenAttendance={onOpenAttendance}
+                onOpenEmployeeDetails={onOpenEmployeeDetails}
+              />
+            ))}
           </tbody>
 
-          {/* Footer: totals per day */}
-          <tfoot className="sticky bottom-0 z-30">
-            <tr>
+          {/* Footer totals */}
+          <tfoot className="sticky bottom-0 z-40">
+            <tr className="border-t border-border/80 bg-muted font-semibold text-foreground h-10">
               {/* Bottom-left corner */}
               <td
                 colSpan={2}
-                className="sticky bottom-0 left-0 z-40 bg-muted px-3 py-1.5 font-bold text-foreground text-right border-t border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-xs"
+                className="sticky bottom-0 left-0 z-50 bg-muted px-3.5 h-10 font-bold text-foreground text-right border-r border-border/70 shadow-[3px_0_8px_-2px_rgba(0,0,0,0.04)] dark:shadow-[3px_0_8px_-2px_rgba(0,0,0,0.2)] text-[11px] uppercase tracking-wider text-muted-foreground align-middle rounded-bl-2xl"
               >
                 Итого
               </td>
 
-              {dayTotals.map((tot, idx) => {
-                const dayHead = daysHeader[idx];
-                return (
-                  <td
-                    key={`total-${idx}`}
-                    className={cn(
-                      "w-10 min-w-10 bg-muted px-0.5 py-1.5 text-center font-bold text-xs border-t border-r border-border text-foreground/80",
-                      dayHead?.isWeekend && "bg-muted/70 dark:bg-muted/40"
-                    )}
-                  >
+              {dayTotals.map((tot, idx) => (
+                <td
+                  key={`total-${idx}`}
+                  className="sticky bottom-0 z-40 w-10 min-w-10 max-w-10 h-10 p-0 text-center font-bold text-[12px] tabular-nums text-foreground/90 align-middle border-r border-border/70 bg-muted"
+                >
+                  <div className="flex size-10 mx-auto items-center justify-center">
                     {tot > 0 ? formatHours(tot) : ""}
-                  </td>
-                );
-              })}
+                  </div>
+                </td>
+              ))}
 
               {/* Bottom-right corner */}
-              <td
-                className="sticky bottom-0 right-0 z-40 w-14 min-w-14 bg-muted px-1 py-1.5 text-center font-extrabold text-xs border-t border-l border-border shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] text-foreground"
-              >
+              <td className="sticky bottom-0 right-0 z-50 w-16 min-w-16 max-w-16 h-10 bg-muted px-2 text-center font-extrabold text-[12px] tabular-nums border-l border-border/70 shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.04)] dark:shadow-[-3px_0_8px_-2px_rgba(0,0,0,0.2)] text-primary align-middle rounded-br-2xl">
                 {grandTotalHours > 0 ? formatHours(grandTotalHours) : ""}
               </td>
             </tr>

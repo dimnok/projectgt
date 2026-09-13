@@ -8,11 +8,6 @@ export type TimesheetEntry = {
   comment: string | null;
   date: string; // YYYY-MM-DD
   objectId: string;
-  employeeName?: string | null;
-  objectName?: string | null;
-  employeePosition?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
   isManualEntry: boolean;
 };
 
@@ -61,6 +56,4 @@ export type TimesheetObjectOption = {
   id: string;
   name: string;
   colorHex: string;
-  colorClass: string;
-  badgeClass: string;
 };

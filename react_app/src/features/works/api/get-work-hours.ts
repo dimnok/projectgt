@@ -34,7 +34,7 @@ export async function getWorkHours(workId: string): Promise<WorkHour[]> {
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as unknown as WorkHoursRow[]).map((row) => {
+  const items = ((data ?? []) as unknown as WorkHoursRow[]).map((row) => {
     const employee = unwrapRelation(row.employees);
     const employeeName = formatPersonName({
       lastName: employee?.last_name,
@@ -53,4 +53,46 @@ export async function getWorkHours(workId: string): Promise<WorkHour[]> {
       comment: row.comment,
     };
   });
+
+  return items.sort(
+    (a, b) =>
+      a.employeeName.localeCompare(b.employeeName, "ru", { sensitivity: "base" }) ||
+      a.id.localeCompare(b.id)
+  );
+}
+
+/**
+ * Sums hours per shift for a list of work ids. Used by the home chart plan line.
+ */
+export async function getWorkHoursTotalsByWorkIds(
+  workIds: string[]
+): Promise<Record<string, number>> {
+  if (workIds.length === 0) {
+    return {};
+  }
+
+  const client = getRequiredClient();
+  const companyId = await getActiveCompanyId();
+  const totals: Record<string, number> = {};
+  const chunkSize = 150;
+
+  for (let index = 0; index < workIds.length; index += chunkSize) {
+    const chunk = workIds.slice(index, index + chunkSize);
+    const { data, error } = await client
+      .from("work_hours")
+      .select("work_id, hours")
+      .eq("company_id", companyId)
+      .in("work_id", chunk);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    for (const row of data ?? []) {
+      const workId = row.work_id as string;
+      totals[workId] = (totals[workId] ?? 0) + toNumber(row.hours);
+    }
+  }
+
+  return totals;
 }

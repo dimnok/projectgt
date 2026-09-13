@@ -11,6 +11,7 @@ import type {
 } from "@/features/profile/types/profile.types";
 import {
   asBoolean,
+  asNumber,
   asString,
   nestedRecord,
 } from "@/features/profile/utils/nested-record";
@@ -60,6 +61,7 @@ function mapMembership(row: MemberQueryRow): ProfileCompanyMembership {
     roleName: asString(role?.role_name),
     isActive: asBoolean(row.is_active, true),
     isOwner: asBoolean(row.is_owner, row.system_role === "owner"),
+    minOutputPerPersonHour: asNumber(company?.min_output_per_person_hour),
   };
 }
 
@@ -95,7 +97,7 @@ export async function getCurrentProfile(): Promise<CurrentProfile> {
   const membersResult = await client
     .from("company_members")
     .select(
-      "company_id, system_role, role_id, is_active, is_owner, companies(id, name_short, name_full), roles(id, role_name)"
+      "company_id, system_role, role_id, is_active, is_owner, companies(id, name_short, name_full, min_output_per_person_hour), roles(id, role_name)"
     )
     .eq("user_id", user.id);
 

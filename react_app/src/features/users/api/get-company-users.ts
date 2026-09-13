@@ -146,6 +146,7 @@ export async function getCompanyUsers(): Promise<CompanyUser[]> {
           roleName: asString(roleRecord?.role_name),
           isActive: asBoolean(row.is_active, true),
           isOwner,
+          minOutputPerPersonHour: null,
         }),
         isActive: asBoolean(row.is_active, true),
         isOwner,
