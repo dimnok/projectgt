@@ -421,9 +421,14 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
 
   bool get _canModify {
     final profile = ref.read(currentUserProfileProvider).profile;
-    return profile != null &&
-        widget.work.openedBy == profile.id &&
-        widget.work.status.toLowerCase() == 'open';
+    if (profile == null) return false;
+    // Владелец компании может менять фото любой смены; остальные — только
+    // автор смены и только пока смена открыта. Так же проверяет база
+    // (функция check_work_editable).
+    final isCompanyOwner = profile.systemRole == 'owner';
+    final isOpener = widget.work.openedBy == profile.id;
+    final isOpen = widget.work.status.toLowerCase() == 'open';
+    return isCompanyOwner || (isOpener && isOpen);
   }
 
   String get _titleBase =>
@@ -445,7 +450,8 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
     if (!_canModify) {
       AppSnackBar.show(
         context: context,
-        message: 'Заменять фото может только автор открытой смены',
+        message:
+            'Заменять фото может автор смены (пока она открыта) или владелец компании',
         kind: AppSnackBarKind.warning,
       );
       return;
@@ -535,6 +541,8 @@ class _FullscreenPhotoViewState extends ConsumerState<_FullscreenPhotoView> {
             entityId: widget.work.objectId,
             displayName: displayName,
             photoBytes: bytes,
+            // Дата смены: фото кладём в папку смены, а не в сегодняшнюю.
+            workDate: widget.work.date,
             // ✅ Обновляем Work ВО ВРЕМЯ диалога загрузки
             onLoadingComplete: (String photoUrl) async {
               try {

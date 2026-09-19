@@ -7,22 +7,31 @@ import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
 import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
 import 'package:projectgt/features/fot/domain/entities/payroll_payout_import.dart';
-import 'package:projectgt/features/fot/presentation/utils/payroll_payout_batch_save.dart';
 
-/// Предпросмотр импорта выплат из Excel с отчётом по расхождениям ФИО.
+/// Предпросмотр импорта ФОТ из Excel с отчётом по расхождениям ФИО.
 class PayrollPayoutImportPreviewDialog extends ConsumerStatefulWidget {
   /// Создаёт диалог предпросмотра.
   const PayrollPayoutImportPreviewDialog({
     super.key,
     required this.parseResult,
-    required this.batchParams,
+    required this.onImport,
+    required this.createActionLabel,
+    required this.successMessage,
   });
 
   /// Результат разбора файла.
   final PayrollPayoutImportParseResult parseResult;
 
-  /// Параметры выплаты (дата, способ, тип, комментарий).
-  final PayrollPayoutBatchParams batchParams;
+  /// Сохраняет найденные строки. Возвращает число созданных записей.
+  final Future<int> Function(
+    List<({String employeeId, double amount})> entries,
+  ) onImport;
+
+  /// Подпись кнопки без числа, например «Создать выплаты».
+  final String createActionLabel;
+
+  /// Текст успеха после импорта.
+  final String Function(int count) successMessage;
 
   @override
   ConsumerState<PayrollPayoutImportPreviewDialog> createState() =>
@@ -61,15 +70,11 @@ class _PayrollPayoutImportPreviewDialogState
           )
           .toList();
 
-      final count = await savePayrollPayoutBatch(
-        ref: ref,
-        params: widget.batchParams,
-        entries: entries,
-      );
+      final count = await widget.onImport(entries);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
-      SnackBarUtils.showSuccess(context, 'Создано выплат: $count');
+      SnackBarUtils.showSuccess(context, widget.successMessage(count));
     } catch (e) {
       if (mounted) {
         SnackBarUtils.showError(context, 'Ошибка импорта: $e');
@@ -146,7 +151,7 @@ class _PayrollPayoutImportPreviewDialogState
         GTPrimaryButton(
           text: _result.hasIssues
               ? 'Импортировать найденных ($matchedCount)'
-              : 'Создать выплаты ($matchedCount)',
+              : '${widget.createActionLabel} ($matchedCount)',
           isLoading: _saving,
           onPressed: _saving || matchedCount == 0 ? null : _onImportPressed,
         ),

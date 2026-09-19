@@ -1,0 +1,13 @@
+---
+description: Когда пользователь просит запушить приложение React — только в projectgt_react, через scripts/push_react_app.sh
+alwaysApply: true
+---
+
+# Пуш веб-приложения
+
+Если пользователь просит **запушить приложение React / реакт** (в том числе «в projectgt_react», «залей веб»):
+
+1. Прочитать skill `.cursor/skills/push-react-app/SKILL.md` и следовать ему.
+2. Цель **только** `https://github.com/dimnok/projectgt_react` (remote `react`). Репозиторий Flutter `origin` / `projectgt` не пушить.
+3. Спросить «все изменения сайта или только этот чат?» **только если** в `react_app/` есть правки, которых не было в этом чате. Иначе сразу пушить.
+4. Публиковать скриптом `./scripts/push_react_app.sh` (полный снимок или `--files`).

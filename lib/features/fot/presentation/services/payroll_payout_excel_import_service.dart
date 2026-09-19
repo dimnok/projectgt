@@ -6,10 +6,10 @@ import 'package:projectgt/core/utils/xlsx_excel_compatibility.dart';
 import 'package:projectgt/domain/entities/employee.dart';
 import 'package:projectgt/features/fot/domain/entities/payroll_payout_import.dart';
 
-/// Парсинг Excel-ведомости выплат и сопоставление ФИО со справочником сотрудников.
+/// Парсинг Excel-ведомости (выплаты и премии) и сопоставление ФИО со справочником.
 ///
-/// Ожидаемый формат: колонки «ФИО работника» и «Сумма перевода» (порядок полей:
-/// Фамилия Имя Отчество). Файл обрабатывается только в памяти.
+/// Ожидаемый формат: колонки «ФИО» и «Сумма» (порядок полей: Фамилия Имя Отчество).
+/// Файл обрабатывается только в памяти.
 class PayrollPayoutExcelImportService {
   PayrollPayoutExcelImportService._();
 

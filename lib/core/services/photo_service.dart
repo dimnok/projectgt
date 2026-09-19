@@ -64,13 +64,16 @@ class PhotoService {
 
       final normalized = img.bakeOrientation(decoded);
       const int maxSide = 1600;
-      final needResize = normalized.width > maxSide || normalized.height > maxSide;
-      
+      final needResize =
+          normalized.width > maxSide || normalized.height > maxSide;
+
       final img.Image processed = needResize
-          ? img.copyResize(normalized,
+          ? img.copyResize(
+              normalized,
               width: normalized.width >= normalized.height ? maxSide : null,
               height: normalized.height > normalized.width ? maxSide : null,
-              interpolation: img.Interpolation.cubic)
+              interpolation: img.Interpolation.cubic,
+            )
           : normalized;
 
       if (processed.hasAlpha) {
@@ -104,8 +107,11 @@ class PhotoService {
   /// Возвращает имя файла для фотографий смены
   String _getWorkFileName(String displayName) {
     final now = DateTime.now();
-    final timestamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}-${now.second.toString().padLeft(2, '0')}';
-    final photoType = displayName.toLowerCase() == 'evening' ? 'evening' : 'morning';
+    final timestamp =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}-${now.second.toString().padLeft(2, '0')}';
+    final photoType = displayName.toLowerCase() == 'evening'
+        ? 'evening'
+        : 'morning';
     return '${timestamp}_$photoType.jpg';
   }
 
@@ -114,7 +120,8 @@ class PhotoService {
     required String entity,
     required String id,
     required File file,
-    String? displayName, // displayName оставлен опциональным, чтобы не ломать старые вызовы
+    String?
+    displayName, // displayName оставлен опциональным, чтобы не ломать старые вызовы
   }) async {
     try {
       final originalBytes = await file.readAsBytes();
@@ -141,7 +148,7 @@ class PhotoService {
     try {
       late String bucket;
       late String folder;
-      
+
       switch (entity) {
         case 'profile':
           bucket = 'avatars';
@@ -164,62 +171,104 @@ class PhotoService {
           throw Exception('Unknown entity for photo upload');
       }
 
-      // Удаление старых фото
-      try {
-        final files = await _supabase.storage.from(bucket).list(path: folder);
-        late List<String> toDelete;
-        
-        if (entity == 'shift' || entity == 'work') {
-          // Для смен пока оставляем старую логику удаления по префиксу (morning/evening)
-          final type = (displayName?.toLowerCase() == 'evening') ? 'evening' : 'morning';
-          toDelete = files
-              .where((f) => f.name.contains('_$type.jpg'))
-              .map((f) => '$folder${f.name}')
-              .toList();
-        } else {
-          // Для аватаров удаляем всё в папке (кроме плейсхолдеров)
-          toDelete = files
-              .where((f) => !f.name.startsWith('.emptyFolderPlaceholder'))
-              .map((f) => '$folder${f.name}')
-              .toList();
-        }
-        
-        if (toDelete.isNotEmpty) {
-          await _supabase.storage.from(bucket).remove(toDelete);
-        }
-      } catch (e) {
-        debugPrint('Error cleaning old photos: $e');
-      }
-
       final compressedBytes = await _compressBytes(bytes);
       final mime = _detectMimeFromBytes(compressedBytes);
       final ext = _detectExtension(mime);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-      late String fileName;
       late String filePath;
+      String? workDateFolder;
 
       if (entity == 'shift' || entity == 'work') {
-        final dateToUse = workDate ?? DateTime.now();
-        final datePrefix = _datePath(dateToUse);
-        fileName = _getWorkFileName(displayName ?? 'morning');
-        filePath = '$folder$datePrefix/$fileName';
+        // Фото смены: {objectId}/{DD-MM-YYYY}/{дата_время}_{morning|evening}.jpg
+        final datePrefix = _datePath(workDate ?? DateTime.now());
+        workDateFolder = '$folder$datePrefix/';
+        filePath =
+            '$workDateFolder${_getWorkFileName(displayName ?? 'morning')}';
       } else {
         // Идеальный стандарт для аватаров: {id}/avatar_{timestamp}.jpg
-        fileName = 'avatar_$timestamp.$ext';
-        filePath = '$folder$fileName';
+        filePath =
+            '$folder'
+            'avatar_$timestamp.$ext';
       }
 
-      await _supabase.storage.from(bucket).uploadBinary(
-        filePath,
-        compressedBytes,
-        fileOptions: FileOptions(upsert: true, contentType: mime),
+      await _supabase.storage
+          .from(bucket)
+          .uploadBinary(
+            filePath,
+            compressedBytes,
+            fileOptions: FileOptions(upsert: true, contentType: mime),
+          );
+
+      // Прежнее фото удаляем только после успешной загрузки нового —
+      // иначе при сбое загрузки фото смены осталось бы без снимка.
+      await _deletePreviousPhotos(
+        bucket: bucket,
+        folder: folder,
+        entity: entity,
+        displayName: displayName,
+        workDateFolder: workDateFolder,
+        keepPath: filePath,
       );
 
       return _supabase.storage.from(bucket).getPublicUrl(filePath);
     } catch (e) {
       debugPrint('Error uploading photo bytes: $e');
       rethrow;
+    }
+  }
+
+  /// Удаляет прежние фото после успешной загрузки нового.
+  ///
+  /// Для смен убирает только снимок того же типа (утренний или вечерний) в
+  /// папке даты и старые файлы прямо в папке объекта. Для остальных сущностей —
+  /// всё в папке, кроме только что загруженного файла.
+  Future<void> _deletePreviousPhotos({
+    required String bucket,
+    required String folder,
+    required String entity,
+    required String? displayName,
+    required String? workDateFolder,
+    required String keepPath,
+  }) async {
+    try {
+      final paths = <String>{};
+
+      if (entity == 'shift' || entity == 'work') {
+        final type = (displayName?.toLowerCase() == 'evening')
+            ? 'evening'
+            : 'morning';
+        bool matches(FileObject file) => file.name.contains('_$type.jpg');
+
+        if (workDateFolder != null) {
+          final dated = await _supabase.storage
+              .from(bucket)
+              .list(path: workDateFolder);
+          paths.addAll(
+            dated.where(matches).map((file) => '$workDateFolder${file.name}'),
+          );
+        }
+
+        // Устаревший формат: файлы лежат прямо в папке объекта.
+        final legacy = await _supabase.storage.from(bucket).list(path: folder);
+        paths.addAll(
+          legacy.where(matches).map((file) => '$folder${file.name}'),
+        );
+      } else {
+        final files = await _supabase.storage.from(bucket).list(path: folder);
+        paths.addAll(
+          files
+              .where((file) => !file.name.startsWith('.emptyFolderPlaceholder'))
+              .map((file) => '$folder${file.name}'),
+        );
+      }
+
+      paths.remove(keepPath);
+      if (paths.isNotEmpty) {
+        await _supabase.storage.from(bucket).remove(paths.toList());
+      }
+    } catch (e) {
+      debugPrint('Error cleaning old photos: $e');
     }
   }
 
@@ -258,9 +307,15 @@ class PhotoService {
       late List<String> toDelete;
 
       if (entity == 'shift' || entity == 'work') {
-        final type = (displayName?.toLowerCase() == 'evening') ? 'evening' : 'morning';
+        final type = (displayName?.toLowerCase() == 'evening')
+            ? 'evening'
+            : 'morning';
         toDelete = files
-            .where((f) => f.name.contains('_$type.jpg') && !f.name.startsWith('.emptyFolderPlaceholder'))
+            .where(
+              (f) =>
+                  f.name.contains('_$type.jpg') &&
+                  !f.name.startsWith('.emptyFolderPlaceholder'),
+            )
             .map((f) => '$folder${f.name}')
             .toList();
       } else {
@@ -284,7 +339,7 @@ class PhotoService {
       final uri = Uri.parse(photoUrl);
       final pathSegments = uri.pathSegments;
       final publicIndex = pathSegments.indexOf('public');
-      
+
       if (publicIndex == -1 || publicIndex + 1 >= pathSegments.length) return;
 
       final bucket = pathSegments[publicIndex + 1];

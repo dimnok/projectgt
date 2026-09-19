@@ -13,6 +13,9 @@ class WorksStrings {
   /// Текст кнопки добавления фото.
   static const String addPhotoBtn = 'Добавить фото';
 
+  /// Текст кнопки замены фото, когда снимок уже загружен.
+  static const String replacePhotoBtn = 'Заменить фото';
+
   /// Текст кнопки удаления.
   static const String deleteBtn = 'Удалить';
 
@@ -45,7 +48,8 @@ class WorksStrings {
   static const String errorNoItems = 'Невозможно закрыть смену без работ';
 
   /// Ошибка: нет сотрудников.
-  static const String errorNoEmployees = 'Невозможно закрыть смену без сотрудников';
+  static const String errorNoEmployees =
+      'Невозможно закрыть смену без сотрудников';
 
   /// Ошибка: не заполнены количества.
   static const String errorEmptyQuantities =
@@ -65,7 +69,8 @@ class WorksStrings {
   static const String confirmCloseTitle = 'Подтверждение закрытия смены';
 
   /// Сообщение диалога подтверждения закрытия смены.
-  static const String confirmCloseMessage = '''После закрытия смены будет невозможно:
+  static const String confirmCloseMessage =
+      '''После закрытия смены будет невозможно:
 • Добавлять/удалять работы и сотрудников
 • Изменять количество работ и часы
 • Редактировать фотографии

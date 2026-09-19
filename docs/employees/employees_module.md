@@ -1,8 +1,24 @@
 # Модуль Employees (Сотрудники)
 
-**Дата актуализации:** 23 августа 2026 года
+**Дата актуализации:** 5 сентября 2026 года
 
-**Изменения в этой версии (23.08.2026, КИГ и номер патента):**
+**Изменения в этой версии (05.09.2026, Web-клиент: оболочка карточки, табель-календарь, без удаления сотрудника):**
+- **Карточка (`EmployeeDetailsDialog`):** фиксированная высота `h-[90vh]`, ширина `w-[min(94vw,62rem)]` — смена вкладок не меняет размер окна; шапка (фото, ФИО, бейджи, телефон) и подвал отделены от контента.
+- **Вкладки:** полноширинные таблетки (`Tabs` variant `pills` + `TabsIndicator`); порядок **Обзор → Табель → ТМЦ → Заявления → Финансы** (в Flutter: Обзор → Заявления → Табель → ТМЦ → Финансы). Состояние вкладок сбрасывается при смене сотрудника (`key={employee.id}`).
+- **Действия:** кнопка **«Изменить»** в шапке рядом с ФИО; в подвале только **«Закрыть»**. **Удаление сотрудника в веб-клиенте нет** (нет API/UI `delete-employee`). Красная иконка под фото удаляет **только файл аватара** в Storage.
+- **Табель (веб):** календарная сетка Пн–Вс на месяц; отработанный день — отдельная плитка (`bg-muted`), часы крупно, цвет объекта — вертикальная полоска слева (несколько объектов — сегменты пропорционально часам); выходные числа — `text-destructive`; пустые дни без плитки; KPI «Отработано» / «Дней с часами»; легенда объектов снизу; tooltip по дню (объекты, смена/ручной ввод, комментарии). Источники: `work_hours` (закрытые `works`) + `employee_attendance`.
+- **Заявления (веб):** только список и скачивание скана; PDF, загрузка и удаление заявлений — в приложении.
+- **Аудит БД (prod 05.09.2026):** RLS ✅ на `employees` / `employee_rates` / `employee_applications`; триггер `normalize_employees_phone` (BEFORE INSERT/UPDATE); перекрытие ставок — EXCLUDE `employee_rates_no_overlap`, **не** partial unique `idx_employee_rates_active_unique` (на проде его нет).
+- **Документация:** актуализирован [`react_app/docs/employees.md`](../../react_app/docs/employees.md).
+
+**Предыдущая версия (05.09.2026, Web-клиент: редизайн карточки сотрудника и менеджер фото):**
+- **Web-клиент (`react_app`):** кардинально переработан просмотр деталей сотрудника (`EmployeeDetailsDialog`, `EmployeeDetails`, `EmployeeAvatarManager`):
+  - Диалоговое окно расширено до комфортного формата `sm:max-w-5xl` (62rem) с мягкими тенями и продуманной адаптивностью.
+  - Полнофункциональный менеджер фото: увеличенное портретное фото (128–144 px, `rounded-2xl`, `overflow-hidden`), полноразмерный просмотр в модалке, скачивание оригинала файла с автоматическим именем по ФИО, загрузка нового фото с авто-сжатием на клиенте, замена и удаление фото с подтверждением (бакет Supabase Storage `employees`).
+  - Убраны лишние накладывающиеся оверлеи; управляющие кнопки компактно вынесены в отдельную панель строго под фото.
+  - Блочная карточная компоновка («Работа и назначения», «Личные данные», «Документы и реквизиты») с авто-расчетом возраста и трудового стажа, а также кнопками быстрого копирования паспортных данных, адреса, ИНН, СНИЛС, КИГ и патента.
+
+**Предыдущая версия (23.08.2026, КИГ и номер патента):**
 - В карточке сотрудника (блок документов) добавлены необязательные текстовые поля **КИГ** и **Номер патента** — без скрытия по гражданству, без маски ввода, по тому же паттерну, что ИНН / СНИЛС
 - **БД (prod audit):** колонки `employees.kig`, `employees.patent_number` (`TEXT NULL`); миграция [`20260823100000_employees_kig_patent_number.sql`](../../supabase/migrations/20260823100000_employees_kig_patent_number.sql), на проде `employees_kig_patent_number` (`20260823072352`)
 - **Domain / Data:** [`Employee.kig`](../../lib/domain/entities/employee.dart) / [`Employee.patentNumber`](../../lib/domain/entities/employee.dart); DTO [`EmployeeModel`](../../lib/data/models/employee_model.dart) (`kig`, `patent_number`); datasource без отдельного select — `select('*')`
@@ -139,7 +155,8 @@
 - **текущая ставка** не хранится в строке `employees`: подгружается из `employee_rates`, где `valid_to IS NULL`, и кладётся в `Employee.currentHourlyRate` / `EmployeeModel.currentHourlyRate` (только на клиенте)
 - флаг **`can_be_responsible`** хранится в БД в `employees`, в доменной модели [`Employee`](../../lib/domain/entities/employee.dart) **не** сериализуется; кэш `EmployeeState.canBeResponsibleMap` сейчас никем не читается, обновляется точечно через `toggleCanBeResponsible`; массовая подгрузка `getCanBeResponsibleMap()` по умолчанию **не выполняется** (`includeResponsibilityMap: false`), чтобы убрать дублирующий запрос при каждом открытии списка — подгрузка включается явно только в сценариях, где это потребуется
 - **две раскладки списка**: `EmployeesTableScreen` (таблица) и `EmployeesListMobileScreen` (карточки) — выбор по [`EmployeesLayoutUtils.useEmployeesMobileList`](../../lib/features/employees/presentation/utils/employees_layout_utils.dart) (`shortestSide` vs breakpoint планшета)
-- **вкладки карточки:** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** (активные выдачи), **«Финансы»** (заглушка); вкладки «Документы» (файлы) и «Доп. информация» — в roadmap. Поля **КИГ** / **номер патента** живут в блоке анкеты («Обзор» / «Документы» на mobile), не отдельной вкладкой
+- **вкладки карточки (Flutter):** «Обзор», «Заявления», **«Табель»** (при `timesheet.read`), **«ТМЦ»** (активные выдачи), **«Финансы»** (заглушка); вкладки «Документы» (файлы) и «Доп. информация» — в roadmap. Поля **КИГ** / **номер патента** живут в блоке анкеты («Обзор» / «Документы» на mobile), не отдельной вкладкой
+- **Web-клиент (`react_app`, только desktop `/employees`):** те же таблицы и Storage; карточка — фиксированное окно `90vh`; вкладки в порядке Обзор / Табель / ТМЦ / Заявления / Финансы, без скрытия «Табеля» по `timesheet.read` (матрица прав веба пока временная). **Удаление сотрудника из веба не делается.** Табель — календарная сетка, не полоска дней Flutter.
 
 ---
 
@@ -150,7 +167,7 @@
 Ключевые функции:
 
 - список сотрудников: **таблица** (desktop / широкий экран) или **мобильный** список с фильтром по статусу, поиском, свайп-действиями и bottom sheet
-- создание / редактирование / удаление (права `employees:*`); в карточке — паспорт, ИНН, СНИЛС, **КИГ**, **номер патента** (два последних необязательны, всегда отображаются)
+- создание / редактирование / удаление (права `employees:*`; **удаление — только Flutter**, в `react_app` кнопки и API нет); в карточке — паспорт, ИНН, СНИЛС, **КИГ**, **номер патента** (два последних необязательны, всегда отображаются)
 - история и текущая ставка (`employee_rates`)
 - **заявления:** формирование образца (отпуск / отпуск без содержания / увольнение), печать PDF, загрузка подписанного скана, список с просмотром и скачиванием
 - **табель в карточке:** просмотр часов за месяц (смены + ручная посещаемость); массовое проставление — только в модуле Timesheet
@@ -262,6 +279,24 @@
 | `CustomSlidingSegmentedControl` | [`custom_sliding_segmented_control.dart`](../../lib/presentation/widgets/custom_sliding_segmented_control.dart) | переключатель вкладок «Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы» в карточке |
 
 Табличный экран построен на кастомной вёрстке (`Table` / `LayoutBuilder` и т.д.), без внешних grid-библиотек — в духе правил проекта (см. [`flutter.mdc`](../../.cursor/rules/flutter.mdc)).
+
+### Web-клиент (`react_app`)
+
+Экран [`/employees`](../../react_app/src/app/employees/page.tsx) — только desktop. Данные те же, что у приложения (PostgREST + Storage). Краткий продукт-документ: [`react_app/docs/employees.md`](../../react_app/docs/employees.md).
+
+| Файл | Назначение |
+|------|------------|
+| [`employees-desktop.tsx`](../../react_app/src/features/employees/ui/desktop/employees-desktop.tsx) | Список, фильтры, сводка, создание, открытие карточки, редактирование. Удаления сотрудника нет |
+| [`employee-details-dialog.tsx`](../../react_app/src/features/employees/ui/shared/employee-details-dialog.tsx) | Окно карточки: `h-[90vh]`, `w-[min(94vw,62rem)]`; шапка (фото, ФИО, «Изменить», бейджи, телефон); подвал — только «Закрыть» |
+| [`employee-details-tabs.tsx`](../../react_app/src/features/employees/ui/shared/employee-details-tabs.tsx) | Таблетки с бегунком; `key={employee.id}`; вкладки: overview / timesheet / tmc / applications / finances |
+| [`employee-avatar-manager.tsx`](../../react_app/src/features/employees/ui/shared/employee-avatar-manager.tsx) | Просмотр, скачивание, замена, удаление **фото** (bucket `employees`) |
+| [`employee-timesheet-tab.tsx`](../../react_app/src/features/employees/ui/shared/employee-timesheet-tab.tsx) | Календарь месяца: плитки дней, полоска объекта слева, легенда, tooltip |
+| [`get-employee-timesheet.ts`](../../react_app/src/features/employees/api/get-employee-timesheet.ts) | Смены (`work_hours` + `works.status = closed`) + `employee_attendance`; сумма дня = смена + ручной ввод |
+| [`employee-applications-tab.tsx`](../../react_app/src/features/employees/ui/shared/employee-applications-tab.tsx) | Список заявлений, скачивание скана (signed URL). Нет PDF / upload / delete |
+| [`employee-tmc-tab.tsx`](../../react_app/src/features/employees/ui/shared/employee-tmc-tab.tsx) | Активные выдачи ТМЦ, сводка позиций и суммы |
+| [`use-employees.ts`](../../react_app/src/features/employees/hooks/use-employees.ts) | React Query: список, создание, изменение, RPC должностей. Мутации delete нет |
+
+Права веба: [`permissions.ts`](../../react_app/src/config/permissions.ts) → модуль `employees` (`view` / `create` / `update` / `delete`). Флаг `delete` в карте есть, **UI удаления сотрудника не подключён**. Вкладка «Табель» в вебе **не** прячется по `timesheet.read` (в отличие от Flutter).
 
 ### Навигация и меню
 
@@ -444,19 +479,28 @@ lib/
 └── presentation/
     └── state/
         └── employee_state.dart
+
+react_app/src/features/employees/
+├── api/                 # get/create/update, rates, trips, photo, timesheet, tmc, applications
+├── hooks/
+├── types/
+├── utils/
+└── ui/
+    ├── desktop/         # list, filters, summary
+    └── shared/          # dialog, tabs, forms, timesheet/tmc/applications
 ```
 
 ---
 
 ## База данных (Audit)
 
-> **Источник:** прод `information_schema.columns` / `pg_policy` / `pg_indexes` / `pg_description` (23.08.2026) + DTO [`EmployeeModel`](../../lib/data/models/employee_model.dart) + миграции в `supabase/migrations/`. `mcp_supabase:list_edge_functions` в текущем MCP **нет** — инвентарь Edge Functions по каталогу `supabase/functions/`.
+> **Источник:** прод `information_schema.columns` / `pg_policy` / `pg_indexes` / `pg_constraint` / `pg_class.relrowsecurity` (**05.09.2026**, MCP `project-0-projectgt-supabase`) + DTO [`EmployeeModel`](../../lib/data/models/employee_model.dart) + миграции в `supabase/migrations/`. `list_edge_functions` в текущем MCP **нет** — инвентарь Edge Functions по каталогу `supabase/functions/`.
 
 ### Таблица `employees`
 
 **Назначение:** основная карточка сотрудника в разрезе компании.
 
-**Колонки (prod 23.08.2026):**
+**Колонки (prod 05.09.2026):**
 
 | Колонка | Тип | NULL | Примечание |
 |---------|-----|------|------------|
@@ -501,7 +545,7 @@ lib/
 
 > **RBAC:** UI ([`PermissionService`](../../lib/features/roles/application/permission_service.dart)) и PostgREST согласованы через `check_permission(uid(), 'employees', …)`.
 
-**Индексы (prod 23.08.2026, `pg_indexes`):**
+**Индексы (prod 05.09.2026, `pg_indexes`):**
 
 - `employees_pkey`
 - `idx_employees_status`, `idx_employees_position` — из [`20240101000002_employees_migration.sql`](../../supabase/migrations/20240101000002_employees_migration.sql)
@@ -511,7 +555,9 @@ lib/
 
 #### Триггеры (`employees`)
 
-В отслеживаемых миграциях репозитория **триггеров на таблице `public.employees` не объявлено**.
+**Prod 05.09.2026:** `normalize_employees_phone` — BEFORE INSERT OR UPDATE, функция `normalize_employees_phone_trigger()`. Миграция [`20260519120000_normalize_ru_phone.sql`](../../supabase/migrations/20260519120000_normalize_ru_phone.sql): телефон в `employees.phone` приводится к канону `7XXXXXXXXXX`.
+
+Других триггеров на `public.employees` нет.
 
 #### Функции (SQL), использующие `employees`
 
@@ -557,13 +603,16 @@ lib/
 
 Удалена политика `Users can manage employee rates of their companies` ([`20260529180000_tighten_employees_card_rls.sql`](../../supabase/migrations/20260529180000_tighten_employees_card_rls.sql)).
 
-**Индексы / изменения в миграциях:**
+**Индексы / ограничения (prod 05.09.2026):**
 
 - [`20251015_optimize_indexes.sql`](../../supabase/migrations/20251015_optimize_indexes.sql): `CREATE INDEX IF NOT EXISTS idx_employee_rates_created_by ON employee_rates(created_by)`; удалены `idx_employee_rates_employee_id`, `idx_employee_rates_active`.
-- [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql): добавлен `idx_employee_rates_company_id` — покрытие фильтра по `company_id` в массовых выборках.
-- Частичный уникальный индекс `idx_employee_rates_active_unique (employee_id) WHERE valid_to IS NULL` уже присутствует в БД (гарантирует «одна активная ставка» на сотрудника).
+- [`20260416120000_employees_company_id_indexes.sql`](../../supabase/migrations/20260416120000_employees_company_id_indexes.sql): добавлен `idx_employee_rates_company_id`.
+- Также на проде: `idx_employee_rates_dates`, `idx_employee_rates_employee_company_from`.
+- **Перекрытие периодов:** constraint EXCLUDE `employee_rates_no_overlap` — GiST `(employee_id, company_id, daterange(valid_from, COALESCE(valid_to, infinity), '[]'))`.
+- **CHECK:** `hourly_rate > 0`; `valid_to IS NULL OR valid_to >= valid_from`.
+- Partial unique `idx_employee_rates_active_unique (employee_id) WHERE valid_to IS NULL` **на проде отсутствует** (проверка 05.09.2026). «Одна активная ставка» в клиентах — фильтр `valid_to IS NULL`; жёсткая уникальность активной строки — только косвенно через EXCLUDE по диапазонам.
 
-**Инвариант «одна активная ставка»:** в коде и экспорте используется фильтр `valid_to IS NULL`. Явный **partial unique** в отслеживаемых миграциях не найден — при необходимости жёсткой уникальности её стоит добавить отдельной миграцией на проде.
+**Инвариант «одна активная ставка»:** в коде и экспорте используется фильтр `valid_to IS NULL`. Явный **partial unique** в отслеживаемых миграциях и на проде не найден.
 
 #### Триггеры (`employee_rates`)
 
@@ -703,7 +752,7 @@ Bucket **`employee_applications`** (private, `public: false`):
        - `scan_name` / `scan_size` в UI списка не показываются.
     4. Удаление — только при `employees.update`; каскад: строка БД + файл Storage.
     5. При ошибке INSERT после upload — best-effort удаление объекта из Storage ([`SupabaseEmployeeApplicationDataSource`](../../lib/data/datasources/supabase_employee_application_data_source.dart)).
-17. **Табель (вкладка карточки):**
+17. **Табель (вкладка карточки, Flutter):**
     1. Вкладка видна только при `PermissionService.can('timesheet', 'read')`.
     2. При первом выборе вкладки [`EmployeeTimesheetSection`](../../lib/features/employees/presentation/widgets/employee_timesheet_section.dart) подписывается на [`employeeTimesheetMonthProvider`](../../lib/features/employees/presentation/providers/employee_timesheet_month_provider.dart).
     3. Параллельная загрузка: `EmployeeAttendanceRepository.getAttendanceRecords(employeeId, start, end)` + `TimesheetRepository.getShiftHoursForEmployee(…)`.
@@ -713,6 +762,12 @@ Bucket **`employee_applications`** (private, `public: false`):
     7. Переключатель месяца — без перехода в будущие месяцы; полоска дней без горизонтального скролла (`Expanded` на каждый день).
     8. Проставление часов **не** доступно из карточки — только модуль Timesheet (`EmployeeAttendanceDialog`).
     9. После успешного сохранения посещаемости в Timesheet — `invalidate` провайдера месяца сотрудника (карточка, если открыта, обновится).
+18. **Табель (вкладка карточки, Web):**
+    1. Вкладка всегда в наборе таблеток; отдельной проверки `timesheet.read` в `react_app` нет.
+    2. Данные: [`getEmployeeTimesheetMonth`](../../react_app/src/features/employees/api/get-employee-timesheet.ts) — `employee_attendance` + `work_hours` с `works!inner` и `works.status = closed`.
+    3. Тот же инвариант суммы: `totalHours = shiftHours + manualHours`; `objectSlices` по дню.
+    4. UI: сетка 7 колонок (Пн–Вс); день с часами — плитка; цвет объекта — вертикальная полоска; выходные — число `text-destructive`; месяц вперёд заблокирован.
+    5. Проставление часов из веба нет.
 
 ---
 
@@ -738,7 +793,7 @@ Bucket **`employee_applications`** (private, `public: false`):
 ### Timesheet и FOT
 
 - справочник сотрудников и ставок для табеля и расчётов (функции вроде `calculate_employee_balances`, `get_payroll_report_data` и др. в миграциях ФОТ)
-- **вкладка «Табель» в карточке:** read-only UI в Employees; data — репозитории модуля Timesheet (`employeeAttendanceRepositoryProvider`, `timesheetRepositoryProvider`)
+- **вкладка «Табель» в карточке:** read-only UI в Employees; Flutter — репозитории Timesheet; Web — прямой PostgREST в [`get-employee-timesheet.ts`](../../react_app/src/features/employees/api/get-employee-timesheet.ts)
 - из Timesheet: клик по ФИО → та же карточка; после `EmployeeAttendanceDialog` — invalidate `employeeTimesheetMonthProvider`
 - sync каталога табеля при смысловых правках справочника: `timesheetEmployeeCatalogChanged` + `reloadEmployeesCatalog` (см. [`docs/timesheet/timesheet_module.md`](../timesheet/timesheet_module.md))
 - чекбокс `include_in_timesheet` в форме редактирования карточки
@@ -785,7 +840,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Единые индикаторы загрузки (`CupertinoActivityIndicator`) в списках, карточке и формах
 - Desktop-карточка: кнопка «Редактировать» вместо иконки карандаша в секции «Личные данные»
 - **Вкладка «Заявления»:** PDF (отпуск, БС), загрузка сканов, компактный список (icon actions), просмотр/скачивание; таблица `employee_applications` + bucket Storage
-- **Вкладка «Табель»:** read-only месяц одного сотрудника (`EmployeeTimesheetSection` + `employeeTimesheetMonthProvider`); право `timesheet.read`; ленивая загрузка; **цветовая легенда объектов** на полоске дней
+- **Web-карточка (`react_app`):** фиксированное окно, таблетки с бегунком, «Изменить» в шапке, без удаления сотрудника, табель — календарная сетка с плитками дней
+- **Вкладка «Табель» (Flutter):** read-only месяц одного сотрудника (`EmployeeTimesheetSection` + `employeeTimesheetMonthProvider`); право `timesheet.read`; ленивая загрузка; **цветовая легенда объектов** на полоске дней
 - **UX карточки:** `IndexedStack` для вкладок; переключатель «Обзор» / «Заявления» / «Табель» / «ТМЦ» / «Финансы»
 - **Вкладка «ТМЦ»:** просмотр активных выдач (`EmployeeTmcSection` + `tmcAssignmentsProvider`); стоимость из `tmc_items.unit_price`
 - **Вкладка «Финансы»:** заглушка (`EmployeeCardPlaceholderTab`)
@@ -813,7 +869,8 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Добавление **ставки** в UI карточки требует прав **payroll** на уровне БД, хотя кнопка привязана к `employees.update`
 - Схема `employee_rates` и часть индексов не воспроизводятся из одного `CREATE` в репозитории
 - **Заявления:** типы «отпуск», «отпуск без содержания», **«увольнение»**; PDF на сервер не сохраняется; workflow согласования не реализован
-- **Табель в карточке:** только просмотр; проставление часов — в модуле Timesheet
+- **Табель в карточке:** только просмотр; проставление часов — в модуле Timesheet (Flutter). В вебе — календарь, не полоска дней; вкладка не завязана на `timesheet.read`
+- **Удаление сотрудника:** Flutter (список + `employees.delete`); **веб-клиент удаление не делает** (RLS `employees_delete` на сервере сохраняется)
 - **ТМЦ в карточке:** только просмотр активных выдач; выдача/возврат — в модуле ТМЦ
 - **Финансы в карточке:** заглушка, данных нет
 - Вкладки **«Документы»** (файлы) и **«Доп. информация»** (журнал записей) — запланированы, не реализованы
@@ -828,5 +885,6 @@ Bucket **`employee_applications`** (private, `public: false`):
 - Workflow согласования заявлений
 - Серверная пагинация и фильтрация PostgREST
 - Проверка `employees.export` в Edge Function `export-employees`
+- Привязать вкладку «Табель» в `react_app` к `timesheet.read` после полной матрицы прав веба
 - Явный partial unique index на «активную» ставку в миграции
 - Audit trail изменений карточки и ставок

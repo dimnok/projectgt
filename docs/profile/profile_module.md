@@ -1,4 +1,6 @@
-1.  **Заголовок и дата:** # Модуль Profile (Профиль пользователя) | 17.01.2026 (Обновление 2)
+1.  **Заголовок и дата:** # Модуль Profile (Профиль пользователя) | 10.09.2026 (Обновление 4)
+    - **Веб:** личный кабинет в `react_app`, документ [`react_app/docs/profile.md`](../../react_app/docs/profile.md). Финансы: RPC `get_my_profile_finance`. На экране «Пользователи» — назначение `profiles.object_ids`. Триггер `prevent_unauthorized_profile_objects`. Flutter-код не менялся.
+    - **Flutter (без изменений в этом пункте):** экран `FinancialInfoScreen` по-прежнему описан в [`docs/FINANCIAL_INFO.md`](../FINANCIAL_INFO.md).
     - **Баланс в хедере:** В мобильной версии `ProfileScreen` добавлен блок баланса (зеленый шрифт, размер 10).
     - **Типографика:** Увеличены шрифты телефона (15) и почты (14) в главном блоке профиля для лучшей читаемости.
     - **Исправление финансов:** В `FinancialInfoScreen` исправлен расчет выплат (FIFO) и итоговых сумм.
@@ -60,7 +62,7 @@ lib/features/profile/
 8.  **База данных (Audit):**
     - **Таблицы:** `profiles` (id, full_name, phone, email, photo_url, object_ids, last_company_id).
     - **RLS:** ✅ Включён. Пользователи могут редактировать только свой `full_name` и `phone`.
-    - **Функции:** Триггер на обновление `updated_at`.
+    - **Функции:** Триггер на обновление `updated_at`. `prevent_unauthorized_employee_link` — смена `employee_id` только при `users.update` / супер-админ. `prevent_unauthorized_profile_objects` — смена `object_ids` по тому же правилу (null и пустой массив считаются одинаковыми).
 
 9.  **Бизнес-логика:**
     - Форматирование телефона: Строгий стандарт `+7 XXX XXX XX XX` через `GtFormatters`.

@@ -4,6 +4,7 @@ import 'package:projectgt/features/roles/presentation/widgets/permission_guard.d
 
 import '../../domain/entities/payroll_transaction.dart';
 import 'payroll_employee_status_filter_segment.dart';
+import 'payroll_bonus_excel_import_dialog.dart';
 import 'payroll_payout_excel_import_dialog.dart';
 import 'payroll_payout_form_modal.dart';
 import 'payroll_toolbar_metrics.dart';
@@ -54,6 +55,23 @@ class PayrollTabToolbarActions extends StatelessWidget {
     }
   }
 
+  static void _openBonusExcelImport(BuildContext context) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (ctx) => const PayrollBonusExcelImportDialog(),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => const PayrollBonusExcelImportDialog(),
+      );
+    }
+  }
+
   static void _openPayoutExcelImport(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     if (isDesktop) {
@@ -80,13 +98,26 @@ class PayrollTabToolbarActions extends StatelessWidget {
         1 => PermissionGuard(
           module: 'payroll',
           permission: 'create',
-          child: PayrollToolbarTextButton(
-            text: 'Добавить',
-            icon: Icons.add_circle_outline,
-            onPressed: () => _openTransactionForm(
-              context,
-              PayrollTransactionType.bonus,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PayrollToolbarTextButton(
+                text: ResponsiveUtils.isMobile(context)
+                    ? 'Импорт'
+                    : 'Импорт из Excel',
+                icon: Icons.upload_file_outlined,
+                onPressed: () => _openBonusExcelImport(context),
+              ),
+              const SizedBox(width: 8),
+              PayrollToolbarTextButton(
+                text: 'Добавить',
+                icon: Icons.add_circle_outline,
+                onPressed: () => _openTransactionForm(
+                  context,
+                  PayrollTransactionType.bonus,
+                ),
+              ),
+            ],
           ),
         ),
         2 => PermissionGuard(

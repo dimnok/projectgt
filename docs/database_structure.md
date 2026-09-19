@@ -34,6 +34,7 @@
 - ✅ Пользователь видит только свой профиль и профили коллег (участников тех же компаний).
 - ✅ Обновление (`UPDATE`) доступно только владельцу профиля для полей `full_name`, `short_name`, `photo_url`, `phone`. Изменение ролей и статусов через эту таблицу запрещено.
 - ✅ Автоматическое создание профиля при регистрации через триггер
+- 🔐 Смена `employee_id` и `object_ids` в UPDATE: триггеры `prevent_unauthorized_employee_link` и `prevent_unauthorized_profile_objects` — только `users.update` или супер-админ (пустой список объектов и NULL считаются одинаковыми)
 - 🔐 Строгая изоляция: пользователи разных компаний не видят друг друга
 
 ---
@@ -56,6 +57,7 @@
 - taxation_system: TEXT — система налогообложения
 - is_vat_payer: BOOLEAN — плательщик НДС
 - vat_rate: NUMERIC — ставка НДС
+- min_output_per_person_hour: NUMERIC, nullable — минимум выработки, ₽ на человеко-час (план компании). Веб: Профиль → Организация. Пусто = план не задан. Меняет только владелец (`owner_id`). Миграция `20260913100000_companies_min_output_per_person_hour.sql`
 - created_at, updated_at: TIMESTAMPTZ — системные даты
 
 **Связи:**
@@ -148,45 +150,33 @@
 ## Таблица `employees`
 
 **Описание:**
-Справочник сотрудников. Хранит ФИО, паспортные данные, контакты, параметры для расчёта зарплаты, статус, связанные объекты. Полностью изолирована по компаниям.
+Справочник сотрудников. Хранит ФИО, паспортные данные, контакты, трудоустройство, статус, связанные объекты. Полностью изолирована по компаниям. Подробный аудит (05.09.2026): [`employees/employees_module.md`](employees/employees_module.md).
 
 **Структура:**
-- id: UUID, PK — уникальный идентификатор сотрудника
-- company_id: UUID, FK — ссылка на компанию (`companies.id`)
-- photo_url: TEXT — URL фотографии сотрудника
-- last_name: TEXT — фамилия сотрудника
-- first_name: TEXT — имя сотрудника
-- middle_name: TEXT — отчество сотрудника
-- birth_date: TIMESTAMPTZ — дата рождения
-- birth_place: TEXT — место рождения
-- citizenship: TEXT — гражданство
-- phone: TEXT — номер телефона
-- clothing_size: TEXT — размер одежды
-- shoe_size: TEXT — размер обуви
-- height: TEXT — рост
-- employment_date: TIMESTAMPTZ — дата приёма на работу
-- employment_type: TEXT — тип занятости (`official`, `contract`)
-- position: TEXT — должность
-- status: TEXT — статус сотрудника (`working`, `dismissed`)
-- passport_series: TEXT — серия паспорта
-- passport_number: TEXT — номер паспорта
-- passport_issued_by: TEXT — кем выдан паспорт
-- passport_issue_date: TIMESTAMPTZ — дата выдачи паспорта
-- passport_department_code: TEXT — код подразделения
-- registration_address: TEXT — адрес регистрации
-- inn: TEXT — ИНН
-- snils: TEXT — СНИЛС
-- created_at: TIMESTAMP — дата и время создания записи
-- updated_at: TIMESTAMP — дата и время последнего обновления
-- object_ids: ARRAY(UUID) — список id объектов, связанных с сотрудником
+- id: UUID, PK — `gen_random_uuid()`
+- company_id: UUID, FK — `companies.id` ON DELETE CASCADE
+- photo_url: TEXT — URL фотографии
+- last_name, first_name: TEXT NOT NULL
+- middle_name: TEXT
+- birth_date, employment_date, passport_issue_date: TIMESTAMPTZ
+- birth_place, citizenship, phone, clothing_size, shoe_size, height, position: TEXT
+- employment_type: TEXT NOT NULL, default `official` (`official` / `unofficial` / `contractor`)
+- status: TEXT NOT NULL, default `working` (`working` / `vacation` / `sickLeave` / `unpaidLeave` / `fired`)
+- include_in_timesheet: BOOLEAN NOT NULL, default `true`
+- object_ids: TEXT[] — default пустой массив (в клиенте список строк UUID)
+- passport_series, passport_number, passport_issued_by, passport_department_code, registration_address: TEXT
+- inn, snils, kig, patent_number: TEXT — КИГ и номер патента необязательны
+- can_be_responsible: BOOLEAN NOT NULL, default `false`
+- created_at, updated_at: TIMESTAMPTZ, default `now()`
 
 **Связи:**
-- id → payroll_calculation.employee_id (FK)
-- id → work_hours.employee_id (FK)
-- company_id → companies.id (FK)
+- id → `employee_rates.employee_id`, `employee_applications.employee_id`, `work_hours.employee_id` и др.
+- company_id → `companies.id` (FK)
 
 **RLS-политики:**
-- ✅ Изоляция по `company_id` + матрица прав: `employees_select` / `employees_insert` / `employees_update` / `employees_delete` через `check_permission(uid(), 'employees', …)` ([`20260529180000_tighten_employees_card_rls.sql`](../supabase/migrations/20260529180000_tighten_employees_card_rls.sql), подробнее — [`employees/employees_module.md`](employees/employees_module.md))
+- ✅ RLS включён. `employees_select` / `employees_insert` / `employees_update` / `employees_delete` через `check_permission(uid(), 'employees', …)`; SELECT также для своей карточки (`profiles.employee_id`) и пересечения `object_ids` с профилем.
+
+**Триггер:** `normalize_employees_phone` (BEFORE INSERT/UPDATE) — телефон к виду `7XXXXXXXXXX`.
 
 ---
 
@@ -236,7 +226,7 @@
 - logo_url: TEXT — URL логотипа организации
 - full_name: TEXT — полное наименование организации
 - short_name: TEXT — краткое наименование
-- inn: TEXT — ИНН организации
+- inn: TEXT — ИНН организации. Уникален в рамках компании по цифрам (`contractors_company_id_inn_digits_uidx`)
 - director: TEXT — ФИО директора
 - legal_address: TEXT — юридический адрес
 - actual_address: TEXT — фактический адрес
@@ -433,7 +423,9 @@
 - id → work_items.estimate_id (FK)
 
 **RLS-политики:**
-- ✅ Видна только участникам компании (через `get_my_company_ids()`)
+- ✅ SELECT: `estimates.read` или права модуля «Работы», плюс owner либо объект из `profiles.object_ids`
+- ✅ INSERT: `estimates.create` или (`works.create`/`update` и свой объект / owner)
+- ✅ UPDATE/DELETE: только права модуля «Сметы» и тот же object-scope
 
 ---
 
@@ -471,7 +463,9 @@
 
 ## Таблицы модуля ФОТ (аудит 23.08.2026)
 
-Ведомость **не хранится** в БД: таблиц `payroll_calculation` и `payroll_deduction` **нет**. Расчёт — RPC `calculate_payroll_for_month` и клиентский FIFO. Канон: [`docs/fot/fot_module.md`](./fot/fot_module.md).
+Ведомость **не хранится** в БД: таблиц `payroll_calculation` и `payroll_deduction` **нет**. Расчёт ведомости — RPC `calculate_payroll_for_month` и клиентский FIFO в модуле ФОТ. Канон: [`docs/fot/fot_module.md`](./fot/fot_module.md).
+
+Личный кабинет в **вебе** не вызывает ведомость компании. Свои цифры — RPC `get_my_profile_finance(p_year int, p_month int)` (SECURITY DEFINER, только `authenticated`). Сводка месяца: часы, ставка, суточные, премии, штрафы, итого к оплате. Списки премий, штрафов и выплат — **за всё время** по своему `employee_id`. Выплаты в сводку месяца не входят (`payroll_payout` хранит дату перевода, не период начисления). Описание: [`react_app/docs/profile.md`](../react_app/docs/profile.md).
 
 ### `payroll_bonus` / `payroll_penalty`
 

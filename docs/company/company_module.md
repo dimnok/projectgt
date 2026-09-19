@@ -113,7 +113,8 @@ lib/features/company/
 - `director_name`, `director_position`, `director_basis`, `director_phone`: text
 - `invitation_code`: text (Unique)
 - `is_active`: boolean
-- **RLS:** ✅ Включён. Изоляция по `get_my_company_ids()` и `owner_id`.
+- `min_output_per_person_hour`: numeric, nullable — минимум выработки, ₽ / чел. / час (веб-профиль организации; в Flutter-карточке компании поля пока нет)
+- **RLS:** ✅ Включён. Изоляция по `get_my_company_ids()` и `owner_id`. UPDATE только `owner_id = uid()`.
 
 #### `company_bank_accounts` (Банковские счета)
 - `id`: uuid (PK), `company_id`: uuid (FK)

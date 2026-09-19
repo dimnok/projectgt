@@ -1,7 +1,7 @@
 # Модуль Сметы (Estimates)
 
-**Дата актуализации:** 23 августа 2026 года  
-**Изменения:** Мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены. Неиспользуемая Edge Function `xls_to_xlsx` удалена с сервера (в репозитории её не было). `generate_vor` и `generate_vor_pdf` в репозитории выровнены с сервером. `generate_vor_v2` на сервере выровнена с git: для черновика ВОР Excel пересобирается (`forceRegenerate`). Edge Function `analyze-contract-plan` удалена с сервера.
+**Дата актуализации:** 11 сентября 2026 года  
+**Изменения:** SELECT/INSERT `estimates` для смены без модуля «Сметы» (`can_use_works_estimate_catalog`, `can_add_work_estimate_line`). Ранее: мобильный реестр смет: раскрываемые секции по объекту (`estimateFilesByObjectProvider`, `EstimateMobileObjectHeader`). С карточки убраны повторяющееся поле «Объект» и бейдж «Загружена»; вместо них — процент выполнения (`EstimateFile.completionPercent`). Договор и сумма на карточке сохранены. Неиспользуемая Edge Function `xls_to_xlsx` удалена с сервера (в репозитории её не было). `generate_vor` и `generate_vor_pdf` в репозитории выровнены с сервером. `generate_vor_v2` на сервере выровнена с git: для черновика ВОР Excel пересобирается (`forceRegenerate`). Edge Function `analyze-contract-plan` удалена с сервера.
 **Статус:** Актуально (Clean Architecture, Riverpod, Strict Multi-tenancy, RBAC, Subsystem Filter Bar, Sidebar Completion Percent, VOR Excel/PDF Storage Flow, VOR Tab Dynamic Columns, Cumulative Excel with Excess Column, Estimate Revisions/Addendums, VOR Draft Delete by Creator, VOR Signed PDF Web Upload)
 
 ---
@@ -302,6 +302,8 @@ lib/features/estimates/
 
 ### Ключевые политики
 - `estimates`: `SELECT/UPDATE/DELETE` учитывают не только `company_id`, но и object-scope пользователя через `profiles.object_ids`, если пользователь не owner компании.
+- `estimates` `SELECT`: `estimates.read` **или** `can_use_works_estimate_catalog()` (`works.read` / `create` / `update`) + тот же object-scope. Экран смет и `get_estimate_groups` по-прежнему только `estimates.read`.
+- `estimates` `INSERT`: `estimates.create` **или** (`can_add_work_estimate_line()` + `object_id` своего объекта / owner). Правка и удаление смет — только `estimates.update` / `delete`.
 - `vors`: обычный `UPDATE` разрешен только для записей в `draft` или `pending`.
 - `vors`: `DELETE` (`Strict DELETE for vors`) — только `status = 'draft'` **и** (`check_permission(..., 'estimates', 'delete')` **или** `created_by = auth.uid()`).
 - `vor_items`: `INSERT/UPDATE` разрешены только если связанный `vors.status = 'draft'`.

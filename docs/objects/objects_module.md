@@ -1,9 +1,10 @@
 # Модуль Objects (Объекты)
 
-**Дата последнего обновления:** 09.01.2026 (RBAC Fix & Error Handling)
-**Версия:** 1.5.2
+**Дата последнего обновления:** 01.09.2026 (статус объекта)
+**Версия:** 1.6.0
 
 ### Список изменений
+- **Статус объекта в БД:** колонка `objects.status` (`object_status`: `active` / `paused` / `completed`, по умолчанию `active`). Flutter-клиент поле пока не отображает.
 - **RBAC Fix for Company Owners:**
     *   Исправлена критическая ошибка доступа: владельцы компании (`is_owner = true`) теперь имеют полный доступ ко всем операциям модуля, даже если им не назначена конкретная роль в `company_members`.
     *   Обновлена SQL-функция `check_permission` для автоматического предоставления прав владельцам активной компании.
@@ -161,8 +162,11 @@ lib/features/objects/
 | name        | TEXT        | Наименование объекта (Not Null)         |
 | address     | TEXT        | Юридический/фактический адрес (Not Null)|
 | description | TEXT        | Дополнительная информация               |
+| status      | object_status | Активный / Приостановлен / Завершён (`active` / `paused` / `completed`, Not Null, default `active`) |
 | created_at  | TIMESTAMPTZ | Дата создания                           |
 | updated_at  | TIMESTAMPTZ | Дата последнего изменения               |
+
+**Индексы:** `objects_pkey` (`id`), `objects_company_id_status_idx` (`company_id`, `status`).
 
 **RLS:** ✅ Включён.
 - **SELECT (`objects_select`):** `objects.read` **или** объект из `profiles.object_ids` **или** права модуля «Сотрудники» (`employees.read` / `create` / `update`) для picklist без доступа к экрану «Объекты» — миграция [`20260529190000_employees_objects_picklist_rls.sql`](../../supabase/migrations/20260529190000_employees_objects_picklist_rls.sql). На клиенте picklist в модуле «Сотрудники» — [`employeesModuleObjectsProvider`](../employees/employees_module.md#провайдеры-presentation) (не экран «Объекты»).

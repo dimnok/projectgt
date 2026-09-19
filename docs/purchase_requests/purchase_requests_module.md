@@ -25,7 +25,7 @@
 - **Свой черновик:** правка шапки/позиций и удаление заявки — только автор, только статус `draft` (RPC + UI). Право `view_all` чужой черновик удалить не может. На этапе `revision` можно менять позиции, но не шапку и не удалять заявку.
 - **Возврат на доработку:** после `submit` автор и `view_all` **не** могут откатить заявку в черновик. Только участник роли `first_approver` с правом `approve` на статусе `approval` вызывает RPC `purchase_request_return` (обязателен comment) → `revision`, assignee = автор. Инициатор правит позиции и `submit` (`resubmitted`) — снова `approval`, уведомление всем `first_approver`. RPC `purchase_request_cancel` оставлен для совместимости сигнатуры и **всегда** поднимает исключение. Статус `cancelled` в CHECK остаётся для старых данных; живые строки с ним переведены в `draft` миграцией `20260816194000`.
 - **Список после действий:** `invalidatePurchaseRequestCaches` **не** делает `invalidate` notifier списка (это сбрасывало бы фильтр на дефолт «Все»). Вызывается `refreshPurchaseRequestList` → `PurchaseRequestListNotifier.load(quiet: true)` с текущими `filter`/`search` + сброс `purchaseRequestsAwaitingMyApprovalProvider` (блок на главной).
-- **Блок на главной:** не лента `purchase_request_notifications`, а **текущие** заявки, где пользователь согласующий (`isPurchaseRequestAwaitingUserApproval`). Push / колокольчик в модуле **нет**.
+- **Блок на главной:** не лента `purchase_request_notifications`, а **текущие** заявки, где пользователь согласующий (`isPurchaseRequestAwaitingUserApproval`). Колокольчика в модуле **нет**; push есть — см. [purchase_requests_push.md](./purchase_requests_push.md).
 - **Excel позиций:** файл собирается **на клиенте** (`PurchaseRequestItemsExcelExportService` + пакет `excel`) и сохраняется через `saveFileBytesToUserDevice`. В Storage и в БД Excel **не** пишется. Кнопка видна любому, кто видит заявку, если есть ≥1 позиция. Специального permission `export` нет (в матрице модуля код `export` отключён).
 - **Edge Functions:** в `supabase/functions/` нет функций модуля (проверка 28.08.2026: ни одной `purchase_request*` функции в репозитории).
 
@@ -75,7 +75,7 @@
 | Отдельный блок «Документы» (не invoice) | 🔴 не реализовано |
 | Блок «Нужно согласовать» на главной | ✅ скрыт, если 0 заявок; красный контур + «!» |
 | Список in-app уведомлений из `purchase_request_notifications` | 🔴 не реализовано |
-| Push по заявкам | 🔴 нет (FCM только у смен) |
+| Push по заявкам | ✅ реализовано ([purchase_requests_push.md](./purchase_requests_push.md)) |
 | Удаление черновика / правка шапки (объект, комментарий) | ✅ только своя заявка в `draft` |
 | Возврат на доработку после отправки | ✅ только согласующий очереди (`approval`) |
 | Откат в черновик после отправки | ❌ снят (UI + RPC) |
@@ -545,6 +545,7 @@ supabase/migrations/
 | Колонка | Тип | Описание |
 |---------|-----|----------|
 | `id`, `company_id`, `request_id`, `user_id` | | Получатель |
+| `pushed_at` | timestamptz | Когда отправлен push. Заполняет Edge Function `send_purchase_request_event` |
 | `title` | text | Заголовок |
 | `body` | text | Текст (nullable) |
 | `is_read` | boolean | Прочитано |
@@ -853,14 +854,17 @@ stateDiagram-v2
 | Событие | Кому |
 |---------|------|
 | `submit` / повторная отправка | все `first_approver` (`notify_role`, кроме автора действия) |
-| `approve` | все `invoice_preparer` |
+| `approve` | все `invoice_preparer` **+ инициатор** (триггер) |
 | `return` на доработку | инициатор (`notify`) |
 | `submit_invoices` | все `invoice_approver` |
-| `approve_invoice` | все `accountant` |
-| `return_invoice` | все `invoice_preparer` |
-| `queue_payment` | нет notify в RPC |
-| `mark_paid` | все `receiver` **или** инициатор (см. выше) |
+| `approve_invoice` | все `accountant` **+ инициатор** (триггер) |
+| `return_invoice` | все `invoice_preparer` **+ инициатор** (триггер) |
+| `queue_payment` | **инициатор** (триггер) |
+| `mark_paid` | все `receiver` **или** инициатор (см. выше) **+ инициатор** (триггер) |
+| `mark_received` | **инициатор** (триггер) |
 | `cancel` | не вызывается: RPC отклоняет |
+
+Инициатора по согласованию, оплате и получению уведомляет триггер `purchase_request_history_notify_creator` на `purchase_request_history` — тела RPC для этого не менялись. Подробности: [purchase_requests_push.md](./purchase_requests_push.md).
 
 In-app **ленты** из таблицы `purchase_request_notifications` нет. На главной показывается не эта таблица, а текущие заявки, где пользователь — согласующий:
 
@@ -870,7 +874,7 @@ In-app **ленты** из таблицы `purchase_request_notifications` не�
 - пустой список / нет права / загрузка / ошибка — виджет не рисуется (`SizedBox.shrink`);
 - переход: `context.pushNamed('purchase_requests', queryParameters: {requestId})`.
 
-Push по заявкам нет.
+Push по заявкам — есть, см. [purchase_requests_push.md](./purchase_requests_push.md): Edge Function `send_purchase_request_event` + вызов из клиентов (сайт и мобильное приложение).
 
 ### Нумерация
 
@@ -888,9 +892,10 @@ Push по заявкам нет.
 | **Profiles** | ФИО в списке (RPC), деталях и истории (batch SELECT) |
 | **Supabase Storage** | приватный bucket **`purchase_requests`**; upload/delete в `createInvoiceWithFile` / `deleteInvoice`; download в `downloadInvoiceFile` (SELECT + `read`). Excel позиций в bucket **не** кладётся |
 | **excel** | Клиентская сборка xlsx позиций (`Excel.createExcel`, лист «Позиции») |
-| **Notifications** | Таблица + `purchase_request_internal_notify` / `purchase_request_internal_notify_role`; лента в модуле отсутствует; на главной — текущие задачи согласующего, не unread из таблицы |
+| **Notifications** | Таблица + `purchase_request_internal_notify` / `purchase_request_internal_notify_role` + триггер на инициатора; лента в модуле отсутствует; на главной — текущие задачи согласующего, не unread из таблицы |
+| **Push (FCM)** | `send_purchase_request_event` + `user_tokens`; вызывается клиентами после действий. Секрет `SERVICE_ACCOUNT` общий со сменами |
 | **Home** | `HomePurchaseRequestsApprovalWidget`; `docs/HOME_SCREEN.md` |
-| **Edge Functions** | Не используются (в `supabase/functions/` нет `purchase_request*`; проверка 28.08.2026) |
+| **Edge Functions** | `send_purchase_request_event` — push по заявкам (добавлена 15.09.2026); других `purchase_request*` функций нет |
 
 ---
 

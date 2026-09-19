@@ -1,0 +1,16 @@
+---
+description: Каркас экранов веб-приложения — как у Контрагентов.
+globs: react_app/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Веб: каркас экрана
+
+Эталон: `react_app/src/features/contractors/ui/desktop/contractors-desktop.tsx`.
+
+- Сетка: `grid min-h-fit min-w-0 w-full flex-1 grid-cols-1 content-start items-start gap-3 lg:grid-cols-[minmax(0,1fr)_var(--content-aside-width)] lg:gap-6`
+- Слева список, справа sticky-колонка: поиск над фильтрами, затем сводка (`lg:sticky lg:top-0 lg:self-start`)
+- Поиск списка не ставить в шапку сайта (`header.tsx`). Поле — `AppSearchField` variant `aside` над карточкой фильтров
+- Карточки списка: `overflow-visible`, при раскрытии `ring-2 ring-inset`, детали внутри карточки
+- Не делать отдельную полноэкранную прокрутку колонок (`data-fill-viewport`, свой `PageSplit`)
+- На корне колонки всегда `min-w-0`

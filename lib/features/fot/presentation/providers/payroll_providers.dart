@@ -694,8 +694,9 @@ final payoutsByEmployeeAndMonthFIFOProvider = FutureProvider.family<Map<String, 
       if (remainingPayout > 0) {
         for (int month = 1; month <= 12 && remainingPayout > 0; month++) {
           final accrualForMonth = employeePayrolls[month] ?? 0.0;
-          if (accrualForMonth <= 0)
+          if (accrualForMonth <= 0) {
             continue; // Пропускаем месяцы без начисления
+          }
 
           final alreadyPaidInMonth = payoutsForMonth[month] ?? 0.0;
           final remainingInMonth = accrualForMonth - alreadyPaidInMonth;

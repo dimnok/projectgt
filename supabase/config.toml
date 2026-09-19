@@ -4,6 +4,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/process_telegram_outbox/index.ts"
 
+[functions.send_purchase_request_event]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send_purchase_request_event/index.ts"
+
 [functions.auth-send-sms]
 enabled = true
 verify_jwt = false

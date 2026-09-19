@@ -10,6 +10,10 @@
 
 3. [Система аутентификации и доступа](auth/auth_module.md) - Phone-only аутентификация (Telegram/SMS), Multi-tenancy, RBAC и управление доступом.
 
+3.1. [Путь пользователя](USER_JOURNEY.md) — мини-промпт: экраны после установки, вход, онбординг, меню, маршруты.
+
+3.2. [Веб-приложение](../react_app/docs/README.md) — сайт `react_app`: Объекты, Контрагенты, Договоры, Сметы, Сотрудники, Работы, роли. Темы: [светлая, тёмная, фирменная](../react_app/docs/theme.md).
+
 4. [Руководство по разработке](development_guide.md) - практические рекомендации по стилю кода, UI/UX, работе с Riverpod и Supabase.
 
 4.1. [Публикация Edge Functions](supabase/EDGE_FUNCTIONS_DEPLOY.md) — выкладка на self-hosted через `scripts/deploy-function.sh`.
@@ -325,7 +329,7 @@ lib/
 | Модуль | Ссылка | Описание |
 |--------|--------|---------|
 | **Управление версиями** | [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) | Система блокировки старых версий, Realtime синхронизация |
-| **Профиль пользователя** | [`profile/`](./profile/) | Управление учётной записью, данные сотрудника |
+| **Профиль пользователя** | [`profile/`](./profile/) | Flutter: учётная запись и финансы сотрудника. Веб: [`react_app/docs/profile.md`](../react_app/docs/profile.md) |
 | **ФОТ** | [`fot/fot_module.md`](./fot/fot_module.md) | Расчёт зарплаты, премии, штрафы, выплаты, FIFO, Excel |
 | **Работы (смены и планы)** | [`works/works_module.md`](./works/works_module.md) | Ежедневные смены, фото, часы; планы работ |
 | **Взаиморасчёты** | [`settlements/settlements_module.md`](./settlements/settlements_module.md) | Счета на оплату по договорам, история оплат, привязка к ДДС из выписки |

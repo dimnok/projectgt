@@ -48,8 +48,9 @@ class WorkValidationBlock extends StatelessWidget {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Center(child: CupertinoActivityIndicator()),
@@ -58,6 +59,8 @@ class WorkValidationBlock extends StatelessWidget {
     }
 
     final (canClose, message) = _canCloseWork(work, items!, hours!);
+    final hasEveningPhoto =
+        work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty;
 
     if (canClose) {
       if (canModify) {
@@ -82,16 +85,20 @@ class WorkValidationBlock extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.error.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: theme.colorScheme.error.withValues(alpha: 0.2)),
+          border: Border.all(
+            color: theme.colorScheme.error.withValues(alpha: 0.2),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline,
-                    color: theme.colorScheme.error, size: 20),
+                Icon(
+                  Icons.info_outline,
+                  color: theme.colorScheme.error,
+                  size: 20,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -105,8 +112,16 @@ class WorkValidationBlock extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _buildCheckItem(context, WorksStrings.checkAddItems, items!.isNotEmpty),
-            _buildCheckItem(context, WorksStrings.checkAddEmployees, hours!.isNotEmpty),
+            _buildCheckItem(
+              context,
+              WorksStrings.checkAddItems,
+              items!.isNotEmpty,
+            ),
+            _buildCheckItem(
+              context,
+              WorksStrings.checkAddEmployees,
+              hours!.isNotEmpty,
+            ),
             _buildCheckItem(
               context,
               WorksStrings.checkFillQuantities,
@@ -122,15 +137,16 @@ class WorkValidationBlock extends StatelessWidget {
               WorksStrings.checkUploadEveningPhoto,
               work.eveningPhotoUrl != null && work.eveningPhotoUrl!.isNotEmpty,
             ),
-            if (work.eveningPhotoUrl == null ||
-                work.eveningPhotoUrl!.isEmpty) ...[
+            if (canModify) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: GTSecondaryButton(
-                  onPressed: canModify ? onAddPhoto : null,
+                  onPressed: onAddPhoto,
                   icon: Icons.camera_alt,
-                  text: WorksStrings.addPhotoBtn,
+                  text: hasEveningPhoto
+                      ? WorksStrings.replacePhotoBtn
+                      : WorksStrings.addPhotoBtn,
                 ),
               ),
             ],
@@ -156,9 +172,11 @@ class WorkValidationBlock extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(isCompleted ? Icons.check_circle : Icons.cancel,
-              color: isCompleted ? Colors.green : theme.colorScheme.error,
-              size: 20),
+          Icon(
+            isCompleted ? Icons.check_circle : Icons.cancel,
+            color: isCompleted ? Colors.green : theme.colorScheme.error,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -185,27 +203,20 @@ class WorkValidationBlock extends StatelessWidget {
     if (workHours.isEmpty) {
       return (false, WorksStrings.errorNoEmployees);
     }
-    final invalidWorkItems =
-        workItems.where((item) => item.quantity <= 0).toList();
+    final invalidWorkItems = workItems
+        .where((item) => item.quantity <= 0)
+        .toList();
     if (invalidWorkItems.isNotEmpty) {
-      return (
-        false,
-        WorksStrings.errorEmptyQuantities
-      );
+      return (false, WorksStrings.errorEmptyQuantities);
     }
-    final invalidWorkHours =
-        workHours.where((hour) => hour.hours <= 0).toList();
+    final invalidWorkHours = workHours
+        .where((hour) => hour.hours <= 0)
+        .toList();
     if (invalidWorkHours.isNotEmpty) {
-      return (
-        false,
-        WorksStrings.errorEmptyHours
-      );
+      return (false, WorksStrings.errorEmptyHours);
     }
     if (work.eveningPhotoUrl == null || work.eveningPhotoUrl!.isEmpty) {
-      return (
-        false,
-        WorksStrings.errorNoEveningPhoto
-      );
+      return (false, WorksStrings.errorNoEveningPhoto);
     }
     return (true, null);
   }

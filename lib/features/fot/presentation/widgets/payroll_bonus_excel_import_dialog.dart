@@ -1,7 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:projectgt/core/di/providers.dart';
+import 'package:projectgt/core/utils/formatters.dart';
 import 'package:projectgt/core/utils/responsive_utils.dart';
 import 'package:projectgt/core/utils/snackbar_utils.dart';
 import 'package:projectgt/core/widgets/desktop_dialog_content.dart';
@@ -9,38 +10,53 @@ import 'package:projectgt/core/widgets/gt_buttons.dart';
 import 'package:projectgt/core/widgets/gt_dropdown.dart';
 import 'package:projectgt/core/widgets/gt_text_field.dart';
 import 'package:projectgt/core/widgets/mobile_bottom_sheet_content.dart';
+import 'package:projectgt/features/fot/presentation/providers/payroll_filter_providers.dart';
 import 'package:projectgt/features/fot/presentation/services/payroll_payout_excel_import_service.dart';
-import 'package:projectgt/features/fot/presentation/utils/payroll_payout_batch_save.dart';
-import 'package:projectgt/features/fot/presentation/widgets/payroll_payout_form_modal.dart';
+import 'package:projectgt/features/fot/presentation/utils/payroll_bonus_batch_save.dart';
 import 'package:projectgt/features/fot/presentation/widgets/payroll_payout_import_preview_dialog.dart';
+import 'package:projectgt/features/objects/domain/entities/object.dart';
 import 'package:projectgt/presentation/state/employee_state.dart';
 
-/// Диалог импорта выплат из Excel: параметры выплаты и выбор файла.
-class PayrollPayoutExcelImportDialog extends ConsumerStatefulWidget {
+/// Диалог импорта премий из Excel: параметры премии и выбор файла.
+class PayrollBonusExcelImportDialog extends ConsumerStatefulWidget {
   /// Создаёт диалог импорта.
-  const PayrollPayoutExcelImportDialog({super.key});
+  const PayrollBonusExcelImportDialog({super.key});
 
   @override
-  ConsumerState<PayrollPayoutExcelImportDialog> createState() =>
-      _PayrollPayoutExcelImportDialogState();
+  ConsumerState<PayrollBonusExcelImportDialog> createState() =>
+      _PayrollBonusExcelImportDialogState();
 }
 
-class _PayrollPayoutExcelImportDialogState
-    extends ConsumerState<PayrollPayoutExcelImportDialog> {
+class _PayrollBonusExcelImportDialogState
+    extends ConsumerState<PayrollBonusExcelImportDialog> {
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
   final _dateController = TextEditingController();
 
   DateTime? _selectedDate;
-  PaymentMethod _selectedMethod = PaymentMethod.values.first;
-  PaymentType _selectedType = PaymentType.values.first;
+  ObjectEntity? _selectedObject;
   bool _pickingFile = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now();
+    final filter = ref.read(payrollFilterProvider);
+    final now = DateTime.now();
+    if (filter.selectedYear == now.year && filter.selectedMonth == now.month) {
+      _selectedDate = now;
+    } else {
+      _selectedDate = DateTime(filter.selectedYear, filter.selectedMonth, 1);
+    }
     _updateDateController();
+
+    final selectedIds = filter.selectedObjectIds;
+    if (selectedIds.length == 1) {
+      _selectedObject = ref
+          .read(objectProvider)
+          .objects
+          .where((o) => o.id == selectedIds.first)
+          .firstOrNull;
+    }
   }
 
   @override
@@ -51,9 +67,8 @@ class _PayrollPayoutExcelImportDialogState
   }
 
   void _updateDateController() {
-    _dateController.text = _selectedDate != null
-        ? DateFormat('dd.MM.yyyy').format(_selectedDate!)
-        : '';
+    _dateController.text =
+        _selectedDate != null ? formatRuDate(_selectedDate!) : '';
   }
 
   Future<void> _pickDate() async {
@@ -61,8 +76,8 @@ class _PayrollPayoutExcelImportDialogState
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 1),
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2),
       locale: const Locale('ru'),
     );
     if (picked != null) {
@@ -75,7 +90,7 @@ class _PayrollPayoutExcelImportDialogState
 
   Future<void> _pickExcelAndPreview() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedDate == null) return;
+    if (_selectedDate == null || _selectedObject == null) return;
 
     setState(() => _pickingFile = true);
     try {
@@ -113,24 +128,23 @@ class _PayrollPayoutExcelImportDialogState
 
       if (!mounted) return;
 
-      final batchParams = PayrollPayoutBatchParams(
-        payoutDate: _selectedDate!,
-        method: _selectedMethod.value,
-        type: _selectedType.value,
-        comment: _commentController.text.trim(),
+      final batchParams = PayrollBonusBatchParams(
+        date: _selectedDate!,
+        objectId: _selectedObject!.id,
+        reason: _commentController.text.trim(),
       );
 
       final imported = await showDialog<bool>(
         context: context,
         builder: (ctx) => PayrollPayoutImportPreviewDialog(
           parseResult: parseResult,
-          onImport: (entries) => savePayrollPayoutBatch(
+          onImport: (entries) => savePayrollBonusBatch(
             ref: ref,
             params: batchParams,
             entries: entries,
           ),
-          createActionLabel: 'Создать выплаты',
-          successMessage: (count) => 'Создано выплат: $count',
+          createActionLabel: 'Создать премии',
+          successMessage: (count) => 'Создано премий: $count',
         ),
       );
 
@@ -150,7 +164,10 @@ class _PayrollPayoutExcelImportDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    const title = 'Импорт выплат из Excel';
+    const title = 'Импорт премий из Excel';
+
+    final objects = List<ObjectEntity>.from(ref.watch(objectProvider).objects)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     final content = Form(
       key: _formKey,
@@ -159,7 +176,7 @@ class _PayrollPayoutExcelImportDialogState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Выберите параметры выплаты, затем файл ведомости (.xlsx). '
+            'Укажите дату, объект и примечание, затем файл ведомости (.xlsx). '
             'Ожидаются колонки «ФИО» и «Сумма» (Фамилия Имя Отчество).',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -168,42 +185,35 @@ class _PayrollPayoutExcelImportDialogState
           const SizedBox(height: 16),
           GTTextField(
             controller: _dateController,
-            labelText: 'Дата выплаты',
+            labelText: 'Дата',
             prefixIcon: Icons.event,
             readOnly: true,
             onTap: _pickDate,
             validator: (_) =>
-                _selectedDate == null ? 'Выберите дату выплаты' : null,
+                _selectedDate == null ? 'Выберите дату' : null,
           ),
           const SizedBox(height: 16),
-          GTDropdown<PaymentMethod>(
-            items: PaymentMethod.values,
-            itemDisplayBuilder: (m) => m.displayName,
-            selectedItem: _selectedMethod,
-            onSelectionChanged: (m) {
-              setState(() => _selectedMethod = m ?? PaymentMethod.values.first);
+          GTDropdown<ObjectEntity>(
+            items: objects,
+            itemDisplayBuilder: (o) => o.name,
+            selectedItem: _selectedObject,
+            onSelectionChanged: (object) {
+              setState(() => _selectedObject = object);
             },
-            labelText: 'Способ выплаты',
-            hintText: 'Выберите способ выплаты',
+            labelText: 'Объект',
+            hintText: objects.isEmpty
+                ? 'Нет доступных объектов'
+                : 'Выберите объект',
             allowClear: false,
-          ),
-          const SizedBox(height: 16),
-          GTDropdown<PaymentType>(
-            items: PaymentType.values,
-            itemDisplayBuilder: (t) => t.displayName,
-            selectedItem: _selectedType,
-            onSelectionChanged: (t) {
-              setState(() => _selectedType = t ?? PaymentType.values.first);
-            },
-            labelText: 'Тип выплаты',
-            hintText: 'Выберите тип выплаты',
-            allowClear: false,
+            validator: (_) =>
+                _selectedObject == null ? 'Выберите объект' : null,
           ),
           const SizedBox(height: 16),
           GTTextField(
             controller: _commentController,
-            labelText: 'Комментарий',
+            labelText: 'Примечание',
             prefixIcon: Icons.comment_outlined,
+            hintText: 'Причина или комментарий',
             maxLines: 2,
           ),
         ],

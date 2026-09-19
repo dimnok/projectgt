@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 
@@ -48,6 +49,23 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   PurchaseRequest _mapRequest(dynamic row) => PurchaseRequestModel.fromJson(
     Map<String, dynamic>.from(row as Map),
   ).toDomain();
+
+  /// Запускает отправку push-уведомлений по заявке.
+  ///
+  /// Получателей определяет Edge Function `send_purchase_request_event`: она
+  /// берёт уведомления, которые база уже записала (участники роли этапа и
+  /// инициатор). Ошибка push не должна ломать действие по заявке, поэтому
+  /// вызов «тихий» и не ожидается.
+  Future<void> _notifyPush(String requestId) async {
+    try {
+      await client.functions.invoke(
+        'send_purchase_request_event',
+        body: {'request_id': requestId},
+      );
+    } catch (error) {
+      developer.log('push по заявке не отправлен: $error');
+    }
+  }
 
   Future<String?> _fetchCreatedByName(String userId) async {
     final names = await _fetchUserNames({userId});
@@ -106,26 +124,21 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
   }
 
   @override
-  Future<Map<PurchaseRequestListFilter, int>> getCounts({String? search}) async {
+  Future<Map<PurchaseRequestListFilter, int>> getCounts({
+    String? search,
+  }) async {
     if (!_hasCompany) {
-      return {
-        for (final filter in PurchaseRequestListFilter.values) filter: 0,
-      };
+      return {for (final filter in PurchaseRequestListFilter.values) filter: 0};
     }
 
     final response = await client.rpc(
       'purchase_request_counts',
-      params: {
-        'p_company_id': activeCompanyId,
-        'p_search': search,
-      },
+      params: {'p_company_id': activeCompanyId, 'p_search': search},
     );
 
     final rows = response as List;
     if (rows.isEmpty) {
-      return {
-        for (final filter in PurchaseRequestListFilter.values) filter: 0,
-      };
+      return {for (final filter in PurchaseRequestListFilter.values) filter: 0};
     }
 
     final map = Map<String, dynamic>.from(rows.first as Map);
@@ -134,10 +147,8 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
           (map['pending_approval'] as num?)?.toInt() ?? 0,
       PurchaseRequestListFilter.approved:
           (map['approved'] as num?)?.toInt() ?? 0,
-      PurchaseRequestListFilter.all:
-          (map['all_count'] as num?)?.toInt() ?? 0,
-      PurchaseRequestListFilter.archive:
-          (map['archive'] as num?)?.toInt() ?? 0,
+      PurchaseRequestListFilter.all: (map['all_count'] as num?)?.toInt() ?? 0,
+      PurchaseRequestListFilter.archive: (map['archive'] as num?)?.toInt() ?? 0,
     };
   }
 
@@ -617,6 +628,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_submit',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -627,6 +639,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_approve',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -640,6 +653,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_return',
       params: {'p_request_id': requestId, 'p_comment': comment},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -650,6 +664,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_submit_invoices',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -660,6 +675,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_approve_invoice',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -673,6 +689,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_return_invoice',
       params: {'p_request_id': requestId, 'p_comment': comment},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -683,6 +700,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_queue_payment',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -693,6 +711,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_mark_paid',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 
@@ -703,6 +722,7 @@ class PurchaseRequestRepositoryImpl implements PurchaseRequestRepository {
       'purchase_request_mark_received',
       params: {'p_request_id': requestId},
     );
+    unawaited(_notifyPush(requestId));
     return _mapRequest(row);
   }
 }
