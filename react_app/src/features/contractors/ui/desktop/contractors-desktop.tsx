@@ -142,14 +142,20 @@ export function ContractorsDesktop() {
           )}
         </div>
         <aside className="order-first flex min-w-0 w-full flex-col gap-3 lg:sticky lg:top-0 lg:order-2 lg:gap-6 lg:self-start">
-          <ContractorsFilters
-            type={type}
-            onTypeChange={setType}
-            canCreate={can("contractors", "create")}
-            onCreate={() => setEditorContractor(null)}
-          />
+          <div className="flex min-w-0 flex-col gap-2">
+            <AppSearchField
+              variant="aside"
+              placeholder="Поиск по названию, ИНН, телефону..."
+              aria-label="Поиск по контрагентам"
+            />
+            <ContractorsFilters
+              type={type}
+              onTypeChange={setType}
+              canCreate={can("contractors", "create")}
+              onCreate={() => setEditorContractor(null)}
+            />
+          </div>
           <ContractorsSummary contractors={data ?? []} />
-          <AppSearchField className="lg:hidden" />
         </aside>
       </div>
       <ContractorFormDialog

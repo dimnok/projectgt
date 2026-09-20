@@ -10,7 +10,7 @@ import { Loading } from "@/components/shared/loading";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { searchAllWorkItems } from "@/features/work-journal/api/search-work-items";
-import { useDebouncedValue } from "@/features/work-journal/hooks/use-debounced-value";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useWorkJournalFilterValues,
   useWorkJournalObjects,
@@ -80,6 +80,14 @@ export function WorkJournalDesktop() {
       return;
     }
     setShiftTarget({ workId: row.workId, workItemId: row.workItemId });
+  }
+
+  function handleNameShiftClick(name: string) {
+    const next = name.trim();
+    if (!next) {
+      return;
+    }
+    updateFilters({ searchQuery: next });
   }
 
   async function handleExportExcel() {
@@ -256,7 +264,11 @@ export function WorkJournalDesktop() {
             />
           </div>
         ) : (
-          <WorkJournalTable page={pageData} onDateClick={handleDateClick} />
+          <WorkJournalTable
+            page={pageData}
+            onDateClick={handleDateClick}
+            onNameShiftClick={handleNameShiftClick}
+          />
         )}
       </div>
 

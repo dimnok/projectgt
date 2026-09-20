@@ -39,20 +39,23 @@ export function EmployeesList({
   onSelect,
 }: EmployeesListProps) {
   return (
-    <Card size="sm" className="gap-0 overflow-hidden py-0 shadow-float">
-      <Table>
+    <Card size="sm" className="flex h-full min-h-0 flex-col gap-0 overflow-hidden py-0 shadow-float">
+      <Table
+        className="border-separate border-spacing-0"
+        containerClassName="h-full min-h-0 flex-1 overflow-auto"
+      >
         <TableCaption className="sr-only">Список сотрудников</TableCaption>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Сотрудник</TableHead>
-            <TableHead>Должность</TableHead>
-            <TableHead>Объект</TableHead>
-            <TableHead>Вид</TableHead>
-            <TableHead className="hidden md:table-cell">Телефон</TableHead>
-            <TableHead>Статус</TableHead>
+        <TableHeader className="sticky top-0 z-10 bg-card">
+          <TableRow className="hover:bg-transparent border-b-0">
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card">Сотрудник</TableHead>
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card">Должность</TableHead>
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card">Объект</TableHead>
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card">Вид</TableHead>
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card hidden md:table-cell">Телефон</TableHead>
+            <TableHead className="sticky top-0 z-10 border-b border-border/80 bg-card">Статус</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="[&_td]:border-b [&_td]:border-border/50 [&>tr:last-child>td]:border-b-0">
           {employees.map((employee) => {
             const isSelected = selectedId === employee.id;
             const fullName = employeeFullName(employee);

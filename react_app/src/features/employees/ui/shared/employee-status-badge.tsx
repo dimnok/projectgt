@@ -19,10 +19,18 @@ const statusVariant: Record<
 
 type EmployeeStatusBadgeProps = {
   status: EmployeeStatus;
+  className?: string;
+  compact?: boolean;
 };
 
-export function EmployeeStatusBadge({ status }: EmployeeStatusBadgeProps) {
+export function EmployeeStatusBadge({
+  status,
+  className,
+  compact = false,
+}: EmployeeStatusBadgeProps) {
   return (
-    <Badge variant={statusVariant[status]}>{employeeStatusLabel(status)}</Badge>
+    <Badge variant={statusVariant[status]} className={className}>
+      {employeeStatusLabel(status, compact ? "short" : "full")}
+    </Badge>
   );
 }

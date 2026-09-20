@@ -13,10 +13,17 @@ import type {
 
 const contractsQueryKey = ["contracts"] as const;
 
-export function useContracts() {
+/**
+ * Список договоров компании.
+ *
+ * `enabled: false` откладывает загрузку — нужно там, где список требуется
+ * только после открытия окна (например, выбор договора в счёте).
+ */
+export function useContracts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: contractsQueryKey,
     queryFn: getContracts,
+    enabled: options?.enabled ?? true,
   });
 }
 

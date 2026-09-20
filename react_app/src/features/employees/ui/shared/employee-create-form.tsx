@@ -2,6 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 
+import {
+  MobileSheetBody,
+  MobileSheetChrome,
+} from "@/components/shared/mobile-sheet-chrome";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -24,6 +28,7 @@ type EmployeeCreateFormProps = {
   isSaving: boolean;
   onCancel: () => void;
   onSubmit: (draft: EmployeeCreateDraft) => void;
+  layout?: "dialog" | "sheet";
 };
 
 type FormErrors = Partial<Record<"lastName" | "firstName", string>>;
@@ -33,6 +38,7 @@ export function EmployeeCreateForm({
   isSaving,
   onCancel,
   onSubmit,
+  layout = "dialog",
 }: EmployeeCreateFormProps) {
   const [draft, setDraft] = useState<EmployeeCreateDraft>(toCreateDraft);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -55,8 +61,7 @@ export function EmployeeCreateForm({
     return nextErrors;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submitDraft() {
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -65,8 +70,12 @@ export function EmployeeCreateForm({
     onSubmit(draft);
   }
 
-  return (
-    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitDraft();
+  }
+
+  const fields = (
       <FieldGroup>
         <Field data-invalid={Boolean(errors.lastName)}>
           <FieldLabel htmlFor="employee-last-name">Фамилия</FieldLabel>
@@ -121,6 +130,28 @@ export function EmployeeCreateForm({
           onChange={(objectIds) => update("objectIds", objectIds)}
         />
       </FieldGroup>
+  );
+
+  if (layout === "sheet") {
+    return (
+      <>
+        <MobileSheetChrome
+          title="Новый сотрудник"
+          description="Фамилия и имя обязательны. Остальное можно заполнить в карточке."
+          confirmLabel="Добавить"
+          confirmDisabled={isSaving}
+          confirmPending={isSaving}
+          confirmShowLabelWhenEnabled
+          onConfirm={submitDraft}
+        />
+        <MobileSheetBody>{fields}</MobileSheetBody>
+      </>
+    );
+  }
+
+  return (
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      {fields}
       <div className="flex justify-end gap-2">
         <Button
           type="button"

@@ -22,9 +22,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHomeDashboard } from "@/features/home/hooks/use-home-dashboard";
+import { useHomePurchaseRequestCounts } from "@/features/home/hooks/use-home-purchase-requests";
 import { ActiveObjectsCard } from "@/features/home/ui/components/active-objects-card";
 import { HomeAnalyticsChart } from "@/features/home/ui/components/home-analytics-chart";
 import { HomeKpiCard } from "@/features/home/ui/components/home-kpi-card";
+import { HomePurchaseRequestsCard } from "@/features/home/ui/components/home-purchase-requests-card";
 import { ModulesHubCard } from "@/features/home/ui/components/modules-hub-card";
 import { RecentActivityCard } from "@/features/home/ui/components/recent-activity-card";
 import { TodayShiftsSection } from "@/features/home/ui/components/today-shifts-section";
@@ -36,6 +38,7 @@ import { cn } from "@/lib/utils";
 export function HomeDesktop() {
   const router = useRouter();
   const dashboard = useHomeDashboard();
+  const purchaseRequests = useHomePurchaseRequestCounts();
   const myOpenQuery = useMyOpenWorkId();
   const [openShiftDialogOpen, setOpenShiftDialogOpen] = useState(false);
 
@@ -214,6 +217,15 @@ export function HomeDesktop() {
 
         {/* Right aside column */}
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-0 lg:self-start">
+          {/* Requests awaiting action (only with access to the module) */}
+          {purchaseRequests.canRead ? (
+            <HomePurchaseRequestsCard
+              approvalCount={purchaseRequests.approvalCount}
+              paymentCount={purchaseRequests.paymentCount}
+              isLoading={purchaseRequests.isLoading}
+            />
+          ) : null}
+
           {/* Quick Actions Card */}
           <Card className="overflow-hidden border-border/80 shadow-xs">
             <CardHeader className="pb-3 border-b border-border/50">

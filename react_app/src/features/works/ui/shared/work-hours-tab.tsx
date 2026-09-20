@@ -139,7 +139,10 @@ export function WorkHoursTab({
   return (
     <>
       {canModify ? (
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div
+          className="mb-2 flex flex-wrap items-center justify-between gap-2"
+          data-tour="works-d-hours"
+        >
           <WorkHourPresets
             selected={massEdit.selectedPreset}
             disabled={saving}

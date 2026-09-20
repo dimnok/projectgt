@@ -14,17 +14,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Proстройка",
-  description: "Веб-версия приложения Proстройка",
-  applicationName: "Proстройка",
+  title: "Стройка PRO",
+  description: "Система управления проектами и сметами",
+  applicationName: "Стройка PRO",
   appleWebApp: {
     capable: true,
-    title: "Proстройка",
+    title: "Стройка PRO",
     statusBarStyle: "default",
   },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },

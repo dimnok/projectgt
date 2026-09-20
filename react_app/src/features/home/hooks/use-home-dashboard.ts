@@ -8,6 +8,7 @@ import {
   ClockIcon,
   ContactIcon,
   HandshakeIcon,
+  HardDriveIcon,
   ListOrderedIcon,
   UsersIcon,
   WrenchIcon,
@@ -18,11 +19,14 @@ import { useEmployees } from "@/features/employees/hooks/use-employees";
 import { useObjects } from "@/features/objects/hooks/use-objects";
 import { useCurrentProfile } from "@/features/profile/hooks/use-current-profile";
 import { profileDisplayName } from "@/features/profile/utils/profile.utils";
+import { scopeHomeObjects } from "@/features/home/utils/scope-home-objects";
 import {
   monthWorkHoursQueryKey,
   monthWorksQueryKey,
   useMonthWorkHourTotals,
   useMonthWorks,
+  useWorkAccessScope,
+  workAccessScopeQueryKey,
 } from "@/features/works/hooks/use-works";
 import {
   currentMonthKey,
@@ -90,9 +94,13 @@ export function useHomeDashboard(): HomeDashboardState {
   const minOutputPerPersonHour =
     profile?.activeMembership?.minOutputPerPersonHour ?? null;
 
-  // Objects query
+  // Objects query — same scope as chart shifts (profile objects, unless owner/super-admin)
   const objectsQuery = useObjects();
-  const allObjects = useMemo(() => objectsQuery.data ?? [], [objectsQuery.data]);
+  const accessScopeQuery = useWorkAccessScope();
+  const allObjects = useMemo(
+    () => scopeHomeObjects(objectsQuery.data ?? [], accessScopeQuery.data),
+    [objectsQuery.data, accessScopeQuery.data]
+  );
   const activeObjects = useMemo(
     () => allObjects.filter((o) => o.status === "active"),
     [allObjects]
@@ -185,7 +193,17 @@ export function useHomeDashboard(): HomeDashboardState {
 
   // Nav modules according to permissions
   const navModules: HomeNavModule[] = useMemo(() => {
-    const list: HomeNavModule[] = [];
+    const list: HomeNavModule[] = [
+      {
+        id: "gt-disk",
+        title: "ГТ Диск",
+        description: "Файлы компании по объектам: положить, найти, открыть",
+        href: "/gt-disk",
+        icon: HardDriveIcon,
+        badgeText: "макет",
+        badgeVariant: "outline",
+      },
+    ];
 
     if (canReadWorks) {
       list.push({
@@ -292,12 +310,14 @@ export function useHomeDashboard(): HomeDashboardState {
     isPermLoading ||
     (canReadWorks && worksQuery.isLoading) ||
     (canReadWorks && monthWorkIds.length > 0 && hoursQuery.isLoading) ||
-    (canReadObjects && objectsQuery.isLoading);
+    objectsQuery.isLoading ||
+    accessScopeQuery.isLoading;
 
   const isRefetching =
     worksQuery.isRefetching ||
     hoursQuery.isRefetching ||
     objectsQuery.isRefetching ||
+    accessScopeQuery.isRefetching ||
     employeesQuery.isRefetching ||
     contractsQuery.isRefetching;
 
@@ -310,6 +330,7 @@ export function useHomeDashboard(): HomeDashboardState {
         queryKey: monthWorkHoursQueryKey(monthKey),
       }),
       queryClient.invalidateQueries({ queryKey: ["objects"] }),
+      queryClient.invalidateQueries({ queryKey: workAccessScopeQueryKey }),
       queryClient.invalidateQueries({ queryKey: ["employees"] }),
       queryClient.invalidateQueries({ queryKey: ["contracts"] }),
     ]);

@@ -29,19 +29,31 @@ import { usePermissions } from "@/hooks/use-permissions";
 type TabItem = {
   value: string;
   label: string;
+  shortLabel: string;
   icon: LucideIcon;
 };
 
 const BASE_EMPLOYEE_TABS: readonly TabItem[] = [
-  { value: "overview", label: "Обзор", icon: UserCheckIcon },
-  { value: "timesheet", label: "Табель", icon: CalendarCheckIcon },
-  { value: "tmc", label: "ТМЦ", icon: BoxesIcon },
-  { value: "applications", label: "Заявления", icon: FileTextIcon },
+  { value: "overview", label: "Обзор", shortLabel: "Обзор", icon: UserCheckIcon },
+  {
+    value: "timesheet",
+    label: "Табель",
+    shortLabel: "Табель",
+    icon: CalendarCheckIcon,
+  },
+  { value: "tmc", label: "ТМЦ", shortLabel: "ТМЦ", icon: BoxesIcon },
+  {
+    value: "applications",
+    label: "Заявления",
+    shortLabel: "Заяв.",
+    icon: FileTextIcon,
+  },
 ];
 
 const FINANCES_TAB: TabItem = {
   value: "finances",
   label: "Финансы",
+  shortLabel: "₽",
   icon: WalletIcon,
 };
 
@@ -50,6 +62,7 @@ type EmployeeDetailsTabsProps = {
   objects: EmployeeObjectOption[];
   objectNamesById: Map<string, string>;
   canUpdate: boolean;
+  layout?: "dialog" | "page";
 };
 
 export function EmployeeDetailsTabs({
@@ -57,9 +70,11 @@ export function EmployeeDetailsTabs({
   objects,
   objectNamesById,
   canUpdate,
+  layout = "dialog",
 }: EmployeeDetailsTabsProps) {
   const { isOwner, can } = usePermissions();
   const canViewFinances = isOwner || can("payroll", "read") || can("employees", "update");
+  const isPage = layout === "page";
 
   const tabs = canViewFinances
     ? [...BASE_EMPLOYEE_TABS, FINANCES_TAB]
@@ -71,22 +86,51 @@ export function EmployeeDetailsTabs({
       defaultValue="overview"
       className="flex min-h-0 flex-1 flex-col gap-0"
     >
-      <div className="shrink-0 border-b border-border/60 bg-muted/25 px-6 pb-5">
-        <TabsList variant="pills" className="h-10">
+      <div
+        className={
+          isPage
+            ? "shrink-0 bg-background px-4 pt-3 pb-3"
+            : "shrink-0 border-b border-border/60 bg-muted/25 px-6 pb-5"
+        }
+      >
+        <TabsList variant="pills" className={isPage ? "h-10 w-full" : "h-10"}>
           <TabsIndicator />
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                <Icon className="size-4" />
-                <span className="truncate">{tab.label}</span>
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                aria-label={tab.label}
+                className={
+                  isPage
+                    ? "group/tab gap-1 px-2"
+                    : undefined
+                }
+              >
+                <Icon />
+                <span
+                  className={
+                    isPage
+                      ? "hidden min-w-0 truncate group-data-active/tab:inline"
+                      : "truncate"
+                  }
+                >
+                  {isPage ? tab.shortLabel : tab.label}
+                </span>
               </TabsTrigger>
             );
           })}
         </TabsList>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div
+        className={
+          isPage
+            ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
+            : "min-h-0 flex-1 overflow-y-auto px-6 py-5"
+        }
+      >
         <TabsContent value="overview">
           <EmployeeDetails
             employee={employee}

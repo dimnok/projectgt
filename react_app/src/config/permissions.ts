@@ -36,6 +36,7 @@ const CRUD = ["read", "create", "update", "delete"] as const;
  * Source: app_modules + Flutter matrix, without unused grey cells.
  */
 export const MODULE_PERMISSION_ACTIONS: Record<string, readonly string[]> = {
+  chat: ["read", "create", "delete"],
   company: ["read", "update"],
   employees: ["read", "create", "update", "delete", "export"],
   materials: ["read", "update", "export", "import"],

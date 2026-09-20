@@ -35,9 +35,14 @@ const BODY_FONT = "400 14px Inter, ui-sans-serif, system-ui, sans-serif";
 type WorkJournalTableProps = {
   page: WorkJournalPage;
   onDateClick: (row: WorkJournalRow) => void;
+  onNameShiftClick: (name: string) => void;
 };
 
-export function WorkJournalTable({ page, onDateClick }: WorkJournalTableProps) {
+export function WorkJournalTable({
+  page,
+  onDateClick,
+  onNameShiftClick,
+}: WorkJournalTableProps) {
   const { visibleColumns } = useWorkJournalTableLayout();
   const footerQuantity = formatQuantity(page.totalQuantity);
   const footerTotal = formatCurrency(page.totalSum);
@@ -120,7 +125,7 @@ export function WorkJournalTable({ page, onDateClick }: WorkJournalTableProps) {
                         : "truncate"
                     )}
                   >
-                    {renderCell(column.id, row, onDateClick)}
+                    {renderCell(column.id, row, onDateClick, onNameShiftClick)}
                   </span>
                 </TableCell>
               ))}
@@ -248,7 +253,8 @@ function cellPlainText(row: WorkJournalRow, columnId: WorkJournalColumnId): stri
 function renderCell(
   columnId: WorkJournalColumnId,
   row: WorkJournalRow,
-  onDateClick: (row: WorkJournalRow) => void
+  onDateClick: (row: WorkJournalRow) => void,
+  onNameShiftClick: (name: string) => void
 ): ReactNode {
   switch (columnId) {
     case "date":
@@ -271,7 +277,28 @@ function renderCell(
     case "floor":
       return row.floor || "—";
     case "name":
-      return row.workName || "—";
+      return (
+        <button
+          type="button"
+          className="cursor-pointer text-left whitespace-normal break-words underline-offset-2 hover:underline"
+          title="Shift + клик — найти это наименование"
+          aria-label={`Найти работы «${row.workName}». Зажмите Shift и нажмите.`}
+          onMouseDown={(event) => {
+            if (event.shiftKey) {
+              event.preventDefault();
+            }
+          }}
+          onClick={(event) => {
+            if (!event.shiftKey || !row.workName.trim()) {
+              return;
+            }
+            event.preventDefault();
+            onNameShiftClick(row.workName);
+          }}
+        >
+          {row.workName || "—"}
+        </button>
+      );
     case "unit":
       return row.unit || "—";
     case "quantity":

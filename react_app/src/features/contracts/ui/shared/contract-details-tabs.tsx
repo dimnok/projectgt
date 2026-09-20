@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import type { Contract } from "@/features/contracts/types/contract.types";
 import { ContractDetails } from "@/features/contracts/ui/shared/contract-details";
 import { ContractEstimatesTab } from "@/features/contracts/ui/shared/contract-estimates-tab";
+import { ContractSettlementsTab } from "@/features/settlements/ui/shared/contract-settlements-tab";
 import { cn } from "@/lib/utils";
 
 type TabItem = {
@@ -173,7 +174,7 @@ export function ContractDetailsTabs({
       <div
         className={cn(
           "relative min-h-0 flex-1 rounded-b-xl border border-border/70 bg-popover",
-          activeTab === "estimates"
+          activeTab === "estimates" || activeTab === "finances"
             ? "p-0 flex flex-col overflow-hidden"
             : "p-5 overflow-y-auto"
         )}
@@ -189,7 +190,7 @@ export function ContractDetailsTabs({
               aria-labelledby={`contract-tab-${tab.value}`}
               className={cn(
                 "outline-none",
-                tab.value === "estimates" &&
+                (tab.value === "estimates" || tab.value === "finances") &&
                   "flex min-h-0 flex-1 flex-col h-full overflow-hidden"
               )}
             >
@@ -203,6 +204,8 @@ export function ContractDetailsTabs({
                 />
               ) : tab.value === "estimates" ? (
                 <ContractEstimatesTab contract={contract} />
+              ) : tab.value === "finances" ? (
+                <ContractSettlementsTab contract={contract} />
               ) : (
                 <EmptyState
                   title={tab.label}

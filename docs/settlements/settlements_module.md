@@ -194,6 +194,8 @@
 | Контрагент / Объект / Договор | каскадная связь |
 | Тип / Оплата | enum; объединены в одну кнопку «Фильтры» |
 
+Это фильтрация приложения (Flutter). Веб-реестр (`react_app`) фильтрует и ищет на сервере: `get_settlements_page` и `get_settlements_summary` считают всё в базе, лимита на число совпадений по справочникам нет.
+
 Опции выпадающих списков — `SettlementsFilterOptionsBuilder` из загруженных операций.  
 UI фильтров — `MenuAnchor` (как в модуле «Табель»): иконки, заголовки секций, галочки, прокрутка длинных списков.
 
@@ -338,7 +340,9 @@ test/features/settlements/
 | `type` | TEXT | MIME-тип |
 | `description` | TEXT | Необязательное описание |
 | `created_at` | TIMESTAMPTZ | |
-| `created_by` | UUID | FK → `auth.users` |
+| `created_by` | UUID | FK → `auth.users`; по умолчанию `auth.uid()` |
+
+**Автор записи** (`created_by`) во всех трёх таблицах проставляет база значением по умолчанию `auth.uid()` — клиент его не присылает (миграция `20260920180000_settlement_created_by_default.sql`).
 
 **Индексы:** `(settlement_operation_id, created_at DESC)`, `(company_id)`.
 
@@ -358,11 +362,11 @@ test/features/settlements/
 | `is_vat_included`, `vat_rate` | BOOL, NUMERIC | Режим НДС |
 | `advance_retention`, `warranty_retention` | NUMERIC | Удержания (в UI не редактируются) |
 | `total_to_pay` | NUMERIC | GENERATED STORED |
-| `paid_amount`, `payment_status` | NUMERIC, TEXT | Триггеры из оплат |
+| `paid_amount`, `payment_status` | NUMERIC, TEXT | Триггеры из оплат; веб показывает статус как есть, сам не пересчитывает |
 | `period_from/to`, `act_date`, `purpose` | — | В UI не редактируются |
 | `note` | TEXT | Примечание |
 
-**Индексы:** `(company_id)`, `(contract_id, invoice_date DESC)`, `(company_id, payment_status)`, `(company_id, operation_type)`.
+**Индексы:** `(company_id)`, `(company_id, invoice_date DESC, id)` — порядок реестра (миграция `20260920160000_settlement_list_index.sql`), `(contract_id, invoice_date DESC)`, `(company_id, payment_status)`, `(company_id, operation_type)`, UNIQUE `(company_id, contract_id, invoice_number)` WHERE `btrim(invoice_number) <> ''` — `settlement_operations_invoice_number_unique` (миграция `20260920120000_settlement_invoice_number_unique.sql`).
 
 ### `settlement_payments`
 
@@ -390,6 +394,11 @@ test/features/settlements/
 |---------|------------|
 | `get_next_settlement_invoice_number(company_id, contract_id)` | Подсказка следующего номера: max завершающей цифровой группы + 1 |
 | `process_bank_statement_entry` | Создание ДДС + оплаты (параметр `p_settlement_operation_id`) |
+| `settlement_operations_filtered(...)` | Счета компании под фильтры реестра и поиск — основание для двух функций ниже (веб) |
+| `get_settlements_summary(...)` | Итоги реестра: количество, суммы, долг, разбивка по статусам — одним запросом (веб) |
+| `get_settlements_page(...)` | Страница реестра: строки, общее число, поиск и сортировка (веб) |
+
+Функции реестра объявлены `SECURITY INVOKER` с `search_path = ''`: права и изоляция компаний работают как при обычной выборке. Поиск — подстрока без шаблонов (`strpos` вместо `ilike`), поэтому `%` и `_` в запросе не служебные. Миграция `20260920140000_settlement_list_rpc.sql`.
 
 ### RLS-права
 
@@ -424,7 +433,7 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 
 Примеры: `сч-13` → `сч-14`; при `сч-13` и `217-20` → `217-21`.
 
-**Ограничение:** подсказка, не резервирование. Параллельное создание с одним номером возможно (UNIQUE на `invoice_number` нет).
+**Ограничение:** подсказка, не резервирование. Сам дубль блокирует база — уникальный индекс `settlement_operations_invoice_number_unique` на `(company_id, contract_id, invoice_number)` (пустые номера в индекс не входят). Ошибка `23505`, веб переводит её в текст «Счёт с номером «…» уже есть по этому договору».
 
 ### Сценарии
 
@@ -470,12 +479,13 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - RPC автономера счёта
 - Тесты: статус оплаты, нумерация
 - Рефакторинг DRY: общие хелперы в `core/utils`, унифицированный chip-фильтр, явные колонки в выборках оплат, удалён dead code (`computeSettlementTotalToPay`), исправлен `BuildContext` после `await`
+- **UNIQUE на `(company_id, contract_id, invoice_number)`** (миграция `20260920120000_settlement_invoice_number_unique.sql`); веб показывает понятный текст вместо технической ошибки базы
 
 ### Планы
 
 - 🟡 Мобильные фильтры реестра (контрагент, объект, тип, статус)
 - 🟡 Серверные фильтры и пагинация реестра (эталон — Cash Flow)
-- 🟡 UNIQUE на `(company_id, contract_id, invoice_number)` + обработка конфликта
+- 🟡 Обработка конфликта номера в приложении (Flutter): сейчас база вернёт ошибку `23505` без понятного текста
 - 🟡 UI для удержаний, периода, назначения
 - 🟢 Иконка «есть вложения» в реестре счетов
 
@@ -484,6 +494,6 @@ total_to_pay = max(0, amount + vat_amount - advance_retention - warranty_retenti
 - Файлы прикрепляются только после создания счёта (нужен `id` операции).
 - Для PDF обязательны: ИНН и название компании, банковский счёт, ИНН и название контрагента.
 - Реестр загружает все счета компании; фильтрация на клиенте; лимит PostgREST ~1000 строк.
-- Дубликаты номеров счёта при одновременном создании не блокируются.
+- Дубликаты номеров счёта блокирует база (уникальный индекс). Веб объясняет причину текстом; приложение (Flutter) покажет техническую ошибку.
 - `contract_acts.payment_status` не связан с Settlements.
 - Итог «Остаток» в таблице — сумма положительных долгов (`totalDebt`).

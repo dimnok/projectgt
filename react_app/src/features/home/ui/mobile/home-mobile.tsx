@@ -65,7 +65,7 @@ export function HomeMobile() {
     >
       {/* Mobile App Bar */}
       <MobileAppBar
-        title="Proстройка"
+        title="Стройка PRO"
         trailing={
           <Button
             type="button"

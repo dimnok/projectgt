@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import {
   DownloadIcon,
+  EllipsisIcon,
   EyeIcon,
   PlusIcon,
   Trash2Icon,
@@ -11,6 +12,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  MobileSheet,
+  MobileSheetBody,
+  MobileSheetChrome,
+} from "@/components/shared/mobile-sheet-chrome";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,6 +50,8 @@ type EmployeeAvatarManagerProps = {
   canUpdate: boolean;
   onPhotoChanged?: (newPhotoUrl: string | null) => void;
   className?: string;
+  /** `toolbar` — кнопки под фото (компьютер). `sheet` — только снимок, действия в меню. */
+  actions?: "toolbar" | "sheet";
 };
 
 export function EmployeeAvatarManager({
@@ -51,10 +59,14 @@ export function EmployeeAvatarManager({
   canUpdate,
   onPhotoChanged,
   className,
+  actions = "toolbar",
 }: EmployeeAvatarManagerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ignoreClickRef = useRef(false);
+  const pressTimerRef = useRef<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
 
   const uploadPhotoMutation = useUploadEmployeePhoto();
   const deletePhotoMutation = useDeleteEmployeePhoto();
@@ -130,6 +142,10 @@ export function EmployeeAvatarManager({
   };
 
   const handlePhotoClick = () => {
+    if (ignoreClickRef.current) {
+      ignoreClickRef.current = false;
+      return;
+    }
     if (isBusy) return;
     if (hasPhoto) {
       setIsPreviewOpen(true);
@@ -137,6 +153,31 @@ export function EmployeeAvatarManager({
       handleTriggerUpload();
     }
   };
+
+  const isSheet = actions === "sheet";
+  const canOpenActions = isSheet && (hasPhoto || canUpdate);
+
+  function clearPressTimer() {
+    if (pressTimerRef.current !== null) {
+      window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  }
+
+  function openActions(
+    event?: { preventDefault: () => void; stopPropagation: () => void },
+    preventClick = true
+  ) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (!canOpenActions || isBusy) {
+      return;
+    }
+    if (preventClick) {
+      ignoreClickRef.current = true;
+    }
+    setIsActionsOpen(true);
+  }
 
   return (
     <div className={cn("flex flex-col items-center gap-2.5 sm:items-start", className)}>
@@ -150,10 +191,29 @@ export function EmployeeAvatarManager({
       />
 
       {/* Фото-карточка сотрудника */}
+      <div className="relative size-28 shrink-0 sm:size-32">
       <div
         role={hasPhoto || canUpdate ? "button" : undefined}
         tabIndex={hasPhoto || canUpdate ? 0 : undefined}
         onClick={handlePhotoClick}
+        onContextMenu={(event) => {
+          if (!isSheet) {
+            return;
+          }
+          openActions(event);
+        }}
+        onPointerDown={() => {
+          if (!canOpenActions || isBusy) {
+            return;
+          }
+          clearPressTimer();
+          pressTimerRef.current = window.setTimeout(() => {
+            openActions();
+          }, 450);
+        }}
+        onPointerUp={clearPressTimer}
+        onPointerCancel={clearPressTimer}
+        onPointerLeave={clearPressTimer}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -161,7 +221,7 @@ export function EmployeeAvatarManager({
           }
         }}
         className={cn(
-          "relative size-28 sm:size-32 shrink-0 overflow-hidden rounded-2xl border border-border/80 bg-muted/40 shadow-xs select-none transition-all",
+          "relative size-full overflow-hidden rounded-2xl border border-border/80 bg-muted/40 shadow-xs select-none transition-all",
           hasPhoto &&
             "cursor-pointer hover:border-primary/50 hover:shadow-sm",
           !hasPhoto &&
@@ -201,8 +261,21 @@ export function EmployeeAvatarManager({
           </div>
         ) : null}
       </div>
+        {hasPhoto && canOpenActions && !isBusy ? (
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="secondary"
+            className="absolute right-1.5 bottom-1.5 z-10 size-7 rounded-full bg-background/85 text-foreground shadow-xs backdrop-blur-xs"
+            aria-label="Действия с фото"
+            onClick={() => openActions(undefined, false)}
+          >
+            <EllipsisIcon />
+          </Button>
+        ) : null}
+      </div>
 
-      {/* Панель управляющих кнопок под фото */}
+      {isSheet ? null : (
       <div className="flex items-center gap-1">
         {hasPhoto ? (
           <>
@@ -298,6 +371,83 @@ export function EmployeeAvatarManager({
           </Button>
         ) : null}
       </div>
+      )}
+
+      {isSheet ? (
+        <MobileSheet open={isActionsOpen} onOpenChange={setIsActionsOpen}>
+          <MobileSheetChrome
+            title="Фото"
+            description="Действия с фотографией сотрудника"
+            confirmLabel="Готово"
+            confirmShowLabelWhenEnabled
+            onConfirm={() => setIsActionsOpen(false)}
+          />
+          <MobileSheetBody>
+            {hasPhoto ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full justify-start"
+                onClick={() => {
+                  setIsActionsOpen(false);
+                  setIsPreviewOpen(true);
+                }}
+              >
+                <EyeIcon data-icon="inline-start" />
+                Открыть
+              </Button>
+            ) : null}
+            {hasPhoto ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full justify-start"
+                onClick={() => {
+                  setIsActionsOpen(false);
+                  void handleDownload();
+                }}
+              >
+                <DownloadIcon data-icon="inline-start" />
+                Скачать
+              </Button>
+            ) : null}
+            {canUpdate ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full justify-start"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsActionsOpen(false);
+                  handleTriggerUpload();
+                }}
+              >
+                {hasPhoto ? (
+                  <UploadIcon data-icon="inline-start" />
+                ) : (
+                  <PlusIcon data-icon="inline-start" />
+                )}
+                {hasPhoto ? "Заменить" : "Добавить фото"}
+              </Button>
+            ) : null}
+            {hasPhoto && canUpdate ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full justify-start text-destructive hover:text-destructive"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsActionsOpen(false);
+                  setIsDeleteConfirmOpen(true);
+                }}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Удалить фото
+              </Button>
+            ) : null}
+          </MobileSheetBody>
+        </MobileSheet>
+      ) : null}
 
       {/* Модальное окно полноразмерного просмотра фото */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>

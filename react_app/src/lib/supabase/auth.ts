@@ -15,7 +15,7 @@ export async function requestPhoneOtp(phone: string) {
   });
 
   if (error) {
-    throw new Error(error.message || "Не удалось отправить код");
+    throw new Error(otpRequestErrorMessage(error.message));
   }
 
   return phoneE164;
@@ -42,7 +42,7 @@ export async function verifyPhoneOtp(phone: string, code: string) {
   });
 
   if (error) {
-    throw new Error("Неверный или просроченный код");
+    throw new Error(otpVerifyErrorMessage(error.message));
   }
 
   if (!data.session) {
@@ -65,4 +65,37 @@ export async function signOut() {
   if (error) {
     throw new Error("Не удалось выйти");
   }
+}
+
+function otpRequestErrorMessage(message: string): string {
+  const text = message.toLowerCase();
+  if (text.includes("rate") || text.includes("too many") || text.includes("security")) {
+    return "Слишком много попыток. Попробуйте позже.";
+  }
+  if (text.includes("network") || text.includes("fetch")) {
+    return "Ошибка сети. Проверьте подключение к интернету.";
+  }
+  if (text.includes("phone") && text.includes("invalid")) {
+    return "Введите корректный номер телефона";
+  }
+  return "Не удалось отправить код. Попробуйте позже.";
+}
+
+function otpVerifyErrorMessage(message: string): string {
+  const text = message.toLowerCase();
+  if (
+    text.includes("expired") ||
+    text.includes("invalid") ||
+    text.includes("token") ||
+    text.includes("otp")
+  ) {
+    return "Неверный или просроченный код";
+  }
+  if (text.includes("rate") || text.includes("too many") || text.includes("security")) {
+    return "Слишком много попыток. Попробуйте позже.";
+  }
+  if (text.includes("network") || text.includes("fetch")) {
+    return "Ошибка сети. Проверьте подключение к интернету.";
+  }
+  return "Не удалось подтвердить код. Попробуйте позже.";
 }

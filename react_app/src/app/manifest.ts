@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Proстройка",
-    short_name: "Proстройка",
-    description: "Веб-версия приложения Proстройка",
+    name: "Стройка PRO",
+    short_name: "Стройка PRO",
+    description: "Система управления проектами и сметами",
     start_url: "/works",
     scope: "/",
     display: "standalone",
@@ -27,7 +27,13 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: "/icon-512.png",
+        src: "/icon-maskable-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icon-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

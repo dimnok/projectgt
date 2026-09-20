@@ -13,10 +13,17 @@ import type {
 
 const contractorsQueryKey = ["contractors"] as const;
 
-export function useContractors() {
+/**
+ * Список контрагентов компании.
+ *
+ * `enabled: false` откладывает загрузку — нужно там, где список требуется
+ * только после открытия окна (например, выбор поставщика в счёте).
+ */
+export function useContractors(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: contractorsQueryKey,
     queryFn: getContractors,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -16,9 +16,9 @@ npm run dev
 
 ## Сейчас есть
 
-- Вход по телефону и SMS-коду (тот же аккаунт, что в текущем приложении)
-- Меню слева и верхняя панель. Работают [Главная](./docs/home.md), [Объекты](./docs/objects.md), [Контрагенты](./docs/contractors.md), [Договоры](./docs/contracts.md), [Сметы](./docs/estimates.md), [Сотрудники](./docs/employees.md), [Работы](./docs/works.md), [Журнал работ](./docs/work-journal.md), [Табель](./docs/timesheet.md), [Профиль](./docs/profile.md), [Пользователи](./docs/users.md) и [Роли](./docs/roles.md)
-- На телефоне (PWA): главная, работы, профиль
+- Вход по телефону и SMS-коду, завершение профиля, создание организации или вступление по коду, экран отключённого доступа (тот же аккаунт, что в текущем приложении). [auth.md](./docs/auth.md)
+- Меню слева и верхняя панель. Работают [Главная](./docs/home.md), [ГТ Диск](./docs/gt-disk.md), [ГТ Чат](./docs/gt-chat.md), [Объекты](./docs/objects.md), [Контрагенты](./docs/contractors.md), [Договоры](./docs/contracts.md), [Сметы](./docs/estimates.md), [Сотрудники](./docs/employees.md), [Работы](./docs/works.md), [Журнал работ](./docs/work-journal.md), [Табель](./docs/timesheet.md), [Профиль](./docs/profile.md), [Пользователи](./docs/users.md), [Роли](./docs/roles.md) и [Компания](./docs/company.md)
+- На телефоне (PWA): главная, диск, чат, сотрудники, работы, заявки, компания, профиль
 - Три темы: светлая, тёмная и фирменная. [theme.md](./docs/theme.md)
 
 ## Пока нет

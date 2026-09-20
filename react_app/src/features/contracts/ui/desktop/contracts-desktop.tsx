@@ -164,19 +164,25 @@ export function ContractsDesktop() {
           )}
         </div>
         <aside className="order-first flex min-w-0 w-full flex-col gap-3 lg:sticky lg:top-0 lg:order-2 lg:gap-6 lg:self-start">
-          <ContractsFilters
-            kind={kind}
-            status={status}
-            onKindChange={setKind}
-            onStatusChange={setStatus}
-            canCreate={can("contracts", "create")}
-            onCreate={() => {
-              setSelectedContract(null);
-              setEditorContract(null);
-            }}
-          />
+          <div className="flex min-w-0 flex-col gap-2">
+            <AppSearchField
+              variant="aside"
+              placeholder="Поиск по номеру, объекту, контрагенту..."
+              aria-label="Поиск по договорам"
+            />
+            <ContractsFilters
+              kind={kind}
+              status={status}
+              onKindChange={setKind}
+              onStatusChange={setStatus}
+              canCreate={can("contracts", "create")}
+              onCreate={() => {
+                setSelectedContract(null);
+                setEditorContract(null);
+              }}
+            />
+          </div>
           <ContractsSummary contracts={data ?? []} />
-          <AppSearchField className="lg:hidden" />
         </aside>
       </div>
       <ContractDetailsDialog

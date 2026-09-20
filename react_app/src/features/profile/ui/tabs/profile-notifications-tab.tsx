@@ -388,7 +388,7 @@ export function ProfileNotificationsTab({
             )}
           </div>
           <CardDescription>
-            Бот Proстройка мгновенно информирует руководство и прорабов о статусе
+            Бот Стройка PRO мгновенно информирует руководство и прорабов о статусе
             работ.
           </CardDescription>
         </CardHeader>

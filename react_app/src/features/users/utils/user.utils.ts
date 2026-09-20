@@ -93,5 +93,6 @@ export function countCompanyUsers(users: CompanyUser[]) {
     unlinked: users.filter((user) => !user.employeeId).length,
     inactive: users.filter((user) => !user.isActive).length,
     withoutObjects: users.filter((user) => user.objectIds.length === 0).length,
+    onWeb: users.filter((user) => user.preferWebApp).length,
   };
 }

@@ -27,7 +27,11 @@ import { ProfileAppearance } from "@/features/profile/ui/profile-appearance";
 import { ProfileMobileShell } from "@/features/profile/ui/mobile/profile-mobile-shell";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useStandalone } from "@/hooks/use-standalone";
-import { formatAppBuildLabel, formatAppVersionLabel } from "@/lib/app-version";
+import {
+  formatAppBuildLabel,
+  formatAppBuildTime,
+  formatAppVersionLabel,
+} from "@/lib/app-version";
 import { signOut } from "@/lib/supabase/auth";
 
 function subscribeOnline(callback: () => void) {
@@ -57,6 +61,7 @@ export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
   const { current, hasUpdate, applyUpdate } = useAppUpdate();
   const versionLabel = formatAppVersionLabel(current.version);
   const buildLabel = formatAppBuildLabel(current.buildId);
+  const buildTime = formatAppBuildTime(current.builtAt);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isOnline = useSyncExternalStore(
@@ -97,9 +102,9 @@ export function ProfileSystemMobile({ onBack }: ProfileSystemMobileProps) {
               <Badge variant={hasUpdate ? "warning" : "secondary"}>
                 {versionLabel}
               </Badge>
-              {buildLabel ? (
+              {buildTime || buildLabel ? (
                 <span className="font-mono text-xs text-muted-foreground">
-                  {buildLabel}
+                  {[buildTime, buildLabel].filter(Boolean).join(" · ")}
                 </span>
               ) : null}
             </span>

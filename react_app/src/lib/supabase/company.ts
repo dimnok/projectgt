@@ -1,10 +1,36 @@
 import { getRequiredClient } from "@/lib/supabase/client";
 
 /**
+ * Общий запрос на время выполнения: пока он в полёте, повторные вызовы
+ * получают тот же результат и не дублируют обращения к базе. После
+ * завершения запрос сбрасывается — значение всегда актуальное и не
+ * «залипает» при смене активной компании.
+ */
+let activeCompanyRequest: Promise<string> | null = null;
+
+/**
  * Reads the active company from the signed-in user's profile.
  * Matches Flutter's `activeCompanyIdProvider` (`profiles.last_company_id`).
  */
-export async function getActiveCompanyId(): Promise<string> {
+export function getActiveCompanyId(): Promise<string> {
+  if (activeCompanyRequest) {
+    return activeCompanyRequest;
+  }
+
+  const request = fetchActiveCompanyId();
+  activeCompanyRequest = request;
+  void request.then(
+    () => {
+      activeCompanyRequest = null;
+    },
+    () => {
+      activeCompanyRequest = null;
+    }
+  );
+  return request;
+}
+
+async function fetchActiveCompanyId(): Promise<string> {
   const client = getRequiredClient();
   const {
     data: { user },

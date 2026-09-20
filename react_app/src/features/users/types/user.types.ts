@@ -13,6 +13,7 @@ export type CompanyUser = {
   isOwner: boolean;
   employeeId: string | null;
   objectIds: string[];
+  preferWebApp: boolean;
   linkedEmployee: LinkedEmployee | null;
 };
 

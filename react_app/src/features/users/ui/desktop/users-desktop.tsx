@@ -97,6 +97,7 @@ export function UsersDesktop() {
             canLinkEmployee={canLinkEmployee}
             canAssignObjects={canAssignObjects}
             canAssignRole={canAssignRole}
+            canPreferWebApp={canLinkEmployee}
             onAssign={setEditor}
             onAssignRole={setRoleEditor}
             onAssignObjects={setObjectsEditor}
@@ -104,11 +105,15 @@ export function UsersDesktop() {
         )}
       </div>
 
-      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-0 lg:self-start">
-        <div className="lg:hidden">
-          <AppSearchField />
+      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-0 lg:self-start lg:gap-6">
+        <div className="flex min-w-0 flex-col gap-2">
+          <AppSearchField
+            variant="aside"
+            placeholder="Поиск по имени, почте, телефону..."
+            aria-label="Поиск по пользователям"
+          />
+          <UsersFilters link={link} onLinkChange={setLink} />
         </div>
-        <UsersFilters link={link} onLinkChange={setLink} />
         <UsersSummary users={data ?? []} />
       </div>
 

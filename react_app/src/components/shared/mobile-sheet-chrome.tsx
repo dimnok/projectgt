@@ -172,15 +172,15 @@ export function MobileSheetBody({
     <div
       className={
         nested
-          ? "flex min-h-0 shrink flex-col overflow-hidden px-4 pt-1 pb-3"
-          : "min-h-0 shrink overflow-y-auto overscroll-contain px-4 pt-1 pb-3"
+          ? "flex min-h-0 min-w-0 shrink flex-col overflow-hidden px-4 pt-1 pb-3"
+          : "min-h-0 min-w-0 shrink overflow-y-auto overscroll-contain px-4 pt-1 pb-3"
       }
     >
       <div
         className={
           nested
-            ? "flex min-h-0 flex-col gap-3"
-            : "flex flex-col gap-3"
+            ? "flex min-h-0 min-w-0 flex-col gap-3"
+            : "flex min-w-0 flex-col gap-3"
         }
       >
         {children}

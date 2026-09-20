@@ -51,17 +51,22 @@ import { MobileAppBar } from "@/layouts/mobile/mobile-app-bar";
 
 type WorkDetailsMobileProps = {
   work: Work;
+  tab?: string;
+  onTabChange?: (tab: string) => void;
   onBack: () => void;
   onDeleted: () => void;
 };
 
 export function WorkDetailsMobile({
   work,
+  tab: tabProp,
+  onTabChange,
   onBack,
   onDeleted,
 }: WorkDetailsMobileProps) {
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState("data");
+  const [internalTab, setInternalTab] = useState("data");
+  const tab = tabProp ?? internalTab;
   const [placeFilter, setPlaceFilter] = useState<WorkItemPlaceFilter>({
     system: null,
     section: null,
@@ -116,7 +121,10 @@ export function WorkDetailsMobile({
   const deleteWorkMutation = useDeleteWork();
 
   function handleTabChange(value: string) {
-    setTab(value);
+    onTabChange?.(value);
+    if (tabProp === undefined) {
+      setInternalTab(value);
+    }
     if (value !== "items") {
       setAddOpen(false);
     }
@@ -194,7 +202,7 @@ export function WorkDetailsMobile({
             </p>
           </div>
           <div className="flex flex-col gap-2 px-4 pb-3">
-            <TabsList variant="pills" className="h-10 w-full">
+            <TabsList variant="pills" className="h-10 w-full" data-tour="works-tabs">
               <TabsIndicator />
               {tabs.map((item) => {
                 const Icon = item.icon;
@@ -203,6 +211,13 @@ export function WorkDetailsMobile({
                     key={item.value}
                     value={item.value}
                     className="gap-1 px-2 text-[11px]"
+                    data-tour={
+                      item.value === "items"
+                        ? "works-tab-items"
+                        : item.value === "hours"
+                          ? "works-tab-hours"
+                          : "works-tab-overview"
+                    }
                   >
                     <Icon className="size-3.5" />
                     <span>{item.label}</span>
@@ -255,6 +270,7 @@ export function WorkDetailsMobile({
                       type="button"
                       size="icon"
                       aria-label="Добавить работы"
+                      data-tour="works-add-item"
                       onClick={() => setAddOpen(true)}
                     >
                       <PlusIcon />
@@ -279,6 +295,7 @@ export function WorkDetailsMobile({
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabsContent
             value="data"
+            data-tour="works-overview"
             className="mt-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] outline-none"
           >
             <WorkDataTab

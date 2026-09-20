@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getMonthHeaders } from "@/features/works/api/get-month-headers";
+import { getWorkAccessScope } from "@/features/works/api/get-work-membership";
 import { getMonthWorks, getWork } from "@/features/works/api/get-month-works";
 import { getWorkHours, getWorkHoursTotalsByWorkIds } from "@/features/works/api/get-work-hours";
 import { getWorkItems } from "@/features/works/api/get-work-items";
@@ -30,6 +31,19 @@ export const workItemsQueryKey = (workId: string) =>
 
 export const workHoursQueryKey = (workId: string) =>
   ["works", "hours", workId] as const;
+
+export const workAccessScopeQueryKey = ["works", "access-scope"] as const;
+
+/**
+ * Same object access as month shifts: owner / super-admin see all objects,
+ * other users only `profiles.object_ids`.
+ */
+export function useWorkAccessScope() {
+  return useQuery({
+    queryKey: workAccessScopeQueryKey,
+    queryFn: getWorkAccessScope,
+  });
+}
 
 export function useMonthHeaders(openedBy?: string) {
   return useQuery({

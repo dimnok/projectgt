@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { TrendingUpIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,6 +137,16 @@ export function HomeAnalyticsChart({
   const hasNorm =
     minOutputPerPersonHour !== null && minOutputPerPersonHour > 0;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedObjectId === "all") {
+      return;
+    }
+    const stillVisible = activeObjects.some((object) => object.id === selectedObjectId);
+    if (!stillVisible) {
+      setSelectedObjectId("all");
+    }
+  }, [activeObjects, selectedObjectId]);
 
   const filteredWorks = useMemo(() => {
     if (selectedObjectId === "all") return works;

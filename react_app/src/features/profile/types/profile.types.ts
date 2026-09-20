@@ -34,6 +34,8 @@ export type CurrentProfile = {
   photoUrl: string | null;
   email: string;
   phone: string;
+  /** `profiles.status`: false — доступ временно отключён. */
+  status: boolean;
   employeeId: string | null;
   position: string | null;
   linkedEmployee: LinkedEmployee | null;

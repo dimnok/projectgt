@@ -15,6 +15,10 @@ import {
   updateUserObjects,
   type UpdateUserObjectsInput,
 } from "@/features/users/api/update-user-objects";
+import {
+  updateUserPreferWebApp,
+  type UpdateUserPreferWebAppInput,
+} from "@/features/users/api/update-user-prefer-web-app";
 
 export { companyUsersQueryKey };
 
@@ -26,6 +30,21 @@ export function useCompanyUsers() {
     queryKey: companyUsersQueryKey,
     queryFn: getCompanyUsers,
     enabled: Boolean(profile && isReady && can("users", "read")),
+  });
+}
+
+export function useUpdateUserPreferWebApp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateUserPreferWebAppInput) =>
+      updateUserPreferWebApp(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: companyUsersQueryKey }),
+        queryClient.invalidateQueries({ queryKey: currentProfileQueryKey }),
+      ]);
+    },
   });
 }
 

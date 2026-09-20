@@ -12,6 +12,18 @@ import type { CompanyUser } from "@/features/users/types/user.types";
 
 export const companyUsersQueryKey = ["company-users"] as const;
 
+type ProfileQueryRow = {
+  id: string;
+  full_name: string | null;
+  short_name: string | null;
+  photo_url: string | null;
+  email: string | null;
+  phone: string | null;
+  employee_id: string | null;
+  object_ids: string[] | null;
+  prefer_web_app: boolean | null;
+};
+
 type MemberQueryRow = {
   user_id: string;
   system_role: string | null;
@@ -19,28 +31,7 @@ type MemberQueryRow = {
   is_active: boolean | null;
   is_owner: boolean | null;
   roles: { role_name: string | null } | { role_name: string | null }[] | null;
-  profiles:
-    | {
-        id: string;
-        full_name: string | null;
-        short_name: string | null;
-        photo_url: string | null;
-        email: string | null;
-        phone: string | null;
-        employee_id: string | null;
-        object_ids: string[] | null;
-      }
-    | {
-        id: string;
-        full_name: string | null;
-        short_name: string | null;
-        photo_url: string | null;
-        email: string | null;
-        phone: string | null;
-        employee_id: string | null;
-        object_ids: string[] | null;
-      }[]
-    | null;
+  profiles: ProfileQueryRow | ProfileQueryRow[] | null;
 };
 
 type EmployeeQueryRow = {
@@ -83,7 +74,7 @@ export async function getCompanyUsers(): Promise<CompanyUser[]> {
   const membersResult = await client
     .from("company_members")
     .select(
-      "user_id, system_role, role_id, is_active, is_owner, roles(role_name), profiles(id, full_name, short_name, photo_url, email, phone, employee_id, object_ids)"
+      "user_id, system_role, role_id, is_active, is_owner, roles(role_name), profiles(id, full_name, short_name, photo_url, email, phone, employee_id, object_ids, prefer_web_app)"
     )
     .eq("company_id", companyId);
 
@@ -156,6 +147,7 @@ export async function getCompanyUsers(): Promise<CompanyUser[]> {
               (id): id is string => typeof id === "string" && id.length > 0
             )
           : [],
+        preferWebApp: asBoolean(profile.prefer_web_app, false),
         linkedEmployee: employeeId ? employeesById.get(employeeId) ?? null : null,
       } satisfies CompanyUser;
     })

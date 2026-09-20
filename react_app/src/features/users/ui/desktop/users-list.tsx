@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CompanyUser } from "@/features/users/types/user.types";
+import { UserPreferWebSwitch } from "@/features/users/ui/shared/user-prefer-web-switch";
 import {
   userDisplayName,
   userInitials,
@@ -29,6 +30,7 @@ type UsersListProps = {
   canLinkEmployee: boolean;
   canAssignObjects: boolean;
   canAssignRole: boolean;
+  canPreferWebApp: boolean;
   onAssign: (user: CompanyUser) => void;
   onAssignRole: (user: CompanyUser) => void;
   onAssignObjects: (user: CompanyUser) => void;
@@ -65,6 +67,7 @@ export function UsersList({
   canLinkEmployee,
   canAssignObjects,
   canAssignRole,
+  canPreferWebApp,
   onAssign,
   onAssignRole,
   onAssignObjects,
@@ -80,6 +83,7 @@ export function UsersList({
             <TableHead>Статус</TableHead>
             <TableHead>Карточка сотрудника</TableHead>
             <TableHead>Объекты</TableHead>
+            <TableHead className="text-right">Новая версия</TableHead>
             <TableHead className="text-right">Действие</TableHead>
           </TableRow>
         </TableHeader>
@@ -136,6 +140,12 @@ export function UsersList({
                 </TableCell>
                 <TableCell>
                   <ObjectsCell objectIds={user.objectIds} objects={objects} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <UserPreferWebSwitch
+                    user={user}
+                    canToggle={canPreferWebApp}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex flex-wrap justify-end gap-1.5">

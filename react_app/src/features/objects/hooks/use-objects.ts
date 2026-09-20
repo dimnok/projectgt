@@ -10,10 +10,11 @@ import type { ObjectDraft, SiteObject } from "@/features/objects/types/object.ty
 
 const objectsQueryKey = ["objects"] as const;
 
-export function useObjects() {
+export function useObjects(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: objectsQueryKey,
     queryFn: getObjects,
+    enabled: options?.enabled ?? true,
   });
 }
 

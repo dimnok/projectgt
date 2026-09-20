@@ -31,6 +31,7 @@ export async function GET() {
       process.env.NODE_ENV === "production"
         ? await readDeployedBuildId()
         : fromEnv,
+    builtAt: process.env.NEXT_PUBLIC_BUILD_TIME ?? "",
   };
 
   return NextResponse.json(payload, {

@@ -130,14 +130,20 @@ export function ObjectsDesktop() {
           )}
         </div>
         <aside className="order-first flex min-w-0 w-full flex-col gap-3 lg:sticky lg:top-0 lg:order-2 lg:gap-6 lg:self-start">
-          <ObjectsFilters
-            status={status}
-            onStatusChange={setStatus}
-            canCreate={can("objects", "create")}
-            onCreate={() => setEditorObject(null)}
-          />
+          <div className="flex min-w-0 flex-col gap-2">
+            <AppSearchField
+              variant="aside"
+              placeholder="Поиск по названию, адресу..."
+              aria-label="Поиск по объектам"
+            />
+            <ObjectsFilters
+              status={status}
+              onStatusChange={setStatus}
+              canCreate={can("objects", "create")}
+              onCreate={() => setEditorObject(null)}
+            />
+          </div>
           <ObjectsSummary objects={data ?? []} />
-          <AppSearchField className="lg:hidden" />
         </aside>
       </div>
       <ObjectFormDialog

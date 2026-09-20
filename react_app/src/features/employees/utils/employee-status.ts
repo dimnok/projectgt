@@ -16,6 +16,11 @@ const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
   fired: "Уволен",
 };
 
+const EMPLOYEE_STATUS_SHORT_LABELS: Record<EmployeeStatus, string> = {
+  ...EMPLOYEE_STATUS_LABELS,
+  unpaidLeave: "Б/С",
+};
+
 export const EMPLOYEE_STATUS_OPTIONS = EMPLOYEE_STATUSES.map((value) => ({
   value,
   label: EMPLOYEE_STATUS_LABELS[value],
@@ -25,6 +30,12 @@ export function isEmployeeStatus(value: unknown): value is EmployeeStatus {
   return EMPLOYEE_STATUSES.includes(value as EmployeeStatus);
 }
 
-export function employeeStatusLabel(status: EmployeeStatus): string {
+export function employeeStatusLabel(
+  status: EmployeeStatus,
+  variant: "full" | "short" = "full"
+): string {
+  if (variant === "short") {
+    return EMPLOYEE_STATUS_SHORT_LABELS[status];
+  }
   return EMPLOYEE_STATUS_LABELS[status];
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useIsLandscapeMobile } from "@/hooks/use-mobile";
 import { useMyOpenWorkId } from "@/features/works/hooks/use-open-work";
+import { useWorksMobileTour } from "@/features/works/hooks/use-works-mobile-tour";
 import { useMonthWorks } from "@/features/works/hooks/use-works";
 import type { Work } from "@/features/works/types/work.types";
 import { WorkDetailsMobile } from "@/features/works/ui/mobile/work-details-mobile";
@@ -28,6 +29,7 @@ export function WorksMobile() {
     defaultDayInMonth(currentMonthKey())
   );
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
+  const [detailsTab, setDetailsTab] = useState("data");
   const [calendarOpen, setCalendarOpen] = useState(true);
   const [openShiftOpen, setOpenShiftOpen] = useState(false);
   const isLandscape = useIsLandscapeMobile();
@@ -53,11 +55,17 @@ export function WorksMobile() {
     [monthWorks, selectedDate]
   );
 
+  function handleSelectWork(work: Work) {
+    setDetailsTab("data");
+    setSelectedWork(work);
+  }
+
   function handleOpenedWork(work: Work) {
     const date = work.date.slice(0, 10);
     setSelectedDate(date);
     setVisibleMonth(toMonthKey(date));
     setCalendarOpen(false);
+    setDetailsTab("data");
     setSelectedWork(work);
   }
 
@@ -70,6 +78,28 @@ export function WorksMobile() {
     }
     setOpenShiftOpen(true);
   }
+
+  useWorksMobileTour({
+    enabled: !isLandscape,
+    isReady: !worksQuery.isLoading,
+    canOpenShift,
+    dayWorks,
+    monthWorks,
+    openWork: (work) => {
+      const date = work.date.slice(0, 10);
+      setSelectedDate(date);
+      setVisibleMonth(toMonthKey(date));
+      setCalendarOpen(false);
+      setDetailsTab("data");
+      setSelectedWork(work);
+    },
+    closeWork: () => {
+      setSelectedWork(null);
+      setDetailsTab("data");
+    },
+    setDetailsTab,
+    setCalendarOpen,
+  });
 
   if (isLandscape) {
     return (
@@ -93,8 +123,16 @@ export function WorksMobile() {
       <WorkDetailsMobile
         key={selectedWorkFresh.id}
         work={selectedWorkFresh}
-        onBack={() => setSelectedWork(null)}
-        onDeleted={() => setSelectedWork(null)}
+        tab={detailsTab}
+        onTabChange={setDetailsTab}
+        onBack={() => {
+          setSelectedWork(null);
+          setDetailsTab("data");
+        }}
+        onDeleted={() => {
+          setSelectedWork(null);
+          setDetailsTab("data");
+        }}
       />
     );
   }
@@ -109,15 +147,17 @@ export function WorksMobile() {
           title="Смены"
           className="border-b-0"
         />
-        <WorksMobileCalendar
-          month={visibleMonth}
-          selectedDate={selectedDate}
-          shiftDates={shiftDates}
-          open={calendarOpen}
-          onOpenChange={setCalendarOpen}
-          onMonthChange={setVisibleMonth}
-          onSelectDate={setSelectedDate}
-        />
+        <div data-tour="works-calendar">
+          <WorksMobileCalendar
+            month={visibleMonth}
+            selectedDate={selectedDate}
+            shiftDates={shiftDates}
+            open={calendarOpen}
+            onOpenChange={setCalendarOpen}
+            onMonthChange={setVisibleMonth}
+            onSelectDate={setSelectedDate}
+          />
+        </div>
       </header>
       <div
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
@@ -128,7 +168,7 @@ export function WorksMobile() {
         }}
       >
         {canOpenShift ? (
-          <div className="mb-3">
+          <div className="mb-3" data-tour="works-open-shift">
             <Button
               type="button"
               className="w-full"
@@ -139,19 +179,21 @@ export function WorksMobile() {
             </Button>
           </div>
         ) : null}
-        <WorksMobileList
-          works={dayWorks}
-          isLoading={worksQuery.isLoading}
-          errorMessage={
-            worksQuery.isError
-              ? worksQuery.error instanceof Error
-                ? worksQuery.error.message
-                : "Не удалось загрузить смены"
-              : undefined
-          }
-          emptyDescription={`На ${formatRuDate(selectedDate)} смен нет.`}
-          onSelectWork={setSelectedWork}
-        />
+        <div data-tour="works-day-list">
+          <WorksMobileList
+            works={dayWorks}
+            isLoading={worksQuery.isLoading}
+            errorMessage={
+              worksQuery.isError
+                ? worksQuery.error instanceof Error
+                  ? worksQuery.error.message
+                  : "Не удалось загрузить смены"
+                : undefined
+            }
+            emptyDescription={`На ${formatRuDate(selectedDate)} смен нет.`}
+            onSelectWork={handleSelectWork}
+          />
+        </div>
       </div>
       <WorkOpenSheet
         open={openShiftOpen}

@@ -36,7 +36,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { ProfileAppearance } from "@/features/profile/ui/profile-appearance";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useStandalone } from "@/hooks/use-standalone";
-import { formatAppBuildLabel, formatAppVersionLabel } from "@/lib/app-version";
+import {
+  formatAppBuildLabel,
+  formatAppBuildTime,
+  formatAppVersionLabel,
+} from "@/lib/app-version";
 import { signOut } from "@/lib/supabase/auth";
 
 const BUILD_INFO = "Next.js 16 • React 19";
@@ -64,6 +68,7 @@ export function ProfileSystemTab() {
   const { current, hasUpdate, applyUpdate } = useAppUpdate();
   const versionLabel = formatAppVersionLabel(current.version);
   const buildLabel = formatAppBuildLabel(current.buildId);
+  const buildTime = formatAppBuildTime(current.builtAt);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isOnline = useSyncExternalStore(
@@ -132,9 +137,9 @@ export function ProfileSystemTab() {
                 <span className="font-semibold text-foreground">
                   {versionLabel}
                 </span>
-                {buildLabel ? (
+                {buildTime || buildLabel ? (
                   <span className="font-mono text-xs text-muted-foreground">
-                    {buildLabel}
+                    {[buildTime, buildLabel].filter(Boolean).join(" · ")}
                   </span>
                 ) : null}
               </span>

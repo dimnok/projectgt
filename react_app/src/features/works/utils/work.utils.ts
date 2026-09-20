@@ -284,6 +284,7 @@ export function uniqueWorkItemFloors(
   );
 }
 
+/** Filters shift items by place dropdowns and name substring, same as Flutter. */
 export function filterWorkItems(
   items: WorkItem[],
   search: string,
@@ -307,17 +308,7 @@ export function filterWorkItems(
     if (!query) {
       return true;
     }
-    return [
-      item.number,
-      item.name,
-      item.section,
-      item.floor,
-      item.system,
-      item.subsystem,
-      item.contractorName,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(query));
+    return item.name.toLowerCase().includes(query);
   });
 }
 

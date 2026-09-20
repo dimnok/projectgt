@@ -17,6 +17,7 @@ import {
 } from "@/features/works/ui/desktop/works-month-summary";
 import { WorkDetails } from "@/features/works/ui/shared/work-details";
 import { WorkOpenDialog } from "@/features/works/ui/shared/work-open-dialog";
+import { useWorksDesktopTour } from "@/features/works/hooks/use-works-desktop-tour";
 import {
   currentMonthKey,
   defaultDayInMonth,
@@ -44,6 +45,7 @@ export function WorksDesktop() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"summary" | "shift">("summary");
   const [openShiftOpen, setOpenShiftOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState("data");
   const { can } = usePermissions();
   const myOpenQuery = useMyOpenWorkId();
   const canOpenShift = can("works", "create");
@@ -79,6 +81,7 @@ export function WorksDesktop() {
     setSelectedWork(null);
     setSelectedObjectId(null);
     setViewMode("summary");
+    setDetailsTab("data");
   }
 
   function handleSelectDate(date: string) {
@@ -87,17 +90,20 @@ export function WorksDesktop() {
     setSelectedWork(null);
     setSelectedObjectId(null);
     setViewMode("summary");
+    setDetailsTab("data");
   }
 
   function handleSelectWork(work: Work) {
     if (selectedWork?.id === work.id) {
       setSelectedWork(null);
       setViewMode("summary");
+      setDetailsTab("data");
     } else {
       setSelectedWork(work);
       setSelectedDate(work.date.slice(0, 10));
       setVisibleMonth(work.date.slice(0, 7));
       setViewMode("shift");
+      setDetailsTab("data");
     }
   }
 
@@ -108,6 +114,7 @@ export function WorksDesktop() {
     setSelectedWork(work);
     setSelectedObjectId(null);
     setViewMode("shift");
+    setDetailsTab("data");
   }
 
   function handleOpenShiftClick() {
@@ -121,6 +128,29 @@ export function WorksDesktop() {
   }
 
   const showShift = Boolean(selectedWork) && viewMode === "shift";
+
+  useWorksDesktopTour({
+    enabled: true,
+    isReady: !worksQuery.isLoading,
+    canOpenShift,
+    dayWorks,
+    monthWorks,
+    openWork: (work) => {
+      const date = work.date.slice(0, 10);
+      setSelectedDate(date);
+      setVisibleMonth(toMonthKey(date));
+      setSelectedWork(work);
+      setSelectedObjectId(null);
+      setViewMode("shift");
+      setDetailsTab("data");
+    },
+    closeWork: () => {
+      setSelectedWork(null);
+      setViewMode("summary");
+      setDetailsTab("data");
+    },
+    setDetailsTab,
+  });
 
   const paneActions = selectedWork ? (
     <>
@@ -141,6 +171,7 @@ export function WorksDesktop() {
         onClick={() => {
           setSelectedWork(null);
           setViewMode("summary");
+          setDetailsTab("data");
         }}
         className="gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
@@ -156,16 +187,18 @@ export function WorksDesktop() {
       className="grid h-full min-h-0 min-w-0 w-full flex-1 grid-cols-1 content-stretch items-stretch gap-3 lg:grid-cols-[var(--content-aside-width)_minmax(0,1fr)] lg:gap-6"
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-        <WorksCalendar
-          month={visibleMonth}
-          selectedDate={selectedDate}
-          shiftDates={shiftDates}
-          onMonthChange={handleMonthChange}
-          onSelectDate={handleSelectDate}
-        />
+        <div data-tour="works-d-calendar">
+          <WorksCalendar
+            month={visibleMonth}
+            selectedDate={selectedDate}
+            shiftDates={shiftDates}
+            onMonthChange={handleMonthChange}
+            onSelectDate={handleSelectDate}
+          />
+        </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto scroll-shadow-gutter">
           {canOpenShift ? (
-            <div className="mb-3 shrink-0">
+            <div className="mb-3 shrink-0" data-tour="works-d-open-shift">
               <Button
                 type="button"
                 className="w-full"
@@ -176,21 +209,23 @@ export function WorksDesktop() {
               </Button>
             </div>
           ) : null}
-          <WorksList
-            works={dayWorks}
-            selectedWork={selectedWork}
-            isLoading={worksQuery.isLoading}
-            errorMessage={
-              worksQuery.isError
-                ? worksQuery.error instanceof Error
-                  ? worksQuery.error.message
-                  : "Не удалось загрузить смены"
-                : undefined
-            }
-            emptyTitle="Смен нет"
-            emptyDescription={`На ${formatRuDate(selectedDate)} смен нет.`}
-            onSelectWork={handleSelectWork}
-          />
+          <div data-tour="works-d-day-list">
+            <WorksList
+              works={dayWorks}
+              selectedWork={selectedWork}
+              isLoading={worksQuery.isLoading}
+              errorMessage={
+                worksQuery.isError
+                  ? worksQuery.error instanceof Error
+                    ? worksQuery.error.message
+                    : "Не удалось загрузить смены"
+                  : undefined
+              }
+              emptyTitle="Смен нет"
+              emptyDescription={`На ${formatRuDate(selectedDate)} смен нет.`}
+              onSelectWork={handleSelectWork}
+            />
+          </div>
         </div>
       </div>
 
@@ -199,14 +234,18 @@ export function WorksDesktop() {
           <WorkDetails
             work={selectedWork}
             headerMonth={visibleMonth}
+            tab={detailsTab}
+            onTabChange={setDetailsTab}
             onSwitchToSummary={() => setViewMode("summary")}
             onClose={() => {
               setSelectedWork(null);
               setViewMode("summary");
+              setDetailsTab("data");
             }}
             onDeleted={() => {
               setSelectedWork(null);
               setViewMode("summary");
+              setDetailsTab("data");
             }}
           />
         ) : (
@@ -217,7 +256,10 @@ export function WorksDesktop() {
                 actions={paneActions}
               />
             </div>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto scroll-shadow-gutter">
+            <div
+              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto scroll-shadow-gutter"
+              data-tour="works-d-summary"
+            >
               <WorksMonthSummary
                 header={selectedHeader}
                 selectedObjectId={selectedObjectId}

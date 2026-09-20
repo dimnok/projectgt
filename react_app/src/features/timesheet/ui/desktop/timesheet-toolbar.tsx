@@ -185,14 +185,15 @@ export function TimesheetToolbar({
             size="sm"
             onClick={onExportExcel}
             disabled={isLoading || isExporting}
-            className="h-9 gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium text-xs sm:text-[13px] shadow-2xs transition-all rounded-xl px-3.5"
+            className="gap-1.5 border-emerald-600/30 bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:pointer-events-none disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+            title={isExporting ? "Формирование файла..." : "Экспорт в Excel"}
           >
             {isExporting ? (
-              <Loader2Icon className="size-3.5 animate-spin" />
+              <Loader2Icon className="size-3.5 shrink-0 animate-spin" />
             ) : (
-              <DownloadIcon className="size-3.5" />
+              <DownloadIcon className="size-3.5 shrink-0" />
             )}
-            <span>Скачать табель</span>
+            <span>{isExporting ? "Формирование..." : "Excel"}</span>
             {selectedCount > 0 ? (
               <Badge
                 variant="secondary"

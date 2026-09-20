@@ -6,7 +6,7 @@ import { useEffect, useMemo } from "react";
 import { getObjectIdsWithWorks } from "@/features/work-journal/api/get-object-ids-with-works";
 import { getWorkItemFilters } from "@/features/work-journal/api/get-work-item-filters";
 import { searchWorkItems } from "@/features/work-journal/api/search-work-items";
-import { useDebouncedValue } from "@/features/work-journal/hooks/use-debounced-value";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useObjects } from "@/features/objects/hooks/use-objects";
 import type { WorkJournalFilters } from "@/features/work-journal/types/work-journal.types";
 import {

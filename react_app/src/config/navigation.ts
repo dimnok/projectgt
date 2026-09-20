@@ -1,6 +1,7 @@
 import {
   BookOpenIcon,
   BoxesIcon,
+  BriefcaseIcon,
   Building2Icon,
   ClockIcon,
   ContactIcon,
@@ -11,6 +12,7 @@ import {
   HardHatIcon,
   HouseIcon,
   ListOrderedIcon,
+  MessageCircleIcon,
   PackageIcon,
   RefreshCwIcon,
   ShieldIcon,
@@ -20,12 +22,17 @@ import {
   WalletIcon,
   WrenchIcon,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
+
+import { GtDiskIcon } from "@/components/icons/gt-disk-icon";
+
+/** Иконка раздела: подходит и готовая из lucide, и своя SVG-иконка. */
+export type AppNavIcon = ComponentType<{ className?: string }>;
 
 export type AppNavLink = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: AppNavIcon;
   migrated?: boolean;
   /** Shown and routable on screens narrower than 768px. */
   mobile?: boolean;
@@ -35,7 +42,7 @@ export type AppNavLink = {
 
 export type AppNavGroup = {
   label: string;
-  icon: LucideIcon;
+  icon: AppNavIcon;
   children: AppNavLink[];
 };
 
@@ -47,12 +54,36 @@ export type AppNavItem = AppNavLink | AppNavGroup;
  */
 export const navigation: AppNavItem[] = [
   { href: "/", label: "Главная", icon: HouseIcon, migrated: true, mobile: true },
+  {
+    href: "/gt-chat",
+    label: "ГТ Чат",
+    icon: MessageCircleIcon,
+    migrated: true,
+    mobile: true,
+    module: "chat",
+  },
+  {
+    href: "/gt-disk",
+    label: "ГТ Диск",
+    icon: GtDiskIcon,
+    migrated: true,
+    mobile: true,
+  },
   { href: "/cash-flow", label: "CASH FLOW", icon: WalletIcon, module: "cash_flow" },
-  { href: "/settlements", label: "Взаиморасчёты", icon: FileTextIcon, module: "settlements" },
+  {
+    href: "/settlements",
+    label: "Взаиморасчёты",
+    icon: FileTextIcon,
+    migrated: true,
+    mobile: true,
+    module: "settlements",
+  },
   {
     href: "/purchase-requests",
     label: "Заявки",
     icon: ShoppingCartIcon,
+    migrated: true,
+    mobile: true,
     module: "purchase_requests",
   },
   {
@@ -66,7 +97,14 @@ export const navigation: AppNavItem[] = [
   { href: "/material", label: "Материал", icon: PackageIcon, module: "materials" },
   { href: "/tmc", label: "ТМЦ", icon: BoxesIcon, module: "tmc" },
   { href: "/timesheet", label: "Табель", icon: ClockIcon, migrated: true, module: "timesheet" },
-  { href: "/employees", label: "Сотрудники", icon: UsersIcon, migrated: true, module: "employees" },
+  {
+    href: "/employees",
+    label: "Сотрудники",
+    icon: UsersIcon,
+    migrated: true,
+    mobile: true,
+    module: "employees",
+  },
   { href: "/subcontractors", label: "Подрядчики", icon: HardHatIcon, module: "subcontractors" },
   {
     label: "Справочники",
@@ -96,7 +134,13 @@ export const navigation: AppNavItem[] = [
     ],
   },
   { href: "/estimates", label: "Сметы", icon: ListOrderedIcon, migrated: true, module: "estimates" },
-  { href: "/payrolls", label: "ФОТ", icon: CreditCardIcon, module: "payroll" },
+  {
+    href: "/payrolls",
+    label: "ФОТ",
+    icon: CreditCardIcon,
+    migrated: true,
+    module: "payroll",
+  },
   {
     href: "/work-journal",
     label: "Журнал работ",
@@ -112,6 +156,14 @@ export const navigation: AppNavItem[] = [
     module: "system",
   },
   { href: "/roles", label: "Управление ролями", icon: ShieldIcon, migrated: true, module: "roles" },
+  {
+    href: "/company",
+    label: "Компания",
+    icon: BriefcaseIcon,
+    migrated: true,
+    mobile: true,
+    module: "company",
+  },
 ];
 
 const DESKTOP_POST_LOGIN: { module: string; href: string }[] = [
@@ -194,9 +246,18 @@ export function filterNavigationForViewport(
 export function isMobileAllowedPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/complete-profile" ||
+    pathname === "/onboarding" ||
+    pathname === "/access-disabled" ||
     pathname === "/" ||
+    isActivePath(pathname, "/gt-chat") ||
     isActivePath(pathname, "/works") ||
-    isActivePath(pathname, "/profile")
+    isActivePath(pathname, "/company") ||
+    isActivePath(pathname, "/profile") ||
+    isActivePath(pathname, "/gt-disk") ||
+    isActivePath(pathname, "/employees") ||
+    isActivePath(pathname, "/purchase-requests") ||
+    isActivePath(pathname, "/settlements")
   );
 }
 
@@ -208,7 +269,14 @@ export function getPostLoginPath(
 }
 
 export function getModuleForPath(pathname: string): string | null {
-  if (pathname === "/login" || pathname === "/" || isActivePath(pathname, "/profile")) {
+  if (
+    pathname === "/login" ||
+    pathname === "/complete-profile" ||
+    pathname === "/onboarding" ||
+    pathname === "/access-disabled" ||
+    pathname === "/" ||
+    isActivePath(pathname, "/profile")
+  ) {
     return null;
   }
 
@@ -247,5 +315,5 @@ export function getPageTitle(pathname: string) {
     }
   }
 
-  return "Proстройка";
+  return "Стройка PRO";
 }

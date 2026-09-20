@@ -19,13 +19,19 @@ async function fetchRemoteAppVersion(): Promise<AppVersionInfo> {
   return (await response.json()) as AppVersionInfo;
 }
 
+/**
+ * Проверяет, не вышла ли новая сборка сайта.
+ *
+ * Запрос лёгкий, поэтому спрашиваем сервер раз в 2 минуты и дополнительно при
+ * возврате на вкладку: колокольчик появляется вскоре после выкладки.
+ */
 export function useAppUpdate() {
   const current = getClientAppVersion();
   const query = useQuery({
     queryKey: appVersionQueryKey,
     queryFn: fetchRemoteAppVersion,
-    staleTime: 30_000,
-    refetchInterval: 5 * 60_000,
+    staleTime: 60_000,
+    refetchInterval: 2 * 60_000,
     refetchOnWindowFocus: true,
     retry: 1,
   });

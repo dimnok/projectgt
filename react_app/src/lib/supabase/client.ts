@@ -26,3 +26,17 @@ export function getRequiredClient() {
   }
   return client;
 }
+
+/**
+ * Access-token текущей сессии — для запросов к Node-роутам приложения
+ * (разбор Excel, шаблон). Запись в базу идёт напрямую в Supabase.
+ */
+export async function getAccessToken(): Promise<string> {
+  const client = getRequiredClient();
+  const { data, error } = await client.auth.getSession();
+  const token = data.session?.access_token;
+  if (error || !token) {
+    throw new Error("Нужно войти в аккаунт");
+  }
+  return token;
+}

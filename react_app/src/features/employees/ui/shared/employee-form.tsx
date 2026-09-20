@@ -2,6 +2,10 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 
+import {
+  MobileSheetBody,
+  MobileSheetChrome,
+} from "@/components/shared/mobile-sheet-chrome";
 import { PhoneInput } from "@/components/shared/phone-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +59,7 @@ type EmployeeFormProps = {
   isSaving: boolean;
   onCancel: () => void;
   onSubmit: (draft: EmployeeDraft) => void;
+  layout?: "dialog" | "sheet";
 };
 
 type FormErrors = Partial<Record<"lastName" | "firstName", string>>;
@@ -66,6 +71,7 @@ export function EmployeeForm({
   isSaving,
   onCancel,
   onSubmit,
+  layout = "dialog",
 }: EmployeeFormProps) {
   const [draft, setDraft] = useState<EmployeeDraft>(() => toDraft(employee));
   const [errors, setErrors] = useState<FormErrors>({});
@@ -103,8 +109,7 @@ export function EmployeeForm({
     return nextErrors;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submitDraft() {
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -113,12 +118,21 @@ export function EmployeeForm({
     onSubmit(draft);
   }
 
-  return (
-    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitDraft();
+  }
+
+  const isSheet = layout === "sheet";
+  const row2 = isSheet ? undefined : "grid sm:grid-cols-2";
+  const row3 = isSheet ? undefined : "grid sm:grid-cols-3";
+
+  const fields = (
+      <>
       <FieldSet>
         <FieldLegend>Личные данные</FieldLegend>
         <FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-3">
+          <FieldGroup className={row3}>
             <Field data-invalid={Boolean(errors.lastName)}>
               <FieldLabel htmlFor="employee-edit-last-name">Фамилия</FieldLabel>
               <Input
@@ -153,7 +167,7 @@ export function EmployeeForm({
               />
             </Field>
           </FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-birth-date">
                 Дата рождения
@@ -187,7 +201,7 @@ export function EmployeeForm({
               onChange={(event) => update("citizenship", event.target.value)}
             />
           </Field>
-          <FieldGroup className="grid sm:grid-cols-3">
+          <FieldGroup className={row3}>
             <Field>
               <FieldLabel htmlFor="employee-clothing">Размер одежды</FieldLabel>
               <Select
@@ -276,7 +290,7 @@ export function EmployeeForm({
       <FieldSet>
         <FieldLegend>Работа</FieldLegend>
         <FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-status">Статус</FieldLabel>
               <Select
@@ -332,7 +346,7 @@ export function EmployeeForm({
               </Select>
             </Field>
           </FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-position">Должность</FieldLabel>
               <Input
@@ -397,7 +411,7 @@ export function EmployeeForm({
       <FieldSet>
         <FieldLegend>Документы</FieldLegend>
         <FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-passport-series">
                 Серия паспорта
@@ -438,7 +452,7 @@ export function EmployeeForm({
               }
             />
           </Field>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-passport-date">
                 Дата выдачи
@@ -480,7 +494,7 @@ export function EmployeeForm({
               }
             />
           </Field>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-inn">ИНН</FieldLabel>
               <Input
@@ -501,7 +515,7 @@ export function EmployeeForm({
               />
             </Field>
           </FieldGroup>
-          <FieldGroup className="grid sm:grid-cols-2">
+          <FieldGroup className={row2}>
             <Field>
               <FieldLabel htmlFor="employee-kig">КИГ</FieldLabel>
               <Input
@@ -523,7 +537,29 @@ export function EmployeeForm({
           </FieldGroup>
         </FieldGroup>
       </FieldSet>
+      </>
+  );
 
+  if (layout === "sheet") {
+    return (
+      <>
+        <MobileSheetChrome
+          title="Редактирование"
+          description={`Карточка: ${employee.lastName} ${employee.firstName}`}
+          confirmLabel="Сохранить"
+          confirmDisabled={isSaving}
+          confirmPending={isSaving}
+          confirmShowLabelWhenEnabled
+          onConfirm={submitDraft}
+        />
+        <MobileSheetBody>{fields}</MobileSheetBody>
+      </>
+    );
+  }
+
+  return (
+    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+      {fields}
       <div className="flex justify-end gap-2">
         <Button
           type="button"

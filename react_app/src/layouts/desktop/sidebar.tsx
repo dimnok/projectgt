@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronDownIcon, MoonIcon, SunIcon, ZapIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  CircleHelpIcon,
+  MoonIcon,
+  SunIcon,
+  XIcon,
+  ZapIcon,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
@@ -39,6 +46,7 @@ import {
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePermissions } from "@/hooks/use-permissions";
+import { launchWorksHelpTour } from "@/features/works/tour/launch-works-help-tour";
 import { MobileSidebarAccount } from "@/layouts/user-menu";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +60,7 @@ function notifyComingSoon() {
 
 export function Sidebar() {
   const isMobile = useIsMobile();
-  const { isMobile: isSidebarSheet } = useSidebar();
+  const { isMobile: isSidebarSheet, setOpenMobile } = useSidebar();
   const { can, isReady } = usePermissions();
   const viewportItems = filterNavigationForViewport(navigation, isMobile);
   const items = isReady
@@ -61,7 +69,32 @@ export function Sidebar() {
 
   return (
     <SidebarRoot variant="inset" collapsible="icon">
-      <SidebarContent>
+      {isSidebarSheet ? (
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border/60 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pl-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-sm">
+              GT
+            </div>
+            <div className="flex flex-col">
+              <span className="font-heading text-sm font-semibold tracking-tight text-sidebar-foreground">
+                Стройка PRO
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 font-medium">
+                Меню
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpenMobile(false)}
+            aria-label="Закрыть меню"
+            className="flex size-8 items-center justify-center rounded-full text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground active:scale-90"
+          >
+            <XIcon className="size-4" />
+          </button>
+        </div>
+      ) : null}
+      <SidebarContent className={isSidebarSheet ? "pl-2" : undefined}>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -76,8 +109,9 @@ export function Sidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className={isSidebarSheet ? "pb-[max(1rem,env(safe-area-inset-bottom))] pl-2" : undefined}>
         <ThemeToggle />
+        <WorksHelpItem />
         {isSidebarSheet ? (
           <>
             <Separator className="mx-0 bg-sidebar-border" />
@@ -213,6 +247,50 @@ function NavSubItem({
         </SidebarMenuSubButton>
       )}
     </SidebarMenuSubItem>
+  );
+}
+
+function WorksHelpItem() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isMobile = useIsMobile();
+  const { isMobile: isSidebarSheet, setOpenMobile } = useSidebar();
+  const { can, isReady } = usePermissions();
+
+  function runHelp() {
+    const result = launchWorksHelpTour({
+      isMobile,
+      pathname,
+      canOpenWorks: isReady && can("works", "read"),
+      goToWorks: () => router.push("/works"),
+    });
+    if (result === "denied") {
+      toast.message("Подсказки доступны в разделе «Смены»");
+    }
+  }
+
+  function handleHelp() {
+    if (isSidebarSheet) {
+      setOpenMobile(false);
+      window.setTimeout(runHelp, 320);
+      return;
+    }
+    runHelp();
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          type="button"
+          tooltip="Помощь"
+          onClick={handleHelp}
+        >
+          <CircleHelpIcon />
+          <span>Помощь</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 

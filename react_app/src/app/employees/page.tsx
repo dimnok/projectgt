@@ -1,5 +1,5 @@
-import { EmployeesDesktop } from "@/features/employees/ui/desktop/employees-desktop";
+import { EmployeesScreen } from "@/features/employees/ui/employees-screen";
 
 export default function EmployeesPage() {
-  return <EmployeesDesktop />;
+  return <EmployeesScreen />;
 }

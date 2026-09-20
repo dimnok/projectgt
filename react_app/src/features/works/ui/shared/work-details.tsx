@@ -60,6 +60,8 @@ import {
 type WorkDetailsProps = {
   work: Work;
   headerMonth?: string;
+  tab?: string;
+  onTabChange?: (tab: string) => void;
   onSwitchToSummary?: () => void;
   onClose?: () => void;
   onDeleted?: () => void;
@@ -68,13 +70,16 @@ type WorkDetailsProps = {
 export function WorkDetails({
   work,
   headerMonth,
+  tab: tabProp,
+  onTabChange,
   onSwitchToSummary,
   onClose,
   onDeleted,
 }: WorkDetailsProps) {
   const monthKey = headerMonth ?? work.date.slice(0, 7);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState("data");
+  const [internalTab, setInternalTab] = useState("data");
+  const tab = tabProp ?? internalTab;
   const [placeFilter, setPlaceFilter] = useState<WorkItemPlaceFilter>({
     system: null,
     section: null,
@@ -113,13 +118,22 @@ export function WorkDetails({
   const deleteWorkMutation = useDeleteWork();
 
   useEffect(() => {
-    setTab("data");
+    if (tabProp === undefined) {
+      setInternalTab("data");
+    }
     setSearch("");
     setPlaceFilter({ system: null, section: null, floor: null });
     setAddOpen(false);
     setAddHourOpen(false);
     setDeleteOpen(false);
   }, [work.id]);
+
+  function handleTabChange(value: string) {
+    onTabChange?.(value);
+    if (tabProp === undefined) {
+      setInternalTab(value);
+    }
+  }
 
   useEffect(() => {
     if (tab !== "items") {
@@ -178,7 +192,7 @@ export function WorkDetails({
     <Tabs
       key={work.id}
       value={tab}
-      onValueChange={(value) => setTab(String(value))}
+      onValueChange={(value) => handleTabChange(String(value))}
       className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
     >
       <Card className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden shadow-float">
@@ -234,21 +248,32 @@ export function WorkDetails({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <TabsList variant="pills" className="h-10 w-full sm:w-fit">
+            <TabsList
+              variant="pills"
+              className="h-10 w-full sm:w-fit"
+              data-tour="works-d-tabs"
+            >
               <TabsIndicator />
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
+              {tabs.map((item) => {
+                const Icon = item.icon;
                 return (
                   <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
+                    key={item.value}
+                    value={item.value}
                     className="gap-1.5 text-xs"
+                    data-tour={
+                      item.value === "items"
+                        ? "works-d-tab-items"
+                        : item.value === "hours"
+                          ? "works-d-tab-hours"
+                          : "works-d-tab-overview"
+                    }
                   >
                     <Icon className="size-3.5" />
-                    <span>{tab.label}</span>
-                    {typeof tab.badge === "number" && tab.badge > 0 ? (
+                    <span>{item.label}</span>
+                    {typeof item.badge === "number" && item.badge > 0 ? (
                       <span className="ml-0.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.2 text-[10px] font-medium tabular-nums">
-                        {tab.badge}
+                        {item.badge}
                       </span>
                     ) : null}
                   </TabsTrigger>
@@ -275,6 +300,7 @@ export function WorkDetails({
                     type="button"
                     size="icon-sm"
                     aria-label="Добавить работы"
+                    data-tour="works-d-add-item"
                     onClick={() => setAddOpen(true)}
                   >
                     <PlusIcon />
@@ -310,6 +336,7 @@ export function WorkDetails({
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-(--card-spacing) pb-(--card-spacing) pt-(--card-spacing)">
           <TabsContent
             value="data"
+            data-tour="works-d-overview"
             className="mt-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-px outline-none"
           >
             <WorkDataTab

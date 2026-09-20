@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { DownloadIcon, PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { EmployeeStatusBadge } from "@/features/employees/ui/shared/employee-status-badge";
 import type {
   EmployeeFilters,
@@ -42,6 +43,9 @@ type EmployeesFiltersProps = {
   onObjectChange: (value: EmployeeFilters["objectId"]) => void;
   canCreate: boolean;
   onCreate: () => void;
+  canExport: boolean;
+  isExporting: boolean;
+  onExport: () => void;
 };
 
 export function EmployeesFilters({
@@ -52,26 +56,63 @@ export function EmployeesFilters({
   onObjectChange,
   canCreate,
   onCreate,
+  canExport,
+  isExporting,
+  onExport,
 }: EmployeesFiltersProps) {
   const objectItems = [
     { value: "all", label: "Все объекты" },
     ...objects.map((object) => ({ value: object.id, label: object.name })),
   ];
 
+  const exportButton = canExport ? (
+    <Button
+      type="button"
+      variant="outline"
+      disabled={isExporting}
+      aria-label="Выгрузить в Excel"
+      onClick={onExport}
+    >
+      {isExporting ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <DownloadIcon data-icon="inline-start" />
+      )}
+      Excel
+    </Button>
+  ) : null;
+
+  const exportIconButton = canExport ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="lg:hidden"
+      disabled={isExporting}
+      aria-label="Выгрузить в Excel"
+      onClick={onExport}
+    >
+      {isExporting ? <Spinner /> : <DownloadIcon />}
+    </Button>
+  ) : null;
+
   return (
     <Card className="shadow-float max-lg:[--card-spacing:--spacing(3)]">
       <CardHeader className="border-b max-lg:hidden">
         <CardTitle>Фильтры</CardTitle>
-        {canCreate ? (
-          <CardAction>
-            <Button
-              type="button"
-              size="icon"
-              aria-label="Добавить сотрудника"
-              onClick={onCreate}
-            >
-              <PlusIcon />
-            </Button>
+        {canCreate || canExport ? (
+          <CardAction className="flex items-center gap-2">
+            {exportButton}
+            {canCreate ? (
+              <Button
+                type="button"
+                size="icon"
+                aria-label="Добавить сотрудника"
+                onClick={onCreate}
+              >
+                <PlusIcon />
+              </Button>
+            ) : null}
           </CardAction>
         ) : null}
       </CardHeader>
@@ -107,6 +148,7 @@ export function EmployeesFilters({
               </Select>
             </div>
           </div>
+          {exportIconButton}
           {canCreate ? (
             <Button
               type="button"

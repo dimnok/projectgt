@@ -5,8 +5,7 @@ import {
   CoinsIcon,
   ListOrderedIcon,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
+import { KpiCell } from "@/components/shared/kpi-cell";
 import type {
   EstimateContractGroup,
   EstimateFile,
@@ -337,49 +336,6 @@ function CircularProgress({
       <span className="absolute font-heading text-xs font-semibold tracking-tight tabular-nums leading-none text-foreground">
         {clamped >= 100 ? "100" : clamped.toFixed(0)}%
       </span>
-    </div>
-  );
-}
-
-function KpiCell({
-  label,
-  value,
-  subtext,
-  icon: Icon,
-  customIcon,
-  customContent,
-}: {
-  label: string;
-  value: string;
-  subtext?: string;
-  icon?: LucideIcon;
-  customIcon?: React.ReactNode;
-  customContent?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-3.5 py-2 transition-colors hover:bg-muted/15 sm:px-5 sm:py-2.5">
-      <div className="flex min-w-0 flex-1 flex-col justify-between">
-        <span className="text-xs font-medium text-muted-foreground">
-          {label}
-        </span>
-        <div className="mt-0.5 font-heading text-base font-semibold tracking-tight tabular-nums text-foreground lg:text-lg xl:text-xl">
-          {value}
-        </div>
-        {customContent ? (
-          customContent
-        ) : subtext ? (
-          <p className="truncate text-[11px] text-muted-foreground leading-tight">
-            {subtext}
-          </p>
-        ) : null}
-      </div>
-      {customIcon ? (
-        <div className="shrink-0">{customIcon}</div>
-      ) : Icon ? (
-        <div className="flex size-6 shrink-0 self-start items-center justify-center rounded-md bg-muted text-foreground/70 [&_svg]:size-3.5">
-          <Icon />
-        </div>
-      ) : null}
     </div>
   );
 }

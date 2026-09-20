@@ -187,9 +187,11 @@ export type ProfilesRow = {
   photo_url: string | null;
   email: string;
   phone: string | null;
+  status: boolean | null;
   employee_id: string | null;
   last_company_id: string | null;
   object_ids: string[] | null;
+  prefer_web_app?: boolean | null;
   slot_times: string[] | null;
   telegram_user_id: number | null;
   created_at: string | null;
@@ -214,4 +216,85 @@ export type CompaniesRow = {
 export type RolesRow = {
   id: string;
   role_name: string | null;
+};
+
+export type SettlementOperationsRow = {
+  id: string;
+  company_id: string;
+  operation_type: string;
+  object_id: string;
+  contractor_id: string;
+  contract_id: string;
+  period_from: string | null;
+  period_to: string | null;
+  act_number: string | null;
+  act_date: string | null;
+  invoice_number: string;
+  invoice_date: string;
+  amount: number | string;
+  is_vat_included: boolean;
+  vat_rate: number | string | null;
+  vat_amount: number | string;
+  advance_retention: number | string;
+  warranty_retention: number | string;
+  total_to_pay: number | string;
+  paid_amount: number | string;
+  payment_status: string;
+  purpose: string | null;
+  note: string | null;
+  created_at: string | null;
+  created_by: string | null;
+};
+
+export type SettlementOperationJoinRow = SettlementOperationsRow & {
+  objects: { name: string | null } | null;
+  contractors: { short_name: string | null } | null;
+  contracts: { number: string | null } | null;
+};
+
+/** Строка страницы реестра из функции `get_settlements_page`. */
+export type SettlementOperationsListRow = SettlementOperationsRow & {
+  object_name: string | null;
+  contractor_name: string | null;
+  contract_number: string | null;
+};
+
+/** Ответ функции `get_settlements_page`: страница строк и общее число счетов. */
+export type SettlementListPageRow = {
+  items: SettlementOperationsListRow[];
+  total_count: number | string;
+};
+
+/** Итоги реестра из функции `get_settlements_summary`. */
+export type SettlementSummaryRow = {
+  total_count: number | string;
+  total_amount: number | string;
+  total_paid: number | string;
+  total_debt: number | string;
+  by_status: Record<string, number> | null;
+};
+
+export type SettlementPaymentsRow = {
+  id: string;
+  company_id: string;
+  settlement_operation_id: string;
+  payment_date: string;
+  amount: number | string;
+  note: string | null;
+  cash_flow_transaction_id: string | null;
+  created_at: string | null;
+  created_by: string | null;
+};
+
+export type SettlementFilesRow = {
+  id: string;
+  company_id: string;
+  settlement_operation_id: string;
+  name: string;
+  file_path: string;
+  size: number | string;
+  type: string;
+  description: string | null;
+  created_at: string | null;
+  created_by: string | null;
 };

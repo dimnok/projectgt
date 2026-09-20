@@ -42,12 +42,62 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   overlayClassName,
+  variant = "default",
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
   overlayClassName?: string
+  variant?: "default" | "book"
 }) {
+  if (variant === "book") {
+    return (
+      <SheetPortal>
+        <SheetOverlay
+          className={cn(
+            "fixed inset-0 z-50 bg-black/45 backdrop-blur-sm transition-opacity duration-350 data-ending-style:opacity-0 data-starting-style:opacity-0",
+            overlayClassName
+          )}
+        />
+        <SheetPrimitive.Popup
+          data-slot="sheet-content"
+          data-side="left"
+          data-variant="book"
+          className={cn(
+            "book-sheet-content fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar text-sidebar-foreground",
+            "rounded-r-3xl border-y border-r border-sidebar-border/70",
+            "shadow-[25px_0_60px_-10px_rgba(0,0,0,0.45),12px_0_24px_-4px_rgba(0,0,0,0.2)] dark:shadow-[30px_0_70px_-10px_rgba(0,0,0,0.85),12px_0_25px_-4px_rgba(0,0,0,0.5)]",
+            "overflow-hidden",
+            className
+          )}
+          {...props}
+        >
+          {/* Декоративная тень и шов корешка книги */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-30 w-7 border-l-2 border-l-black/15 bg-gradient-to-r from-black/25 via-black/5 to-transparent dark:border-l-white/15 dark:from-black/40 dark:via-black/10"
+          />
+          {children}
+          {showCloseButton && (
+            <SheetPrimitive.Close
+              data-slot="sheet-close"
+              render={
+                <Button
+                  variant="ghost"
+                  className="absolute top-3 right-3 size-8 rounded-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground active:scale-95"
+                  size="icon-xs"
+                />
+              }
+            >
+              <XIcon className="size-4" />
+              <span className="sr-only">Close</span>
+            </SheetPrimitive.Close>
+          )}
+        </SheetPrimitive.Popup>
+      </SheetPortal>
+    )
+  }
+
   return (
     <SheetPortal>
       <SheetOverlay className={overlayClassName} />
