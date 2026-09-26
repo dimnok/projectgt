@@ -32,9 +32,9 @@
 
 **RLS-политики:**
 - ✅ Пользователь видит только свой профиль и профили коллег (участников тех же компаний).
-- ✅ Обновление (`UPDATE`) доступно только владельцу профиля для полей `full_name`, `short_name`, `photo_url`, `phone`. Изменение ролей и статусов через эту таблицу запрещено.
+- ✅ Обновление (`UPDATE`): свой профиль — всегда; чужой — только с правом `users.update` (политика «Profiles are updatable by owners and admins»). Изменение ролей и статусов через эту таблицу запрещено.
 - ✅ Автоматическое создание профиля при регистрации через триггер
-- 🔐 Смена `employee_id` и `object_ids` в UPDATE: триггеры `prevent_unauthorized_employee_link` и `prevent_unauthorized_profile_objects` — только `users.update` или супер-админ (пустой список объектов и NULL считаются одинаковыми)
+- 🔐 Смена `employee_id`, `object_ids` и `prefer_web_app` в UPDATE: триггеры `prevent_unauthorized_employee_link`, `prevent_unauthorized_profile_objects` и `prevent_unauthorized_prefer_web_app` — только `users.update` или супер-админ (пустой список объектов и NULL считаются одинаковыми)
 - 🔐 Строгая изоляция: пользователи разных компаний не видят друг друга
 
 ---
@@ -92,8 +92,8 @@
 
 **RLS-политики:**
 - ✅ Чтение доступно всем активным участникам той же компании (через `get_my_company_ids()`).
-- ✅ **Обновление (`UPDATE`)** доступно только **Владельцам компании** (`system_role = 'owner'`). Позволяет изменять `role_id`, `system_role` и `is_active` для участников.
-- ✅ Вставка (`INSERT`) доступна при создании компании (авто-назначение owner) или вступлении.
+- ✅ **Обновление (`UPDATE`)** доступно только **Владельцам компании** (`get_owned_company_ids()` — `is_owner`). Позволяет изменять `role_id`, `system_role` и `is_active` для участников.
+- ✅ Вставка (`INSERT`) — только самого себя (`auth.uid() = user_id`): при создании компании (авто-назначение owner) или вступлении по приглашению.
 
 ---
 
@@ -314,8 +314,10 @@
 - object_id: UUID — внешний ключ на objects.id
 - opened_by: UUID — внешний ключ на profiles.id (кто открыл смену)
 - status: TEXT — статус смены (`open`, `closed`)
-- photo_url: TEXT — URL утреннего фото
-- evening_photo_url: TEXT — URL вечернего фото
+- photo_url: TEXT — URL утреннего фото (одиночное: коллаж из `photo_urls` или единственное фото; читает мобильное приложение)
+- evening_photo_url: TEXT — URL вечернего фото (одиночное, для мобильного приложения)
+- photo_urls: TEXT[] — утренние фото смены, до 4 (ведёт веб-версия)
+- evening_photo_urls: TEXT[] — вечерние фото смены, до 4 (ведёт веб-версия)
 - total_amount: NUMERIC — сумма всех строк работ (триггер)
 - own_total_amount: NUMERIC — сумма строк без подрядчика (триггер)
 - items_count: INTEGER — число позиций `work_items`
@@ -465,7 +467,7 @@
 
 Ведомость **не хранится** в БД: таблиц `payroll_calculation` и `payroll_deduction` **нет**. Расчёт ведомости — RPC `calculate_payroll_for_month` и клиентский FIFO в модуле ФОТ. Канон: [`docs/fot/fot_module.md`](./fot/fot_module.md).
 
-Личный кабинет в **вебе** не вызывает ведомость компании. Свои цифры — RPC `get_my_profile_finance(p_year int, p_month int)` (SECURITY DEFINER, только `authenticated`). Сводка месяца: часы, ставка, суточные, премии, штрафы, итого к оплате. Списки премий, штрафов и выплат — **за всё время** по своему `employee_id`. Выплаты в сводку месяца не входят (`payroll_payout` хранит дату перевода, не период начисления). Описание: [`react_app/docs/profile.md`](../react_app/docs/profile.md).
+Личный кабинет в **вебе** не вызывает ведомость компании. Свои цифры — RPC `get_my_profile_finance(p_year int, p_month int)` (SECURITY DEFINER, только `authenticated`). Сводка месяца: часы, ставка, суточные, премии, штрафы, итого к оплате. Списки премий, штрафов и выплат — **за всё время** по своему `employee_id`. Выплаты в сводку месяца не входят (`payroll_payout` хранит дату перевода, не период начисления). Описание: [`docs/profile.md`](https://github.com/dimnok/projectgt_react/blob/main/docs/profile.md) в репозитории `projectgt_react`.
 
 ### `payroll_bonus` / `payroll_penalty`
 
@@ -569,7 +571,7 @@
 - advance_retention / warranty_retention: NUMERIC — удержания (в UI не используются, default 0)
 - total_to_pay: NUMERIC **GENERATED** — `GREATEST(0, amount + vat_amount − удержания)`
 - paid_amount: NUMERIC — сумма оплат (пересчитывается триггером из `settlement_payments`)
-- payment_status: TEXT — `unpaid` | `partial` | `paid` | `overpaid` (пересчитывается триггером)
+- payment_status: TEXT — `unpaid` | `partial` | `paid` | `overpaid` (пересчитывается триггером `sync_settlement_payment_status` из `paid_amount` и суммы к оплате; сумму триггер считает из базовых полей — `amount + vat_amount − удержания`, т.к. в BEFORE-триггере GENERATED-колонка `total_to_pay` ещё не посчитана)
 - purpose / note: TEXT
 - created_at / updated_at / created_by
 

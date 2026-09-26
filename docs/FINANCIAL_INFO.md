@@ -2,7 +2,7 @@
 
 **Приложение (Flutter).** Файл экрана: `lib/features/profile/presentation/screens/financial_info_screen.dart`.
 
-**Веб** — другой экран, без FIFO, выплаты не в сводке месяца: [`react_app/docs/profile.md`](../react_app/docs/profile.md) (раздел «Финансы»), RPC `get_my_profile_finance`.
+**Веб** — другой экран, без FIFO, выплаты не в сводке месяца: [`docs/profile.md`](https://github.com/dimnok/projectgt_react/blob/main/docs/profile.md) в репозитории `projectgt_react` (раздел «Финансы»), RPC `get_my_profile_finance`.
 
 ## Назначение
 - Отображать агрегированные показатели по привязанному сотруднику за выбранный месяц и за весь период:

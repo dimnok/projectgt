@@ -24,7 +24,7 @@ const corsHeaders = {
 /** Платформы FCM, на которые отправляем push. */
 const PUSH_PLATFORMS = new Set(["ios", "android", "web"]);
 
-/** Иконка в баннере (файл лежит в `react_app/public`). */
+/** Иконка в баннере (файл лежит в `public/` репозитория projectgt_react). */
 const WEB_ICON = "/icon-192.png";
 
 /** Тема APNs нативного iOS-приложения. */
