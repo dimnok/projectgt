@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,6 +18,20 @@ import {
   taxationSystems,
   type CompanyDraft,
 } from "@/features/company/types/company.types";
+import type {
+  CompanyFieldErrors,
+  CompanyFieldKey,
+} from "@/features/company/utils/company.utils";
+
+/** Идентификаторы проверяемых полей — форма прокручивает окно к ошибке. */
+export const companyFieldElementIds: Record<CompanyFieldKey, string> = {
+  nameFull: "company-name-full",
+  nameShort: "company-name-short",
+  inn: "company-inn",
+  kpp: "company-kpp",
+  ogrn: "company-ogrn",
+  okpo: "company-okpo",
+};
 
 type CompanyRequisitesFieldsProps = {
   draft: CompanyDraft;
@@ -29,6 +43,10 @@ type CompanyRequisitesFieldsProps = {
   showInnSearch?: boolean;
   isSearching?: boolean;
   onSearchInn?: () => void;
+  /** Ошибки проверяемых полей: показываются под своим полем. */
+  errors?: CompanyFieldErrors;
+  /** Уход из проверяемого поля — момент проверки. */
+  onBlurField?: (key: CompanyFieldKey) => void;
 };
 
 /** Поля реквизитов компании. Используются при создании и редактировании. */
@@ -39,6 +57,8 @@ export function CompanyRequisitesFields({
   showInnSearch,
   isSearching,
   onSearchInn,
+  errors,
+  onBlurField,
 }: CompanyRequisitesFieldsProps) {
   const taxItems = taxationSystems.map((item) => ({ value: item, label: item }));
 
@@ -46,18 +66,22 @@ export function CompanyRequisitesFields({
     <>
       <SectionTitle>Основная информация</SectionTitle>
       <TextField
-        id="company-name-full"
+        id={companyFieldElementIds.nameFull}
         label="Полное наименование"
         value={draft.nameFull}
+        error={errors?.nameFull}
         disabled={disabled}
         onChange={(value) => onChange("nameFull", value)}
+        onBlur={() => onBlurField?.("nameFull")}
       />
       <TextField
-        id="company-name-short"
+        id={companyFieldElementIds.nameShort}
         label="Краткое наименование"
         value={draft.nameShort}
+        error={errors?.nameShort}
         disabled={disabled}
         onChange={(value) => onChange("nameShort", value)}
+        onBlur={() => onBlurField?.("nameShort")}
       />
       <TextareaField
         id="company-activity"
@@ -71,13 +95,15 @@ export function CompanyRequisitesFields({
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
           <TextField
-            id="company-inn"
+            id={companyFieldElementIds.inn}
             label="ИНН"
             value={draft.inn}
             placeholder="10 или 12 цифр"
             inputMode="numeric"
+            error={errors?.inn}
             disabled={disabled}
             onChange={(value) => onChange("inn", value)}
+            onBlur={() => onBlurField?.("inn")}
           />
         </div>
         {showInnSearch ? (
@@ -94,29 +120,35 @@ export function CompanyRequisitesFields({
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
-          id="company-kpp"
+          id={companyFieldElementIds.kpp}
           label="КПП"
           value={draft.kpp}
           inputMode="numeric"
+          error={errors?.kpp}
           disabled={disabled}
           onChange={(value) => onChange("kpp", value)}
+          onBlur={() => onBlurField?.("kpp")}
         />
         <TextField
-          id="company-ogrn"
+          id={companyFieldElementIds.ogrn}
           label="ОГРН"
           value={draft.ogrn}
           inputMode="numeric"
+          error={errors?.ogrn}
           disabled={disabled}
           onChange={(value) => onChange("ogrn", value)}
+          onBlur={() => onBlurField?.("ogrn")}
         />
       </div>
       <TextField
-        id="company-okpo"
+        id={companyFieldElementIds.okpo}
         label="ОКПО"
         value={draft.okpo}
         inputMode="numeric"
+        error={errors?.okpo}
         disabled={disabled}
         onChange={(value) => onChange("okpo", value)}
+        onBlur={() => onBlurField?.("okpo")}
       />
 
       <SectionTitle>Налогообложение</SectionTitle>
@@ -294,6 +326,10 @@ type TextFieldProps = {
   placeholder?: string;
   disabled?: boolean;
   inputMode?: "text" | "numeric" | "tel" | "email" | "url";
+  /** Сообщение проверки — показывается под полем. */
+  error?: string;
+  /** Проверка поля выполняется, когда пользователь ушёл из него. */
+  onBlur?: () => void;
 };
 
 function TextField({
@@ -304,9 +340,11 @@ function TextField({
   placeholder,
   disabled,
   inputMode,
+  error,
+  onBlur,
 }: TextFieldProps) {
   return (
-    <Field>
+    <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input
         id={id}
@@ -314,11 +352,22 @@ function TextField({
         placeholder={placeholder}
         inputMode={inputMode}
         disabled={disabled}
+        aria-invalid={Boolean(error)}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
       />
+      <FieldError>{error}</FieldError>
     </Field>
   );
 }
+
+type TextareaFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+};
 
 function TextareaField({
   id,
@@ -326,7 +375,7 @@ function TextareaField({
   value,
   onChange,
   disabled,
-}: TextFieldProps) {
+}: TextareaFieldProps) {
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>

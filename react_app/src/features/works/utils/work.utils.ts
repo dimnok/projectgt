@@ -188,6 +188,58 @@ export function extractPhotoTime(url: string): string | null {
   }
 }
 
+/**
+ * Путь файла внутри bucket `works` по публичной ссылке.
+ * Нужен, чтобы удалить прежнее фото при замене или при удалении смены.
+ */
+export function workPhotoStoragePath(url: string | null | undefined): string | null {
+  if (!url?.trim()) {
+    return null;
+  }
+  try {
+    const segments = new URL(url).pathname.split("/").filter(Boolean);
+    const publicIndex = segments.indexOf("public");
+    if (publicIndex === -1 || publicIndex + 2 >= segments.length) {
+      return null;
+    }
+    if (segments[publicIndex + 1] !== "works") {
+      return null;
+    }
+    return decodeURIComponent(segments.slice(publicIndex + 2).join("/"));
+  } catch {
+    return null;
+  }
+}
+
+/** Сколько фото можно приложить к смене с каждой стороны: утро и вечер. */
+export const MAX_WORK_PHOTOS_PER_KIND = 4;
+
+/**
+ * Список фото смены. Если список пуст, а одиночное поле заполнено (смену
+ * открывали в мобильном приложении), одиночное фото становится единственным.
+ */
+export function resolveWorkPhotoUrls(
+  urls: string[] | null | undefined,
+  legacyUrl: string | null | undefined
+): string[] {
+  const list = (urls ?? []).filter((url) => Boolean(url?.trim()));
+  if (list.length > 0) {
+    return list;
+  }
+  return legacyUrl?.trim() ? [legacyUrl] : [];
+}
+
+/**
+ * Что писать в одиночное поле для мобильного приложения и Telegram:
+ * `none` — фото нет, `single` — одно фото как есть, `collage` — собрать коллаж.
+ */
+export function workPhotoLegacyMode(urls: string[]): "none" | "single" | "collage" {
+  if (urls.length === 0) {
+    return "none";
+  }
+  return urls.length === 1 ? "single" : "collage";
+}
+
 export function ownItems(items: WorkItem[]): WorkItem[] {
   return items.filter((item) => !item.contractorId);
 }
@@ -334,12 +386,16 @@ export function canModifyWorkItems(params: {
   openedBy: string;
   status: WorkStatus;
   isSuperAdmin: boolean;
+  isCompanyOwner: boolean;
 }): boolean {
   if (!params.canUpdate || !params.userId) {
     return false;
   }
   if (params.isSuperAdmin) {
     return true;
+  }
+  if (params.isCompanyOwner) {
+    return params.status === "open";
   }
   return params.openedBy === params.userId && params.status === "open";
 }
@@ -369,7 +425,7 @@ export function getWorkCloseChecks(
   const hasHours = hours.length > 0;
   const quantitiesFilled = hasItems && !items.some((item) => item.quantity <= 0);
   const hoursFilled = hasHours && !hours.some((row) => row.hours <= 0);
-  const hasEvening = Boolean(work.eveningPhotoUrl?.trim());
+  const hasEvening = work.eveningPhotoUrls.length > 0;
 
   const checks: WorkCloseCheck[] = [
     { id: "items", label: "Добавить работы", done: hasItems },
@@ -399,11 +455,6 @@ export function getWorkCloseChecks(
     checks,
     message,
   };
-}
-
-export function formatWorkItemPlace(section: string, floor: string): string {
-  const parts = [section.trim(), floor.trim()].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 export function filterWorkHours(hours: WorkHour[], search: string): WorkHour[] {

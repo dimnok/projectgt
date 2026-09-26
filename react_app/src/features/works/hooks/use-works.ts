@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getMonthHeaders } from "@/features/works/api/get-month-headers";
 import { getWorkAccessScope } from "@/features/works/api/get-work-membership";
 import { getMonthWorks, getWork } from "@/features/works/api/get-month-works";
-import { getWorkHours, getWorkHoursTotalsByWorkIds } from "@/features/works/api/get-work-hours";
+import { getWorkHours } from "@/features/works/api/get-work-hours";
+import { getMonthWorkHours } from "@/features/works/api/get-month-work-hours";
 import { getWorkItems } from "@/features/works/api/get-work-items";
 import {
   getMonthEmployeesSummary,
@@ -64,17 +65,12 @@ export function useMonthWorks(
   });
 }
 
-export function useMonthWorkHourTotals(
-  month: string,
-  workIds: string[],
-  enabled: boolean
-) {
-  const idsKey = workIds.slice().sort().join(",");
-
+/** Часы по сменам месяца (считает база) — для графика на главной. */
+export function useMonthWorkHours(month: string, enabled: boolean) {
   return useQuery({
-    queryKey: [...monthWorkHoursQueryKey(month), idsKey],
-    queryFn: () => getWorkHoursTotalsByWorkIds(workIds),
-    enabled: enabled && workIds.length > 0,
+    queryKey: monthWorkHoursQueryKey(month),
+    queryFn: () => getMonthWorkHours(month),
+    enabled,
   });
 }
 

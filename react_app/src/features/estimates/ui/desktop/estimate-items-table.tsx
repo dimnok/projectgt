@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, PencilIcon, Trash2Icon } from "lucide-react";
 
 import {
   TableBody,
@@ -15,6 +15,7 @@ import type {
   EstimateCompletion,
   EstimateExecution,
   EstimateItem,
+  EstimateTableSort,
 } from "@/features/estimates/types/estimate.types";
 import {
   isEstimateExecutionColumnId,
@@ -30,6 +31,11 @@ import {
   formatQuantity,
 } from "@/features/estimates/utils/estimate.utils";
 import { EstimateQuantityCell } from "@/features/estimates/ui/shared/estimate-quantity-cell";
+import {
+  nextTableSort,
+  tableSortAriaSort,
+  tableSortTitle,
+} from "@/lib/table-sort";
 import { cn } from "@/lib/utils";
 
 type EstimateItemsTableProps = {
@@ -38,6 +44,9 @@ type EstimateItemsTableProps = {
   completionById?: Map<string, EstimateCompletion>;
   isCompletionLoading?: boolean;
   dense?: boolean;
+  /** Текущая сортировка. Без обработчика заголовки не кликаются. */
+  sort?: EstimateTableSort;
+  onSortChange?: (next: EstimateTableSort) => void;
   onEdit?: (item: EstimateItem) => void;
   onDelete?: (item: EstimateItem) => void;
 };
@@ -50,6 +59,8 @@ export function EstimateItemsTable({
   completionById = EMPTY_COMPLETION,
   isCompletionLoading = false,
   dense = false,
+  sort = null,
+  onSortChange,
   onEdit,
   onDelete,
 }: EstimateItemsTableProps) {
@@ -81,29 +92,74 @@ export function EstimateItemsTable({
       >
         <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow className="hover:bg-transparent border-b-0">
-            {visibleColumns.map((column, index) => (
-              <TableHead
-                key={column.id}
-                title={column.title ?? column.label}
-                className={cn(
-                  "sticky top-0 z-10 border-b border-border/80 bg-muted px-3 font-semibold text-foreground/75 select-none align-middle",
-                  dense ? "py-1 text-[11px]" : "py-1.5 text-xs",
-                  index === 0 && (dense ? "pl-3 sm:pl-4" : "pl-4 sm:pl-5"),
-                  index === visibleColumns.length - 1 && !hasActions && (dense ? "pr-3 sm:pr-4" : "pr-4 sm:pr-5"),
-                  column.align === "right" && "text-right",
-                  column.id === "name"
-                    ? "w-full min-w-[260px]"
-                    : isEstimateExecutionColumnId(column.id)
-                      ? "w-auto whitespace-pre-line leading-tight"
-                      : "w-auto whitespace-nowrap",
-                  column.id === "completedQuantity" &&
-                    "border-l border-border/80"
-                )}
-                style={{ minWidth: column.minWidth }}
-              >
-                {column.label}
-              </TableHead>
-            ))}
+            {visibleColumns.map((column, index) => {
+              const isSorted = sort?.key === column.id;
+              const sortFirst = column.sortFirst ?? "asc";
+              // Колонки выполнения сортируются только по загруженному факту.
+              const isSortable =
+                Boolean(onSortChange) &&
+                !(isEstimateExecutionColumnId(column.id) &&
+                  showExecutionPlaceholder);
+              const nextSort = nextTableSort(column.id, sort, sortFirst);
+              const sortTitle = tableSortTitle(column.id, sort, sortFirst);
+
+              return (
+                <TableHead
+                  key={column.id}
+                  aria-sort={
+                    isSortable ? tableSortAriaSort(column.id, sort) : undefined
+                  }
+                  title={
+                    isSortable
+                      ? column.title
+                        ? `${column.title}. ${sortTitle}`
+                        : sortTitle
+                      : (column.title ?? column.label)
+                  }
+                  className={cn(
+                    "sticky top-0 z-10 border-b border-border/80 bg-muted px-3 font-semibold text-foreground/75 select-none align-middle",
+                    dense ? "py-1 text-[11px]" : "py-1.5 text-xs",
+                    index === 0 && (dense ? "pl-3 sm:pl-4" : "pl-4 sm:pl-5"),
+                    index === visibleColumns.length - 1 && !hasActions && (dense ? "pr-3 sm:pr-4" : "pr-4 sm:pr-5"),
+                    column.align === "right" && "text-right",
+                    column.id === "name"
+                      ? "w-full min-w-[260px]"
+                      : isEstimateExecutionColumnId(column.id)
+                        ? "w-auto whitespace-pre-line leading-tight"
+                        : "w-auto whitespace-nowrap",
+                    column.id === "completedQuantity" &&
+                      "border-l border-border/80"
+                  )}
+                  style={{ minWidth: column.minWidth }}
+                >
+                  {isSortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSortChange?.(nextSort)}
+                      title={sortTitle}
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-1 rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        column.align === "right" && "flex-row-reverse",
+                        isSorted && "font-semibold text-foreground"
+                      )}
+                    >
+                      <span>{column.label}</span>
+                      {isSorted ? (
+                        sort?.direction === "asc" ? (
+                          <ArrowUpIcon className="size-3.5 shrink-0" />
+                        ) : (
+                          <ArrowDownIcon className="size-3.5 shrink-0" />
+                        )
+                      ) : (
+                        <ArrowUpDownIcon className="size-3.5 shrink-0 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    column.label
+                  )}
+                </TableHead>
+              );
+            })}
             {hasActions ? (
               <TableHead
                 className={cn(

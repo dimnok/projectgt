@@ -17,6 +17,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PayrollTableSort } from "@/features/payrolls/types/payroll.types";
+import {
+  nextTableSort,
+  tableSortAriaSort,
+  tableSortTitle,
+} from "@/lib/table-sort";
 import { cn } from "@/lib/utils";
 
 export type PayrollTableColumn<T> = {
@@ -68,25 +73,6 @@ const STICKY_FOOT =
   "sticky bottom-0 left-0 z-50 border-r border-border/80 bg-muted uppercase tracking-wide text-muted-foreground";
 
 /**
- * Порядок сортировки после клика по заголовку: первое направление колонки,
- * затем обратное, третий клик возвращает исходный порядок.
- */
-function nextSortFor<T>(
-  column: PayrollTableColumn<T>,
-  sort: PayrollTableSort | null
-): PayrollTableSort | null {
-  const first = column.sortFirst ?? "desc";
-
-  if (sort?.key !== column.key) {
-    return { key: column.key, direction: first };
-  }
-  if (sort.direction === first) {
-    return { key: column.key, direction: first === "desc" ? "asc" : "desc" };
-  }
-  return null;
-}
-
-/**
  * Таблица модуля ФОТ: шапка и строка ИТОГО закреплены, первая колонка может
  * закрепляться слева. Колонки описываются данными, поэтому одна таблица
  * обслуживает и ведомость, и списки операций.
@@ -129,25 +115,14 @@ export function PayrollTable<T>({
               const isSorted = sort?.key === column.key;
               // Сортировка включается там, где таблице передали обработчик.
               const isSortable = Boolean(onSortChange);
-              const nextSort = nextSortFor(column, sort);
-              const sortTitle = !isSorted
-                ? `Сортировать по ${(column.sortFirst ?? "desc") === "asc" ? "возрастанию" : "убыванию"}`
-                : nextSort === null
-                  ? "Вернуть исходный порядок"
-                  : "Развернуть порядок";
+              const sortFirst = column.sortFirst ?? "desc";
+              const nextSort = nextTableSort(column.key, sort, sortFirst);
+              const sortTitle = tableSortTitle(column.key, sort, sortFirst);
 
               return (
                 <TableHead
                   key={column.key}
-                  aria-sort={
-                    isSortable
-                      ? isSorted
-                        ? sort?.direction === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"
-                      : undefined
-                  }
+                  aria-sort={isSortable ? tableSortAriaSort(column.key, sort) : undefined}
                   title={
                     isSortable
                       ? column.hint

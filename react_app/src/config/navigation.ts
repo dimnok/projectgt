@@ -69,7 +69,13 @@ export const navigation: AppNavItem[] = [
     migrated: true,
     mobile: true,
   },
-  { href: "/cash-flow", label: "CASH FLOW", icon: WalletIcon, module: "cash_flow" },
+  {
+    href: "/cash-flow",
+    label: "CASH FLOW",
+    icon: WalletIcon,
+    migrated: true,
+    module: "cash_flow",
+  },
   {
     href: "/settlements",
     label: "Взаиморасчёты",

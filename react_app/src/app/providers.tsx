@@ -7,7 +7,9 @@ import { useEffect, type ReactNode } from "react";
 import { RegisterPushNotifications } from "@/components/pwa/register-push-notifications";
 import { RegisterServiceWorker } from "@/components/pwa/register-service-worker";
 import { Toaster } from "@/components/ui/sonner";
+import { findThemeOption, themeIds } from "@/config/themes";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ConnectionStatusProvider } from "@/hooks/use-connection-status";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { getQueryClient } from "@/lib/query/query-client";
 
@@ -15,14 +17,9 @@ type AppProvidersProps = {
   children: ReactNode;
 };
 
+/** Цвет строки браузера: берём фон темы из справочника тем. */
 function themeColorFor(resolvedTheme: string | undefined) {
-  if (resolvedTheme === "dark") {
-    return "#0a0a0a";
-  }
-  if (resolvedTheme === "brand") {
-    return "#E6E9EE";
-  }
-  return "#ffffff";
+  return findThemeOption(resolvedTheme)?.statusBarColor ?? "#ffffff";
 }
 
 function ThemeColorSync() {
@@ -51,15 +48,17 @@ export function AppProviders({ children }: AppProvidersProps) {
       attribute="class"
       defaultTheme="system"
       enableSystem
-      themes={["light", "dark", "brand"]}
+      themes={themeIds}
     >
       <ThemeColorSync />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {children}
-          <RegisterServiceWorker />
-          <RegisterPushNotifications />
-          <Toaster />
+          <ConnectionStatusProvider>
+            {children}
+            <RegisterServiceWorker />
+            <RegisterPushNotifications />
+            <Toaster />
+          </ConnectionStatusProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

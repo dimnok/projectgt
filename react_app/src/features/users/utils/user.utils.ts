@@ -1,6 +1,8 @@
 import type {
   CompanyUser,
   CompanyUserLinkFilter,
+  CompanyUserSort,
+  CompanyUserSortKey,
 } from "@/features/users/types/user.types";
 import { profileInitials } from "@/features/profile/utils/profile.utils";
 
@@ -86,13 +88,44 @@ export function filterCompanyUsers(
   });
 }
 
-export function countCompanyUsers(users: CompanyUser[]) {
-  return {
-    total: users.length,
-    linked: users.filter((user) => Boolean(user.employeeId)).length,
-    unlinked: users.filter((user) => !user.employeeId).length,
-    inactive: users.filter((user) => !user.isActive).length,
-    withoutObjects: users.filter((user) => user.objectIds.length === 0).length,
-    onWeb: users.filter((user) => user.preferWebApp).length,
-  };
+/** Разница двух строк по выбранной колонке: 0 — равны, знак задаёт порядок. */
+function compareByKey(
+  key: CompanyUserSortKey,
+  left: CompanyUser,
+  right: CompanyUser
+): number {
+  switch (key) {
+    case "name":
+      return userDisplayName(left).localeCompare(userDisplayName(right), "ru");
+    case "role":
+      return left.roleName.localeCompare(right.roleName, "ru");
+    case "status":
+      return Number(left.isActive) - Number(right.isActive);
+    case "employee":
+      return Number(Boolean(left.employeeId)) - Number(Boolean(right.employeeId));
+    case "objects":
+      return left.objectIds.length - right.objectIds.length;
+    case "web":
+      return Number(left.preferWebApp) - Number(right.preferWebApp);
+  }
+}
+
+/** Сортировка списка пользователей. Равные значения идут по алфавиту. */
+export function sortCompanyUsers(
+  users: CompanyUser[],
+  sort: CompanyUserSort
+): CompanyUser[] {
+  if (!sort) {
+    return users;
+  }
+
+  const factor = sort.direction === "asc" ? 1 : -1;
+
+  return [...users].sort((left, right) => {
+    const diff = compareByKey(sort.key, left, right);
+    if (diff !== 0) {
+      return factor * diff;
+    }
+    return userDisplayName(left).localeCompare(userDisplayName(right), "ru");
+  });
 }

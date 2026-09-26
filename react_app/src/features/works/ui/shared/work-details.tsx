@@ -89,7 +89,7 @@ export function WorkDetails({
   const [addHourOpen, setAddHourOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const showSearch = tab === "items" || tab === "hours";
-  const { can } = usePermissions();
+  const { can, isOwner } = usePermissions();
   const membershipQuery = useWorkMembership();
   const itemsQuery = useWorkItems(work.id);
   const hoursQuery = useWorkHours(work.id);
@@ -111,6 +111,7 @@ export function WorkDetails({
     openedBy: work.openedBy,
     status: work.status,
     isSuperAdmin: membershipQuery.data?.isSuperAdmin ?? false,
+    isCompanyOwner: isOwner,
   });
   const isSuperAdmin = membershipQuery.data?.isSuperAdmin ?? false;
   const canReopen = isSuperAdmin && can("works", "update");

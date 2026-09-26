@@ -1,25 +1,8 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
 import { assertIsSuperAdmin } from "@/features/works/api/get-work-membership";
-import { mapWorkRow } from "@/features/works/api/get-month-works";
+import { mapWorkRow, WORK_SELECT } from "@/features/works/api/get-month-works";
 import type { Work, WorksRow } from "@/features/works/types/work.types";
-
-const WORK_SELECT = [
-  "id",
-  "company_id",
-  "date",
-  "object_id",
-  "opened_by",
-  "status",
-  "photo_url",
-  "evening_photo_url",
-  "total_amount",
-  "own_total_amount",
-  "items_count",
-  "employees_count",
-  "objects!object_id(name)",
-  "profiles!opened_by(short_name, full_name)",
-].join(", ");
 
 /**
  * Reopens a closed shift. Super-admin only.

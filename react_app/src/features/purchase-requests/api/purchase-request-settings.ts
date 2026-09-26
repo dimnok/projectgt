@@ -8,6 +8,7 @@ import { asRowList, mapCompanyUser, mapSettings } from "@/features/purchase-requ
 import { pickUserDisplayName } from "@/features/purchase-requests/utils/names";
 import { throwIfError } from "@/features/purchase-requests/api/errors";
 
+/** Подпись пользователя в списках: короткое имя, полное или почта. */
 export function companyUserLabel(user: PurchaseRequestCompanyUser) {
   return (
     pickUserDisplayName({
@@ -18,6 +19,7 @@ export function companyUserLabel(user: PurchaseRequestCompanyUser) {
   );
 }
 
+/** Маршрут согласования активной компании: настройки и участники этапов. */
 export async function getPurchaseRequestSettings(): Promise<PurchaseRequestSettings | null> {
   const client = getRequiredClient();
   const companyId = await getActiveCompanyId();
@@ -45,6 +47,7 @@ export async function getPurchaseRequestSettings(): Promise<PurchaseRequestSetti
   );
 }
 
+/** Пользователи компании для выбора участников маршрута. */
 export async function getPurchaseRequestCompanyUsers(): Promise<
   PurchaseRequestCompanyUser[]
 > {
@@ -57,6 +60,12 @@ export async function getPurchaseRequestCompanyUsers(): Promise<
   return asRowList(data).map(mapCompanyUser);
 }
 
+/**
+ * Сохраняет маршрут согласования. Доступно только владельцу компании.
+ *
+ * Вместе с маршрутом база выдаёт роли участников права этапов — отдельно
+ * выдавать их в матрице ролей не нужно.
+ */
 export async function upsertPurchaseRequestSettings(
   settings: PurchaseRequestSettings
 ): Promise<PurchaseRequestSettings> {

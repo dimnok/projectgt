@@ -2,7 +2,7 @@ import type {
   PurchaseRequestInvoiceItem,
   PurchaseRequestInvoiceItemDraft,
 } from "@/features/purchase-requests/types/purchase-request.types";
-import { parseAmountInput } from "@/features/purchase-requests/utils/amount";
+import { formatMoneyInput, parseAmountInput } from "@/features/purchase-requests/utils/amount";
 
 /** Строка редактора позиций счёта. */
 export type InvoiceItemRow = {
@@ -30,12 +30,6 @@ export function createInvoiceItemRow(): InvoiceItemRow {
   };
 }
 
-/** Формат денег для полей: «1 767,55», «24 354,99». */
-const MONEY_FORMAT = new Intl.NumberFormat("ru-RU", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 /** Число для поля ввода: «5» без лишних нулей. */
 function toQuantityValue(value: number | null | undefined): string {
   return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
@@ -44,7 +38,7 @@ function toQuantityValue(value: number | null | undefined): string {
 /** Деньги для поля ввода: «1 767,55». */
 function toMoneyValue(value: number | null | undefined): string {
   return typeof value === "number" && Number.isFinite(value)
-    ? MONEY_FORMAT.format(value)
+    ? formatMoneyInput(value)
     : "";
 }
 

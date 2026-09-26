@@ -29,6 +29,7 @@ import { RolesList } from "@/features/roles/ui/desktop/roles-list";
 import { RolesMatrix } from "@/features/roles/ui/desktop/roles-matrix";
 import { CreateRoleDialog } from "@/features/roles/ui/shared/create-role-dialog";
 import {
+  matrixModules,
   permissionMapsEqual,
   setPermissionValue,
   sortRoles,
@@ -51,6 +52,11 @@ export function RolesDesktop() {
   const roles = useMemo(
     () => sortRoles(rolesQuery.data ?? []),
     [rolesQuery.data]
+  );
+
+  const modules = useMemo(
+    () => matrixModules(modulesQuery.data ?? []),
+    [modulesQuery.data]
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -118,7 +124,7 @@ export function RolesDesktop() {
           <Loading />
         ) : selected ? (
           <RolesMatrix
-            modules={modulesQuery.data ?? []}
+            modules={modules}
             map={map}
             readOnly={readOnly}
             onToggle={handleToggle}

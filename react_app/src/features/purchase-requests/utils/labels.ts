@@ -1,5 +1,6 @@
 import type { PurchaseRequestStatus } from "@/features/purchase-requests/types/purchase-request.types";
 
+/** Фраза действия из истории заявки: «согласовал», «завёл на оплату». */
 export function historyActionPhrase(action: string) {
   switch (action) {
     case "created":
@@ -29,6 +30,7 @@ export function historyActionPhrase(action: string) {
   }
 }
 
+/** Пояснение, когда кнопок этапа нет: заявка закрыта или ждёт другого человека. */
 export function idleActionsMessage(status: PurchaseRequestStatus) {
   if (status === "received") {
     return "Заявка получена";
@@ -36,6 +38,7 @@ export function idleActionsMessage(status: PurchaseRequestStatus) {
   return "Ожидает действия ответственного";
 }
 
+/** Цвет плашки статуса. Один набор на все экраны — компьютер и телефон. */
 export const STATUS_BADGE_CLASS: Record<PurchaseRequestStatus, string> = {
   draft: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
   approval: "bg-blue-600/10 text-blue-800 dark:text-blue-300",

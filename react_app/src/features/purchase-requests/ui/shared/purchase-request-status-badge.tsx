@@ -11,6 +11,7 @@ type PurchaseRequestStatusBadgeProps = {
   className?: string;
 };
 
+/** Плашка статуса заявки: цвет и название. Общая для компьютера и телефона. */
 export function PurchaseRequestStatusBadge({
   status,
   className,

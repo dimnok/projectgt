@@ -1,3 +1,7 @@
+/**
+ * Имя пользователя для интерфейса: короткое, полное, почта — что есть.
+ * `null` означает, что показать нечего.
+ */
 export function pickUserDisplayName(options: {
   shortName?: string | null;
   fullName?: string | null;
@@ -12,6 +16,7 @@ export function pickUserDisplayName(options: {
   return null;
 }
 
+/** Имя для строки интерфейса: пустое значение заменяется прочерком. */
 export function formatUserDisplayLabel(
   name: string | null | undefined,
   fallback = "—"
@@ -20,6 +25,7 @@ export function formatUserDisplayLabel(
   return trimmed ? trimmed : fallback;
 }
 
+/** Имя из строки `profiles`: короткое, полное или почта. */
 export function pickProfileDisplayName(profile: Record<string, unknown>) {
   return pickUserDisplayName({
     shortName: asOptionalString(profile.short_name),
@@ -28,6 +34,7 @@ export function pickProfileDisplayName(profile: Record<string, unknown>) {
   });
 }
 
+/** Строка из базы или `null`: значения приходят без типов. */
 export function asOptionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }

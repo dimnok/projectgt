@@ -21,9 +21,13 @@ import {
   formatRuDate,
   settlementRemaining,
 } from "@/features/settlements/utils/settlement.utils";
+import {
+  nextTableSort,
+  tableSortAriaSort,
+  tableSortTitle,
+  type SortDirection,
+} from "@/lib/table-sort";
 import { cn } from "@/lib/utils";
-
-type SortDirection = "asc" | "desc";
 
 /** Описание колонки таблицы: заголовок, значение для сортировки и отрисовка. */
 type Column = {
@@ -42,18 +46,6 @@ const HEAD_CELL =
 /** Классы ячейки строки таблицы. */
 const BODY_CELL =
   "border-b border-border/50 px-3 py-1.5 whitespace-nowrap text-xs sm:text-sm";
-
-/** Порядок после клика: первое направление → обратное → исходный порядок. */
-function nextSort(column: Column, sort: SettlementSort): SettlementSort {
-  const first = column.sortFirst ?? "asc";
-  if (sort?.key !== column.key) {
-    return { key: column.key, direction: first };
-  }
-  if (sort.direction === first) {
-    return { key: column.key, direction: first === "desc" ? "asc" : "desc" };
-  }
-  return null;
-}
 
 type SettlementsListProps = {
   settlements: Settlement[];
@@ -207,23 +199,18 @@ export function SettlementsList({
           <TableRow className="border-b-0 hover:bg-transparent">
             {columns.map((column, index) => {
               const isSorted = activeSort?.key === column.key;
-              const target = nextSort(column, activeSort);
-              const sortTitle = !isSorted
-                ? `Сортировать по ${(column.sortFirst ?? "asc") === "asc" ? "возрастанию" : "убыванию"}`
-                : target === null
-                  ? "Вернуть исходный порядок"
-                  : "Развернуть порядок";
+              const sortFirst = column.sortFirst ?? "asc";
+              const target = nextTableSort(column.key, activeSort, sortFirst);
+              const sortTitle = tableSortTitle(
+                column.key,
+                activeSort,
+                sortFirst
+              );
 
               return (
                 <TableHead
                   key={column.key}
-                  aria-sort={
-                    isSorted
-                      ? activeSort?.direction === "asc"
-                        ? "ascending"
-                        : "descending"
-                      : "none"
-                  }
+                  aria-sort={tableSortAriaSort(column.key, activeSort)}
                   className={cn(
                     HEAD_CELL,
                     index === 0 && "pl-4 sm:pl-5",

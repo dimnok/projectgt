@@ -1,3 +1,5 @@
+import type { SortDirection } from "@/lib/table-sort";
+
 export const ESTIMATE_TABLE_STORAGE_KEY = "react-estimates-table-layout";
 
 export type EstimatePlanColumnId =
@@ -29,6 +31,20 @@ export type EstimateColumn<TId extends EstimateColumnId = EstimateColumnId> = {
   minWidth: number;
   align: EstimateColumnAlign;
   hideable: boolean;
+  /**
+   * Колонка-источник, за видимостью которой следует эта колонка.
+   *
+   * Нужна колонкам выполнения: если пользователь скрыл «Сумму», колонки
+   * «Сумма вып.» и «Ост. сумма» тоже не показываются.
+   */
+  dependsOn?: EstimatePlanColumnId;
+  /**
+   * Первое направление сортировки по клику на заголовок.
+   *
+   * Текст удобнее читать по алфавиту, а количества и суммы — по убыванию,
+   * поэтому у числовых колонок задано «desc», у остальных по умолчанию «asc».
+   */
+  sortFirst?: SortDirection;
 };
 
 export const ESTIMATE_COLUMNS: readonly EstimateColumn<EstimatePlanColumnId>[] = [
@@ -87,6 +103,7 @@ export const ESTIMATE_COLUMNS: readonly EstimateColumn<EstimatePlanColumnId>[] =
     minWidth: 70,
     align: "right",
     hideable: true,
+    sortFirst: "desc",
   },
   {
     id: "price",
@@ -94,6 +111,7 @@ export const ESTIMATE_COLUMNS: readonly EstimateColumn<EstimatePlanColumnId>[] =
     minWidth: 85,
     align: "right",
     hideable: true,
+    sortFirst: "desc",
   },
   {
     id: "total",
@@ -101,6 +119,7 @@ export const ESTIMATE_COLUMNS: readonly EstimateColumn<EstimatePlanColumnId>[] =
     minWidth: 95,
     align: "right",
     hideable: true,
+    sortFirst: "desc",
   },
 ];
 
@@ -112,6 +131,7 @@ export const ESTIMATE_EXECUTION_COLUMNS: readonly EstimateColumn<EstimateExecuti
     minWidth: 74,
     align: "right",
     hideable: false,
+    sortFirst: "desc",
   },
   {
     id: "completedTotal",
@@ -120,14 +140,17 @@ export const ESTIMATE_EXECUTION_COLUMNS: readonly EstimateColumn<EstimateExecuti
     minWidth: 95,
     align: "right",
     hideable: false,
+    dependsOn: "total",
+    sortFirst: "desc",
   },
   {
     id: "remainingQuantity",
-    label: "Ост.\nкол-во",
+    label: "Кол-во\nост.",
     title: "Остаток, количество",
     minWidth: 74,
     align: "right",
     hideable: false,
+    sortFirst: "desc",
   },
   {
     id: "remainingTotal",
@@ -136,6 +159,8 @@ export const ESTIMATE_EXECUTION_COLUMNS: readonly EstimateColumn<EstimateExecuti
     minWidth: 95,
     align: "right",
     hideable: false,
+    dependsOn: "total",
+    sortFirst: "desc",
   },
 ];
 
@@ -156,4 +181,28 @@ export function isEstimateExecutionColumnId(
   value: string
 ): value is EstimateExecutionColumnId {
   return ESTIMATE_EXECUTION_COLUMNS.some((column) => column.id === value);
+}
+
+/**
+ * Колонки таблицы сметы с учётом настроек вида.
+ *
+ * Обычные колонки скрываются по списку `hidden`, а колонки выполнения
+ * добавляются только при `showExecution` и дополнительно следуют за своей
+ * колонкой-источником (`dependsOn`): скрыли «Сумму» — пропали «Сумма вып.»
+ * и «Ост. сумма».
+ */
+export function resolveEstimateColumns(
+  hidden: ReadonlySet<EstimatePlanColumnId>,
+  showExecution: boolean
+): readonly EstimateColumn[] {
+  const planColumns = ESTIMATE_COLUMNS.filter(
+    (column) => !hidden.has(column.id)
+  );
+  if (!showExecution) {
+    return planColumns;
+  }
+  const executionColumns = ESTIMATE_EXECUTION_COLUMNS.filter(
+    (column) => !column.dependsOn || !hidden.has(column.dependsOn)
+  );
+  return [...planColumns, ...executionColumns];
 }

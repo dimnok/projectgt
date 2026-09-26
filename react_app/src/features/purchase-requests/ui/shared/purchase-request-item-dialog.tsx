@@ -25,6 +25,7 @@ type ItemDialogProps = {
   onSubmit: (item: PurchaseRequestItemDraft) => void;
 };
 
+/** Добавление позиции заявки (компьютер). Правила общие с телефоном. */
 export function PurchaseRequestItemDialog({
   open,
   isSaving,

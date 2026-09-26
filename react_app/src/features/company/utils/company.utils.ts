@@ -166,3 +166,65 @@ export const companyValidators = {
   bik: (value: string) => validateDigits(value, [9], "БИК"),
   account: (value: string) => validateDigits(value, [20], "Счёт"),
 };
+
+/**
+ * Поля реквизитов, которые проверяются в форме: наименования обязательны,
+ * остальные — по формату.
+ */
+export const companyFieldValidators = {
+  nameFull: (value: string) =>
+    value.trim() ? null : "Введите полное наименование",
+  nameShort: (value: string) =>
+    value.trim() ? null : "Введите краткое наименование",
+  inn: companyValidators.inn,
+  kpp: companyValidators.kpp,
+  ogrn: companyValidators.ogrn,
+  okpo: companyValidators.okpo,
+} as const;
+
+export type CompanyFieldKey = keyof typeof companyFieldValidators;
+
+export type CompanyFieldErrors = Partial<Record<CompanyFieldKey, string>>;
+
+/** Цифровые поля реквизитов: проверяются по количеству цифр. */
+const COMPANY_DIGIT_FIELDS: CompanyFieldKey[] = ["inn", "kpp", "ogrn", "okpo"];
+
+export function isCompanyFieldKey(key: string): key is CompanyFieldKey {
+  return key in companyFieldValidators;
+}
+
+/**
+ * Проверка одного поля при уходе из него. Пустое значение не считаем ошибкой:
+ * иначе форма ругается, пока пользователь просто проходит по полям.
+ */
+export function companyFieldBlurError(
+  key: CompanyFieldKey,
+  value: string
+): string {
+  return value.trim() ? (companyFieldValidators[key](value) ?? "") : "";
+}
+
+/**
+ * Ошибки реквизитов при сохранении. Наименования проверяются всегда, цифровые
+ * поля — только те, которые пользователь заполнял: неверное значение из базы
+ * не должно мешать сохранить карточку.
+ */
+export function companyDraftErrors(
+  draft: CompanyDraft,
+  digitFields: Iterable<CompanyFieldKey> = COMPANY_DIGIT_FIELDS
+): CompanyFieldErrors {
+  const checkedDigits = new Set(digitFields);
+  const errors: CompanyFieldErrors = {};
+
+  for (const key of Object.keys(companyFieldValidators) as CompanyFieldKey[]) {
+    if (COMPANY_DIGIT_FIELDS.includes(key) && !checkedDigits.has(key)) {
+      continue;
+    }
+    const error = companyFieldValidators[key](draft[key]);
+    if (error) {
+      errors[key] = error;
+    }
+  }
+
+  return errors;
+}

@@ -1,3 +1,4 @@
+/** Сумма в рублях: «1 767,55 ₽». */
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -7,10 +8,12 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+/** Сумма заявки: пустая заявка показывается прочерком, а не нулём. */
 export function formatPurchaseRequestAmount(amount: number) {
   return amount > 0 ? formatCurrency(amount) : "—";
 }
 
+/** Количество: до трёх знаков после запятой, без лишних нулей. */
 export function formatQuantity(value: number): string {
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: 3,
@@ -53,6 +56,7 @@ export function formatInvoiceItemAmounts(item: {
   return [quantity, price, amount].filter(Boolean).join(" · ");
 }
 
+/** Дата из базы (`2026-09-20T…`) в вид «20.09.2026». */
 export function formatRuDate(value: string | null | undefined): string {
   if (!value) {
     return "—";
@@ -65,6 +69,7 @@ export function formatRuDate(value: string | null | undefined): string {
   return `${day}.${month}.${year}`;
 }
 
+/** Дата и время записи истории: «20.09.2026 14:35». */
 export function formatRuDateTime(value: string | Date | null | undefined): string {
   if (!value) {
     return "—";

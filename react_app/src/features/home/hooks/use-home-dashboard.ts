@@ -23,7 +23,7 @@ import { scopeHomeObjects } from "@/features/home/utils/scope-home-objects";
 import {
   monthWorkHoursQueryKey,
   monthWorksQueryKey,
-  useMonthWorkHourTotals,
+  useMonthWorkHours,
   useMonthWorks,
   useWorkAccessScope,
   workAccessScopeQueryKey,
@@ -81,15 +81,8 @@ export function useHomeDashboard(): HomeDashboardState {
   // Works query for current month
   const worksQuery = useMonthWorks(monthKey, undefined, canReadWorks);
   const monthWorks = useMemo(() => worksQuery.data ?? [], [worksQuery.data]);
-  const monthWorkIds = useMemo(
-    () => monthWorks.map((work) => work.id),
-    [monthWorks]
-  );
-  const hoursQuery = useMonthWorkHourTotals(
-    monthKey,
-    monthWorkIds,
-    canReadWorks && monthWorkIds.length > 0
-  );
+  // Часы по сменам месяца считает база: список id смен в запрос не передаём.
+  const hoursQuery = useMonthWorkHours(monthKey, canReadWorks);
   const hoursByWorkId = hoursQuery.data ?? {};
   const minOutputPerPersonHour =
     profile?.activeMembership?.minOutputPerPersonHour ?? null;
@@ -309,7 +302,7 @@ export function useHomeDashboard(): HomeDashboardState {
     isProfileLoading ||
     isPermLoading ||
     (canReadWorks && worksQuery.isLoading) ||
-    (canReadWorks && monthWorkIds.length > 0 && hoursQuery.isLoading) ||
+    (canReadWorks && hoursQuery.isLoading) ||
     objectsQuery.isLoading ||
     accessScopeQuery.isLoading;
 

@@ -6,11 +6,13 @@ import {
   isWorkStatus,
   monthRange,
   resolveProfileName,
+  resolveWorkPhotoUrls,
   toNumber,
   unwrapRelation,
 } from "@/features/works/utils/work.utils";
 
-const WORK_SELECT = [
+/** Единый набор полей смены для чтения и записи: им пользуется весь модуль. */
+export const WORK_SELECT = [
   "id",
   "company_id",
   "date",
@@ -18,7 +20,9 @@ const WORK_SELECT = [
   "opened_by",
   "status",
   "photo_url",
+  "photo_urls",
   "evening_photo_url",
+  "evening_photo_urls",
   "total_amount",
   "own_total_amount",
   "items_count",
@@ -42,7 +46,12 @@ export function mapWorkRow(row: WorksRow): Work {
     openedByName: resolveProfileName(profile),
     status,
     photoUrl: row.photo_url,
+    photoUrls: resolveWorkPhotoUrls(row.photo_urls, row.photo_url),
     eveningPhotoUrl: row.evening_photo_url,
+    eveningPhotoUrls: resolveWorkPhotoUrls(
+      row.evening_photo_urls,
+      row.evening_photo_url
+    ),
     totalAmount: toNumber(row.total_amount),
     ownTotalAmount: toNumber(row.own_total_amount),
     itemsCount: toNumber(row.items_count),

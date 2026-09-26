@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   GlobeIcon,
@@ -35,6 +35,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ProfileAppearance } from "@/features/profile/ui/profile-appearance";
 import { useAppUpdate } from "@/hooks/use-app-update";
+import { useConnectionStatus } from "@/hooks/use-connection-status";
 import { useStandalone } from "@/hooks/use-standalone";
 import {
   formatAppBuildLabel,
@@ -45,23 +46,6 @@ import { signOut } from "@/lib/supabase/auth";
 
 const BUILD_INFO = "Next.js 16 • React 19";
 
-function subscribeOnline(callback: () => void) {
-  window.addEventListener("online", callback);
-  window.addEventListener("offline", callback);
-  return () => {
-    window.removeEventListener("online", callback);
-    window.removeEventListener("offline", callback);
-  };
-}
-
-function getOnlineSnapshot() {
-  return navigator.onLine;
-}
-
-function getOnlineServerSnapshot() {
-  return true;
-}
-
 export function ProfileSystemTab() {
   const router = useRouter();
   const isStandalone = useStandalone();
@@ -71,11 +55,7 @@ export function ProfileSystemTab() {
   const buildTime = formatAppBuildTime(current.builtAt);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const isOnline = useSyncExternalStore(
-    subscribeOnline,
-    getOnlineSnapshot,
-    getOnlineServerSnapshot
-  );
+  const { isOnline } = useConnectionStatus();
 
   async function handleSignOut() {
     setIsSigningOut(true);

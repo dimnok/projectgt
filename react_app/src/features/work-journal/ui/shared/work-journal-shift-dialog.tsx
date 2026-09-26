@@ -41,7 +41,7 @@ export function WorkJournalShiftDialog({
   const workId = target?.workId ?? null;
   const workQuery = useWork(workId);
   const membershipQuery = useWorkMembership();
-  const { can } = usePermissions();
+  const { can, isOwner } = usePermissions();
   const work = workQuery.data;
   const canModify = work
     ? canModifyWorkItems({
@@ -50,6 +50,7 @@ export function WorkJournalShiftDialog({
         openedBy: work.openedBy,
         status: work.status,
         isSuperAdmin: membershipQuery.data?.isSuperAdmin ?? false,
+        isCompanyOwner: isOwner,
       })
     : false;
 

@@ -1,4 +1,5 @@
 import type { EmployeeStatus } from "@/features/employees/utils/employee-status";
+import type { TableSort } from "@/lib/table-sort";
 
 /** Период списков: конкретный месяц или вся история. */
 export type PayrollPeriod =
@@ -9,10 +10,7 @@ export type PayrollPeriod =
 export type PayrollTransactionKind = "bonus" | "penalty";
 
 /** Сортировка таблицы по колонке. */
-export type PayrollTableSort = {
-  key: string;
-  direction: "asc" | "desc";
-};
+export type PayrollTableSort = TableSort<string>;
 
 /** Строка RPC `calculate_payroll_for_month`. */
 export type PayrollMonthRow = {

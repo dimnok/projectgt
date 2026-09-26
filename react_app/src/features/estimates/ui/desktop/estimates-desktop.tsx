@@ -26,11 +26,13 @@ import { EstimateItemDeleteDialog } from "@/features/estimates/ui/shared/estimat
 import { useEstimateGroups } from "@/features/estimates/hooks/use-estimate-groups";
 import { useEstimateItems } from "@/features/estimates/hooks/use-estimate-items";
 import { useEstimateCompletion } from "@/features/estimates/hooks/use-estimate-completion";
+import { useEstimateTableSort } from "@/features/estimates/hooks/use-estimate-table-sort";
 import {
   filterEstimateItemsByOverrun,
   isEstimateOverrun,
 } from "@/features/estimates/utils/estimate-execution";
 import { exportEstimateToExcel } from "@/features/estimates/utils/export-estimate-excel";
+import { sortEstimateItemsByColumn } from "@/features/estimates/utils/estimate-table-sort";
 import {
   filterEstimateItems,
   groupEstimateFiles,
@@ -54,6 +56,7 @@ export function EstimatesDesktop() {
   const [fileKey, setFileKey] = useState<string | null>(null);
   const [showExecution, setShowExecution] = useState(false);
   const [showOverrunsOnly, setShowOverrunsOnly] = useState(false);
+  const { sort, setSort } = useEstimateTableSort(showExecution);
   const [isExporting, setIsExporting] = useState(false);
 
   // Состояния добавления / редактирования / удаления позиций
@@ -117,12 +120,18 @@ export function EstimatesDesktop() {
     return items;
   }, [itemsData, query, isOverrunsActive, completionById]);
 
+  // Выгрузка в Excel идёт в том же порядке, что видно в таблице.
+  const rows = useMemo(
+    () => sortEstimateItemsByColumn(filteredItems, sort, completionById),
+    [filteredItems, sort, completionById]
+  );
+
   async function handleExportExcel() {
     if (!contractGroup) {
       toast.info("Сначала выберите объект и договор для выгрузки");
       return;
     }
-    if (filteredItems.length === 0) {
+    if (rows.length === 0) {
       toast.warning("Нет позиций для выгрузки");
       return;
     }
@@ -130,7 +139,7 @@ export function EstimatesDesktop() {
     try {
       setIsExporting(true);
       await exportEstimateToExcel({
-        items: filteredItems,
+        items: rows,
         completionById,
         objectName: objectGroup?.objectName,
         contractNumber: contractGroup.contractNumber,
@@ -255,7 +264,7 @@ export function EstimatesDesktop() {
     );
   }
 
-  const isExcelDisabled = !contractGroup || filteredItems.length === 0 || isExporting || isCompletionLoading;
+  const isExcelDisabled = !contractGroup || rows.length === 0 || isExporting || isCompletionLoading;
 
   return (
     <div
@@ -375,6 +384,8 @@ export function EstimatesDesktop() {
           file={selection.file}
           showExecution={showExecution}
           showOverrunsOnly={isOverrunsActive}
+          sort={sort}
+          onSortChange={setSort}
         />
       </div>
 

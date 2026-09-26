@@ -1,17 +1,16 @@
+import { assertCompanyOwner } from "@/features/company/api/assert-company-owner";
 import { roleDbErrorMessage } from "@/features/roles/utils/role.utils";
-import { getActiveCompanyId } from "@/lib/supabase/company";
-import { getRequiredClient } from "@/lib/supabase/client";
 
 /**
- * Assigns a custom role. Database allows UPDATE on company_members
- * only for the company owner (`get_owned_company_ids`).
+ * Assigns a custom role. Database allows UPDATE on `company_members`
+ * only for the company owner (`get_owned_company_ids`);
+ * `assertCompanyOwner` repeats the same check client-side.
  */
 export async function updateMemberRole(
   userId: string,
   roleId: string | null
 ): Promise<void> {
-  const client = getRequiredClient();
-  const companyId = await getActiveCompanyId();
+  const { client, companyId } = await assertCompanyOwner();
 
   const { data, error } = await client
     .from("company_members")
@@ -25,6 +24,6 @@ export async function updateMemberRole(
     throw new Error(roleDbErrorMessage(error));
   }
   if (!data) {
-    throw new Error("Назначить роль может только владелец компании");
+    throw new Error("Пользователь не состоит в активной компании");
   }
 }

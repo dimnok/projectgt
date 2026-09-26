@@ -25,6 +25,10 @@ type CommentDialogProps = {
   onSubmit: (comment: string) => void;
 };
 
+/**
+ * Окно с комментарием: причина возврата заявки или счетов.
+ * Текст обязателен, если окно открыто с `required`.
+ */
 export function PurchaseRequestCommentDialog({
   open,
   title,

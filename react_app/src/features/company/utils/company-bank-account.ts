@@ -64,25 +64,60 @@ export function toBankAccountDraft(
   };
 }
 
+/** Проверки одного поля счёта: те же сообщения, что и при сохранении. */
+export const bankAccountFieldValidators = {
+  bankName: (value: string) =>
+    value.trim() ? null : "Введите наименование банка",
+  accountNumber: (value: string) => {
+    const digits = digitsOnly(value);
+    if (!digits) {
+      return "Введите расчётный счёт";
+    }
+    return digits.length === 20 ? null : "Расчётный счёт — 20 цифр";
+  },
+  bik: (value: string) => {
+    const digits = digitsOnly(value);
+    return digits && digits.length !== 9 ? "БИК — 9 цифр" : null;
+  },
+  corrAccount: (value: string) => {
+    const digits = digitsOnly(value);
+    return digits && digits.length !== 20 ? "Корр. счёт — 20 цифр" : null;
+  },
+} as const;
+
+export type BankAccountFieldKey = keyof typeof bankAccountFieldValidators;
+
+export function isBankAccountFieldKey(
+  key: string
+): key is BankAccountFieldKey {
+  return key in bankAccountFieldValidators;
+}
+
+/** Ошибки счёта при сохранении. */
 export function validateBankAccountDraft(
   draft: CompanyBankAccountDraft
 ): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (!draft.bankName.trim()) {
-    errors.bankName = "Введите наименование банка";
+
+  for (const key of Object.keys(
+    bankAccountFieldValidators
+  ) as BankAccountFieldKey[]) {
+    const error = bankAccountFieldValidators[key](draft[key]);
+    if (error) {
+      errors[key] = error;
+    }
   }
-  if (!digitsOnly(draft.accountNumber)) {
-    errors.accountNumber = "Введите расчётный счёт";
-  } else if (digitsOnly(draft.accountNumber).length !== 20) {
-    errors.accountNumber = "Расчётный счёт — 20 цифр";
-  }
-  const bik = digitsOnly(draft.bik);
-  if (bik && bik.length !== 9) {
-    errors.bik = "БИК — 9 цифр";
-  }
-  const corr = digitsOnly(draft.corrAccount);
-  if (corr && corr.length !== 20) {
-    errors.corrAccount = "Корр. счёт — 20 цифр";
-  }
+
   return errors;
+}
+
+/**
+ * Проверка одного поля счёта при уходе из него. Пустое значение не считаем
+ * ошибкой — обязательность проверяется при сохранении.
+ */
+export function bankAccountBlurError(
+  key: BankAccountFieldKey,
+  value: string
+): string {
+  return value.trim() ? (bankAccountFieldValidators[key](value) ?? "") : "";
 }

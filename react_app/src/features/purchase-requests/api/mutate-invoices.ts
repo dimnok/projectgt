@@ -56,7 +56,7 @@ async function discardInvoiceArtifacts(
  * Сохраняет строки счёта одной операцией: новые добавляются, изменённые
  * обновляются, отсутствующие удаляются. Доступно на этапе подготовки счетов.
  */
-export async function replacePurchaseRequestInvoiceItems(
+async function replacePurchaseRequestInvoiceItems(
   invoiceId: string,
   items: PurchaseRequestInvoiceItemDraft[]
 ): Promise<PurchaseRequestInvoiceItem[]> {
@@ -72,6 +72,12 @@ export async function replacePurchaseRequestInvoiceItems(
   return asRowList(data).map(mapInvoiceItem);
 }
 
+/**
+ * Добавляет счёт: запись, файл в хранилище и строки счёта.
+ *
+ * Счёт уже виден в заявке, когда загружается файл, поэтому при сбое уборка
+ * идёт в обратном порядке — файл и запись удаляются, причина сбоя не теряется.
+ */
 export async function createPurchaseRequestInvoice(input: {
   requestId: string;
   supplierId: string;
@@ -159,6 +165,10 @@ export async function createPurchaseRequestInvoice(input: {
   }
 }
 
+/**
+ * Удаляет счёт вместе с его файлами. Сначала убираем запись, затем файлы:
+ * сбой хранилища не должен отменять уже выполненное действие.
+ */
 export async function deletePurchaseRequestInvoice(invoiceId: string) {
   const client = getRequiredClient();
   const companyId = await getActiveCompanyId();
@@ -189,6 +199,10 @@ export async function deletePurchaseRequestInvoice(invoiceId: string) {
   }
 }
 
+/**
+ * Скачивает файл счёта. Путь обязан быть в папке активной компании —
+ * так исключаем обращение к чужим файлам.
+ */
 export async function downloadPurchaseRequestInvoiceFile(storagePath: string) {
   const client = getRequiredClient();
   const companyId = await getActiveCompanyId();

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, CopyIcon, PlusIcon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, UserPlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { CompanyListIconButton } from "@/features/company/ui/shared/company-list-icon-button";
+import { CompanyInvitationsSkeleton } from "@/features/company/ui/shared/company-skeletons";
 import {
   useCompanyInvitations,
   useCreateCompanyInvitation,
@@ -132,7 +134,7 @@ export function CompanyInvitations({ canEdit }: CompanyInvitationsProps) {
               {createInvitation.isPending ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <PlusIcon data-icon="inline-start" />
+                <UserPlusIcon data-icon="inline-start" />
               )}
               Создать код
             </Button>
@@ -141,9 +143,7 @@ export function CompanyInvitations({ canEdit }: CompanyInvitationsProps) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner /> Загрузка…
-        </div>
+        <CompanyInvitationsSkeleton />
       ) : isError ? (
         <p className="text-sm text-destructive">
           {error instanceof Error
@@ -176,26 +176,18 @@ export function CompanyInvitations({ canEdit }: CompanyInvitationsProps) {
                   <Badge variant={statusVariant(status)}>
                     {invitationStatusLabels[status]}
                   </Badge>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Скопировать код"
+                  <CompanyListIconButton
+                    icon={copiedId === invitation.id ? CheckIcon : CopyIcon}
+                    label="Скопировать код"
                     onClick={() => void handleCopy(invitation)}
-                  >
-                    {copiedId === invitation.id ? <CheckIcon /> : <CopyIcon />}
-                  </Button>
+                  />
                   {canEdit && active ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Отозвать код"
+                    <CompanyListIconButton
+                      icon={XIcon}
+                      label="Отозвать код"
                       disabled={revokeInvitation.isPending}
                       onClick={() => handleRevoke(invitation)}
-                    >
-                      <XIcon />
-                    </Button>
+                    />
                   ) : null}
                 </div>
               </div>

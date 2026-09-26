@@ -35,8 +35,11 @@ import {
   useProfileObjectIds,
 } from "@/features/works/hooks/use-open-work";
 import type { Work } from "@/features/works/types/work.types";
-import { MAX_MORNING_PHOTOS } from "@/features/works/utils/compose-work-photo-collage";
-import { formatRuDate, toDateKey } from "@/features/works/utils/work.utils";
+import {
+  MAX_WORK_PHOTOS_PER_KIND,
+  formatRuDate,
+  toDateKey,
+} from "@/features/works/utils/work.utils";
 import { cn } from "@/lib/utils";
 
 type WorkOpenFormProps = {
@@ -130,9 +133,9 @@ export function WorkOpenForm({
       return;
     }
     setPhotos((current) => {
-      const room = MAX_MORNING_PHOTOS - current.length;
+      const room = MAX_WORK_PHOTOS_PER_KIND - current.length;
       if (room <= 0) {
-        toast.error("Можно приложить не больше 4 фото");
+        toast.error(`Можно приложить не больше ${MAX_WORK_PHOTOS_PER_KIND} фото`);
         return current;
       }
       if (images.length > room) {
@@ -300,7 +303,8 @@ export function WorkOpenForm({
         <Field>
           <FieldLabel>Фото смены</FieldLabel>
           <FieldDescription>
-            До 4 снимков. Несколько фото сохранятся одним коллажем.
+            До 4 снимков. Каждый сохраняется отдельно — заменить или удалить
+            можно в открытой смене.
           </FieldDescription>
           <input
             ref={fileRef}
@@ -363,7 +367,7 @@ export function WorkOpenForm({
                   </button>
                 ))}
               </div>
-              {photos.length < MAX_MORNING_PHOTOS ? (
+              {photos.length < MAX_WORK_PHOTOS_PER_KIND ? (
                 <Button
                   type="button"
                   variant="outline"

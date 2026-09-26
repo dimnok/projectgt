@@ -52,6 +52,7 @@ const purchaseRequestPaidByObjectQueryKey = [
   "paid-by-object",
 ] as const;
 
+/** Реестр заявок: фильтр статуса и поиск уходят на сервер. */
 export function usePurchaseRequests(
   filter: PurchaseRequestListFilter,
   search: string
@@ -80,6 +81,7 @@ export function usePurchaseRequestPaidByObject(enabled = true) {
   });
 }
 
+/** Подробности заявки. Запрос идёт, пока заявка открыта. */
 export function usePurchaseRequestDetails(requestId: string | null) {
   return useQuery({
     queryKey: [...purchaseRequestDetailsQueryKey, requestId],
@@ -88,6 +90,7 @@ export function usePurchaseRequestDetails(requestId: string | null) {
   });
 }
 
+/** Настроенный маршрут согласования активной компании. */
 export function usePurchaseRequestSettings() {
   return useQuery({
     queryKey: purchaseRequestSettingsQueryKey,
@@ -95,6 +98,7 @@ export function usePurchaseRequestSettings() {
   });
 }
 
+/** Пользователи компании для окна настройки маршрута. */
 export function usePurchaseRequestCompanyUsers(enabled: boolean) {
   return useQuery({
     queryKey: ["purchase-requests", "company-users"],
@@ -103,6 +107,10 @@ export function usePurchaseRequestCompanyUsers(enabled: boolean) {
   });
 }
 
+/**
+ * Обновляет список, счётчики, KPI и открытую заявку после изменения.
+ * Ключи кэша наружу не отдаём — сброс живёт в одном месте.
+ */
 function useInvalidatePurchaseRequests() {
   const queryClient = useQueryClient();
   return (requestId?: string) => {
@@ -123,6 +131,7 @@ function useInvalidatePurchaseRequests() {
   };
 }
 
+/** Создание черновика заявки вместе с позициями. */
 export function useCreatePurchaseRequestDraft() {
   const invalidate = useInvalidatePurchaseRequests();
   return useMutation({
@@ -131,6 +140,7 @@ export function useCreatePurchaseRequestDraft() {
   });
 }
 
+/** Правка черновика: шапка и позиции. */
 export function useUpdatePurchaseRequestDraft() {
   const invalidate = useInvalidatePurchaseRequests();
   return useMutation({
@@ -139,6 +149,7 @@ export function useUpdatePurchaseRequestDraft() {
   });
 }
 
+/** Удаление своего черновика. */
 export function useDeletePurchaseRequestDraft() {
   const invalidate = useInvalidatePurchaseRequests();
   return useMutation({
@@ -147,6 +158,7 @@ export function useDeletePurchaseRequestDraft() {
   });
 }
 
+/** Перезапись позиций заявки одной операцией. */
 export function useReplacePurchaseRequestItems(requestId: string) {
   const invalidate = useInvalidatePurchaseRequests();
   return useMutation({
@@ -167,6 +179,7 @@ export function useRecognizePurchaseRequestInvoice() {
   });
 }
 
+/** Сохранение маршрута согласования (владелец компании). */
 export function useUpsertPurchaseRequestSettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -180,6 +193,12 @@ export function useUpsertPurchaseRequestSettings() {
   });
 }
 
+/**
+ * Действия по открытой заявке: этапы, счета и позиции.
+ *
+ * Смена статуса обновляет данные и запускает push получателям; работа со
+ * счетами статус не меняет, поэтому push не нужен.
+ */
 export function usePurchaseRequestWorkflow(requestId: string) {
   const invalidate = useInvalidatePurchaseRequests();
 

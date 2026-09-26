@@ -6,9 +6,11 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { CompanyDocumentDeleteDialog } from "@/features/company/ui/shared/company-document-delete-dialog";
 import { CompanyDocumentFormDialog } from "@/features/company/ui/shared/company-document-form-dialog";
+import { CompanyDocumentSheet } from "@/features/company/ui/mobile/company-document-sheet";
+import { CompanyListIconButton } from "@/features/company/ui/shared/company-list-icon-button";
+import { CompanyListSkeleton } from "@/features/company/ui/shared/company-skeletons";
 import {
   useCompanyDocuments,
   useCreateCompanyDocument,
@@ -17,6 +19,7 @@ import {
 } from "@/features/company/hooks/use-company-documents";
 import type { CompanyDocument, CompanyDocumentDraft } from "@/features/company/types/company.types";
 import { formatDocumentDate } from "@/features/company/utils/company-document";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type CompanyDocumentsProps = {
   canEdit: boolean;
@@ -24,6 +27,7 @@ type CompanyDocumentsProps = {
 
 /** Документы компании (лицензии, СРО): список и операции. */
 export function CompanyDocuments({ canEdit }: CompanyDocumentsProps) {
+  const isMobile = useIsMobile();
   const { data, isLoading, isError, error } = useCompanyDocuments();
   const createDocument = useCreateCompanyDocument();
   const updateDocument = useUpdateCompanyDocument();
@@ -111,9 +115,7 @@ export function CompanyDocuments({ canEdit }: CompanyDocumentsProps) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner /> Загрузка…
-        </div>
+        <CompanyListSkeleton />
       ) : isError ? (
         <p className="text-sm text-destructive">
           {error instanceof Error
@@ -165,24 +167,16 @@ export function CompanyDocuments({ canEdit }: CompanyDocumentsProps) {
                 )}
                 {canEdit ? (
                   <>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Изменить документ"
+                    <CompanyListIconButton
+                      icon={PencilIcon}
+                      label="Изменить документ"
                       onClick={() => setEditorDocument(document)}
-                    >
-                      <PencilIcon />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Удалить документ"
+                    />
+                    <CompanyListIconButton
+                      icon={Trash2Icon}
+                      label="Удалить документ"
                       onClick={() => setDocumentToDelete(document)}
-                    >
-                      <Trash2Icon />
-                    </Button>
+                    />
                   </>
                 ) : null}
               </div>
@@ -191,17 +185,31 @@ export function CompanyDocuments({ canEdit }: CompanyDocumentsProps) {
         </div>
       )}
 
-      <CompanyDocumentFormDialog
-        open={isEditorOpen}
-        document={editorDocument ?? null}
-        isSaving={isSaving}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditorDocument(undefined);
-          }
-        }}
-        onSubmit={handleSubmit}
-      />
+      {isMobile ? (
+        <CompanyDocumentSheet
+          open={isEditorOpen}
+          document={editorDocument ?? null}
+          isSaving={isSaving}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditorDocument(undefined);
+            }
+          }}
+          onSubmit={handleSubmit}
+        />
+      ) : (
+        <CompanyDocumentFormDialog
+          open={isEditorOpen}
+          document={editorDocument ?? null}
+          isSaving={isSaving}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditorDocument(undefined);
+            }
+          }}
+          onSubmit={handleSubmit}
+        />
+      )}
 
       <CompanyDocumentDeleteDialog
         document={documentToDelete}

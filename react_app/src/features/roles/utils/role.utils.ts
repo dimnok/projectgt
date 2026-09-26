@@ -1,5 +1,18 @@
 import type { RolePermissionMap } from "@/config/permissions";
-import type { CompanyRole } from "@/features/roles/types/role.types";
+import type { AppModule, CompanyRole } from "@/features/roles/types/role.types";
+
+/**
+ * Модули, скрытые в матрице прав: реализация ещё правится, права настроим позже.
+ * Права таких модулей в базе не трогаем — они сохраняются как есть.
+ */
+export const HIDDEN_MATRIX_MODULE_CODES: readonly string[] = ["tmc"];
+
+/** Модули для матрицы: без временно скрытых. */
+export function matrixModules(modules: AppModule[]): AppModule[] {
+  return modules.filter(
+    (appModule) => !HIDDEN_MATRIX_MODULE_CODES.includes(appModule.code)
+  );
+}
 
 export function sortRoles(roles: CompanyRole[]): CompanyRole[] {
   return [...roles].sort((left, right) => {

@@ -298,3 +298,75 @@ export type SettlementFilesRow = {
   created_at: string | null;
   created_by: string | null;
 };
+
+/** Строка операции ДДС из таблицы `cash_flow`. */
+export type CashFlowRow = {
+  id: string;
+  company_id: string;
+  date: string;
+  type: string;
+  amount: number | string;
+  object_id: string | null;
+  contract_id: string | null;
+  contractor_id: string | null;
+  category_id: string | null;
+  comment: string | null;
+  /** Контрагент текстом из банковской выписки (справочник — `contractor_id`). */
+  contractor_name: string | null;
+  contractor_inn: string | null;
+  operation_hash: string | null;
+  created_at: string | null;
+  created_by: string | null;
+};
+
+/**
+ * Строка страницы реестра из функции `get_cash_flow_page`.
+ *
+ * Компания в ответе не возвращается: реестр всегда строится по активной
+ * компании, и её задаёт параметр функции.
+ */
+export type CashFlowListRow = Omit<CashFlowRow, "company_id"> & {
+  object_name: string | null;
+  contractor_short_name: string | null;
+  contract_number: string | null;
+  category_name: string | null;
+  created_by_name: string | null;
+};
+
+/** Ответ функции `get_cash_flow_page`: страница операций и общее число. */
+export type CashFlowListPageRow = {
+  items: CashFlowListRow[];
+  total_count: number | string;
+};
+
+/** Итоги реестра из функции `get_cash_flow_summary`. */
+export type CashFlowSummaryRow = {
+  total_count: number | string;
+  total_income: number | string;
+  total_expense: number | string;
+  total_balance: number | string;
+};
+
+/** Месяц аналитики из функции `get_cash_flow_monthly_analytics`. */
+export type CashFlowMonthAnalyticsRow = {
+  month: string;
+  income: number | string;
+  expense: number | string;
+  income_by_category: Record<string, number | string> | null;
+  expense_by_category: Record<string, number | string> | null;
+};
+
+/** Строка статьи ДДС из таблицы `cash_flow_categories`. */
+export type CashFlowCategoryRow = {
+  id: string;
+  company_id: string;
+  name: string;
+  type: string;
+};
+
+/** Доступные для фильтра идентификаторы из `get_cash_flow_available_filters`. */
+export type CashFlowAvailableFiltersRow = {
+  object_ids: string[] | null;
+  contractor_ids: string[] | null;
+  contract_ids: string[] | null;
+};

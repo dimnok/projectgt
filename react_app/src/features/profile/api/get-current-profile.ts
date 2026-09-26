@@ -15,7 +15,7 @@ import {
   asString,
   nestedRecord,
 } from "@/features/profile/utils/nested-record";
-import { canManageUsers } from "@/features/profile/api/can-manage-users";
+import { canManageUsers, isSuperAdmin } from "@/features/profile/api/can-manage-users";
 import {
   companyDisplayName,
   parseSystemRole,
@@ -176,10 +176,15 @@ export async function getCurrentProfile(): Promise<CurrentProfile> {
 
   const phone = formatPhone(profile.phone) || formatPhone(user.phone);
   let canManage = false;
+  let superAdmin = false;
   try {
-    canManage = await canManageUsers(client, user.id);
+    [canManage, superAdmin] = await Promise.all([
+      canManageUsers(client, user.id),
+      isSuperAdmin(client, user.id),
+    ]);
   } catch {
     canManage = false;
+    superAdmin = false;
   }
 
   return {
@@ -202,5 +207,6 @@ export async function getCurrentProfile(): Promise<CurrentProfile> {
     memberships,
     activeMembership,
     canManageUsers: canManage,
+    isSuperAdmin: superAdmin,
   };
 }

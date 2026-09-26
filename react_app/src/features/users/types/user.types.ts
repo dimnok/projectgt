@@ -1,4 +1,5 @@
 import type { LinkedEmployee } from "@/features/profile/types/profile.types";
+import type { TableSort } from "@/lib/table-sort";
 
 export type CompanyUser = {
   id: string;
@@ -18,3 +19,14 @@ export type CompanyUser = {
 };
 
 export type CompanyUserLinkFilter = "all" | "linked" | "unlinked";
+
+export type CompanyUserSortKey =
+  | "name"
+  | "role"
+  | "status"
+  | "employee"
+  | "objects"
+  | "web";
+
+export type CompanyUserSort = TableSort<CompanyUserSortKey>;
+

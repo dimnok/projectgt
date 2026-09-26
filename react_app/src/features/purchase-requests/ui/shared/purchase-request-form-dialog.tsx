@@ -51,6 +51,12 @@ type FormDialogProps = {
   }) => void;
 };
 
+/**
+ * Создание и правка черновика заявки (компьютер).
+ *
+ * Одна форма на оба случая: без `request` — новая заявка, с `request` —
+ * правка шапки и позиций. Логика общая с мобильным окном снизу.
+ */
 export function PurchaseRequestFormDialog({
   open,
   request,

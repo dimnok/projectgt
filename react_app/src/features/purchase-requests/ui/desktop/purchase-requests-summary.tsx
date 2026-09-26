@@ -16,6 +16,12 @@ type PurchaseRequestsSummaryProps = {
   settingsReady: boolean;
 };
 
+/**
+ * Сводка по статусам в правой колонке.
+ *
+ * Кроме чисел показывает два предупреждения: маршрут ещё не настроен
+ * (создать заявку нельзя) и список обрезан лимитом.
+ */
 export function PurchaseRequestsSummary({
   counts,
   truncated,

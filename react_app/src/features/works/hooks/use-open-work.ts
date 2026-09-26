@@ -9,9 +9,14 @@ import {
   getOccupiedEmployeeIdsToday,
   getProfileObjectIds,
 } from "@/features/works/api/get-open-work-context";
+import {
+  addWorkShiftPhotos,
+  deleteWorkShiftPhotoAt,
+  replaceWorkShiftPhotoAt,
+} from "@/features/works/api/manage-work-photo";
 import { openWork, type OpenWorkDraft } from "@/features/works/api/open-work";
 import { reopenWork } from "@/features/works/api/reopen-work";
-import { saveWorkEveningPhoto } from "@/features/works/api/save-work-evening-photo";
+import type { WorkPhotoKind } from "@/features/works/api/upload-work-photo";
 import type { Work } from "@/features/works/types/work.types";
 
 export function useMyOpenWorkId() {
@@ -46,12 +51,62 @@ export function useOpenWork() {
   });
 }
 
-export function useSaveWorkEveningPhoto() {
+/** Добавление фото смены: утро или вечер, до 4 с каждой стороны. */
+export function useAddWorkShiftPhotos() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ work, file }: { work: Work; file: File }) =>
-      saveWorkEveningPhoto(work, file),
+    mutationFn: ({
+      work,
+      files,
+      kind,
+    }: {
+      work: Work;
+      files: File[];
+      kind: WorkPhotoKind;
+    }) => addWorkShiftPhotos(work, files, kind),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["works"] });
+    },
+  });
+}
+
+/** Замена одного фото смены по порядковому номеру. */
+export function useReplaceWorkShiftPhotoAt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      work,
+      file,
+      kind,
+      index,
+    }: {
+      work: Work;
+      file: File;
+      kind: WorkPhotoKind;
+      index: number;
+    }) => replaceWorkShiftPhotoAt(work, file, kind, index),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["works"] });
+    },
+  });
+}
+
+/** Удаление одного фото смены по порядковому номеру. */
+export function useDeleteWorkShiftPhotoAt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      work,
+      kind,
+      index,
+    }: {
+      work: Work;
+      kind: WorkPhotoKind;
+      index: number;
+    }) => deleteWorkShiftPhotoAt(work, kind, index),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["works"] });
     },

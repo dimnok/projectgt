@@ -1,14 +1,16 @@
 "use client";
 
-import { Building2Icon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { LandmarkIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { CompanyBankAccountDeleteDialog } from "@/features/company/ui/shared/company-bank-account-delete-dialog";
 import { CompanyBankAccountFormDialog } from "@/features/company/ui/shared/company-bank-account-form-dialog";
+import { CompanyBankAccountSheet } from "@/features/company/ui/mobile/company-bank-account-sheet";
+import { CompanyListIconButton } from "@/features/company/ui/shared/company-list-icon-button";
+import { CompanyListSkeleton } from "@/features/company/ui/shared/company-skeletons";
 import {
   useCompanyBankAccounts,
   useCreateCompanyBankAccount,
@@ -16,6 +18,7 @@ import {
   useUpdateCompanyBankAccount,
 } from "@/features/company/hooks/use-company-bank-accounts";
 import type { CompanyBankAccount, CompanyBankAccountDraft } from "@/features/company/types/company.types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type CompanyBankAccountsProps = {
   canEdit: boolean;
@@ -23,6 +26,7 @@ type CompanyBankAccountsProps = {
 
 /** Банковские счета компании: список и операции. */
 export function CompanyBankAccounts({ canEdit }: CompanyBankAccountsProps) {
+  const isMobile = useIsMobile();
   const { data, isLoading, isError, error } = useCompanyBankAccounts();
   const createAccount = useCreateCompanyBankAccount();
   const updateAccount = useUpdateCompanyBankAccount();
@@ -104,9 +108,7 @@ export function CompanyBankAccounts({ canEdit }: CompanyBankAccountsProps) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner /> Загрузка…
-        </div>
+        <CompanyListSkeleton />
       ) : isError ? (
         <p className="text-sm text-destructive">
           {error instanceof Error ? error.message : "Не удалось загрузить счета"}
@@ -124,7 +126,7 @@ export function CompanyBankAccounts({ canEdit }: CompanyBankAccountsProps) {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <Building2Icon className="size-4" />
+                  <LandmarkIcon className="size-4" />
                 </div>
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 truncate text-sm font-medium">
@@ -144,24 +146,16 @@ export function CompanyBankAccounts({ canEdit }: CompanyBankAccountsProps) {
               </div>
               {canEdit ? (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Изменить счёт"
+                  <CompanyListIconButton
+                    icon={PencilIcon}
+                    label="Изменить счёт"
                     onClick={() => setEditorAccount(account)}
-                  >
-                    <PencilIcon />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Удалить счёт"
+                  />
+                  <CompanyListIconButton
+                    icon={Trash2Icon}
+                    label="Удалить счёт"
                     onClick={() => setAccountToDelete(account)}
-                  >
-                    <Trash2Icon />
-                  </Button>
+                  />
                 </div>
               ) : null}
             </div>
@@ -169,17 +163,31 @@ export function CompanyBankAccounts({ canEdit }: CompanyBankAccountsProps) {
         </div>
       )}
 
-      <CompanyBankAccountFormDialog
-        open={isEditorOpen}
-        account={editorAccount ?? null}
-        isSaving={isSaving}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditorAccount(undefined);
-          }
-        }}
-        onSubmit={handleSubmit}
-      />
+      {isMobile ? (
+        <CompanyBankAccountSheet
+          open={isEditorOpen}
+          account={editorAccount ?? null}
+          isSaving={isSaving}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditorAccount(undefined);
+            }
+          }}
+          onSubmit={handleSubmit}
+        />
+      ) : (
+        <CompanyBankAccountFormDialog
+          open={isEditorOpen}
+          account={editorAccount ?? null}
+          isSaving={isSaving}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditorAccount(undefined);
+            }
+          }}
+          onSubmit={handleSubmit}
+        />
+      )}
 
       <CompanyBankAccountDeleteDialog
         account={accountToDelete}

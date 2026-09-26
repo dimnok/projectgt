@@ -17,7 +17,9 @@ import type {
   EstimateFileQuery,
   EstimateItem,
   EstimateObjectGroup,
+  EstimateTableSort,
 } from "@/features/estimates/types/estimate.types";
+import { sortEstimateItemsByColumn } from "@/features/estimates/utils/estimate-table-sort";
 
 type EstimateFilePanelProps = {
   objectGroup: EstimateObjectGroup | null;
@@ -25,6 +27,9 @@ type EstimateFilePanelProps = {
   file: EstimateFile | null;
   showExecution?: boolean;
   showOverrunsOnly?: boolean;
+  /** Текущая сортировка таблицы. */
+  sort?: EstimateTableSort;
+  onSortChange?: (next: EstimateTableSort) => void;
   onEdit?: (item: EstimateItem) => void;
   onDelete?: (item: EstimateItem) => void;
 };
@@ -35,6 +40,8 @@ export function EstimateFilePanel({
   file,
   showExecution = false,
   showOverrunsOnly = false,
+  sort = null,
+  onSortChange,
   onEdit,
   onDelete,
 }: EstimateFilePanelProps) {
@@ -66,6 +73,11 @@ export function EstimateFilePanel({
     }
     return items;
   }, [data, query, showOverrunsOnly, completionById]);
+
+  const rows = useMemo(
+    () => sortEstimateItemsByColumn(filteredItems, sort, completionById),
+    [filteredItems, sort, completionById]
+  );
 
   if (!objectGroup) {
     return (
@@ -171,10 +183,12 @@ export function EstimateFilePanel({
         </div>
       ) : null}
       <EstimateItemsTable
-        items={filteredItems}
+        items={rows}
         showExecution={showExecution}
         completionById={completionById}
         isCompletionLoading={isCompletionLoading}
+        sort={sort}
+        onSortChange={onSortChange}
         onEdit={onEdit}
         onDelete={onDelete}
       />

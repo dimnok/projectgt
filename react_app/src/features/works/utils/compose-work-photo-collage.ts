@@ -1,8 +1,8 @@
+import { MAX_WORK_PHOTOS_PER_KIND } from "@/features/works/utils/work.utils";
+
 const GAP = 8;
 const MAX_SIDE = 1600;
 const JPEG_QUALITY = 0.85;
-
-export const MAX_MORNING_PHOTOS = 4;
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -92,7 +92,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  * Собирает 2–4 снимка в один JPEG-коллаж. Одно фото не обрабатывает.
  */
 export async function composeWorkPhotoCollage(files: File[]): Promise<File> {
-  if (files.length < 2 || files.length > MAX_MORNING_PHOTOS) {
+  if (files.length < 2 || files.length > MAX_WORK_PHOTOS_PER_KIND) {
     throw new Error("Для коллажа нужно от 2 до 4 фото");
   }
 
@@ -128,5 +128,5 @@ export async function composeWorkPhotoCollage(files: File[]): Promise<File> {
     );
   });
 
-  return new File([blob], "morning-collage.jpg", { type: "image/jpeg" });
+  return new File([blob], "photos-collage.jpg", { type: "image/jpeg" });
 }

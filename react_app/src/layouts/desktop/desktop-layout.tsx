@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppWhatsNew } from "@/components/app-whats-new";
 import { GtChatLauncher } from "@/features/gt-chat/ui/floating/gt-chat-launcher";
 import { AppSearchProvider } from "@/layouts/desktop/app-search";
 import { Header } from "@/layouts/desktop/header";
@@ -34,6 +35,7 @@ export function DesktopLayout({ children }: DesktopLayoutProps) {
             </SidebarInset>
           </div>
           <GtChatLauncher />
+          <AppWhatsNew />
         </SidebarProvider>
       </AppSearchProvider>
     </TooltipProvider>

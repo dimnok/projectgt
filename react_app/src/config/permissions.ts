@@ -21,12 +21,6 @@ export const PERMISSION_ACTION_DEFS: readonly PermissionActionDef[] = [
   { code: "inventory", name: "Инвентаризация" },
   { code: "view_cost", name: "Стоимость" },
   { code: "manage_catalogs", name: "Справочники" },
-  { code: "approve", name: "Согласование" },
-  { code: "prepare_invoice", name: "Счета" },
-  { code: "approve_invoice", name: "Согл. счетов" },
-  { code: "payment", name: "Оплата" },
-  { code: "receive", name: "Получение" },
-  { code: "view_all", name: "Все заявки" },
 ];
 
 const CRUD = ["read", "create", "update", "delete"] as const;
@@ -57,18 +51,9 @@ export const MODULE_PERMISSION_ACTIONS: Record<string, readonly string[]> = {
     "view_cost",
     "manage_catalogs",
   ],
-  purchase_requests: [
-    "read",
-    "create",
-    "update",
-    "delete",
-    "approve",
-    "prepare_invoice",
-    "approve_invoice",
-    "payment",
-    "receive",
-    "view_all",
-  ],
+  // Этапы заявок (согласование, счета, оплата, получение) задаёт маршрут
+  // в самом модуле — в матрице остаются доступ к разделу и создание заявки.
+  purchase_requests: ["read", "create"],
   payroll: ["read", "create", "update", "delete", "export"],
   timesheet: ["read", "create", "update", "delete", "export"],
   estimates: ["read", "create", "update", "delete", "export", "import"],

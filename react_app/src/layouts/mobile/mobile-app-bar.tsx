@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { AppUpdateBell } from "@/components/app-update-bell";
+import { ConnectionIndicator } from "@/components/connection-indicator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function MobileAppBar({
       ) : null}
       <div className="flex shrink-0 items-center gap-1">
         {trailing}
+        <ConnectionIndicator />
         <AppUpdateBell />
       </div>
     </header>

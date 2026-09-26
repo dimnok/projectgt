@@ -18,7 +18,10 @@ import { useSwitchActiveCompany } from "@/features/profile/hooks/use-current-pro
 import type { CurrentProfile } from "@/features/profile/types/profile.types";
 import { ProfileMobileShell } from "@/features/profile/ui/mobile/profile-mobile-shell";
 import { ProfileCompanyOutputNorm } from "@/features/profile/ui/shared/profile-company-output-norm";
-import { membershipRoleLabel } from "@/features/profile/utils/profile.utils";
+import {
+  canViewProductionNorm,
+  membershipRoleLabel,
+} from "@/features/profile/utils/profile.utils";
 
 type ProfileAccessMobileProps = {
   profile: CurrentProfile;
@@ -108,7 +111,7 @@ export function ProfileAccessMobile({
           ) : null}
         </div>
 
-        {active ? (
+        {active && canViewProductionNorm(active, profile.isSuperAdmin) ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
             <div>
               <p className="text-sm font-medium">Производство</p>

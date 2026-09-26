@@ -48,6 +48,8 @@ export type CurrentProfile = {
   memberships: ProfileCompanyMembership[];
   activeMembership: ProfileCompanyMembership | null;
   canManageUsers: boolean;
+  /** Системная роль «Супер-админ» (`is_super_admin`). */
+  isSuperAdmin: boolean;
 };
 
 export type ProfileDraft = {

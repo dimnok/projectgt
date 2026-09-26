@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  CheckIcon,
   ChevronDownIcon,
   CircleHelpIcon,
-  MoonIcon,
-  SunIcon,
+  PaletteIcon,
+  SparklesIcon,
   XIcon,
-  ZapIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -19,6 +19,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar as SidebarRoot,
@@ -43,6 +52,8 @@ import {
   type AppNavGroup,
   type AppNavLink,
 } from "@/config/navigation";
+import { findThemeOption, themeOptions } from "@/config/themes";
+import { openWhatsNew } from "@/config/whats-new";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -112,6 +123,7 @@ export function Sidebar() {
       <SidebarFooter className={isSidebarSheet ? "pb-[max(1rem,env(safe-area-inset-bottom))] pl-2" : undefined}>
         <ThemeToggle />
         <WorksHelpItem />
+        <WhatsNewItem />
         {isSidebarSheet ? (
           <>
             <Separator className="mx-0 bg-sidebar-border" />
@@ -294,49 +306,93 @@ function WorksHelpItem() {
   );
 }
 
-function themeToggleButtonClass(isActive: boolean) {
-  return cn(
-    "flex size-7 items-center justify-center rounded-full [&_svg]:size-4",
-    isActive
-      ? "bg-background text-foreground shadow-sm"
-      : "text-sidebar-foreground/70"
+/**
+ * Пункт «Что нового»: открывает окно с последними доработками.
+ * Окно живёт в оболочке приложения (`AppWhatsNew`), связь — через событие.
+ */
+function WhatsNewItem() {
+  const { isMobile: isSidebarSheet, setOpenMobile } = useSidebar();
+
+  function handleOpen() {
+    if (isSidebarSheet) {
+      setOpenMobile(false);
+      window.setTimeout(openWhatsNew, 320);
+      return;
+    }
+    openWhatsNew();
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          type="button"
+          tooltip="Что нового"
+          onClick={handleOpen}
+        >
+          <SparklesIcon />
+          <span>Что нового</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
+/**
+ * Выбор темы в левом меню: кнопка с текущей темой и список всех тем.
+ * Список тем — в `src/config/themes.ts`, там же образцы цветов.
+ */
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useHasMounted();
+  const activeTheme = findThemeOption(resolvedTheme);
 
   if (!mounted) {
     return <div className="h-8" />;
   }
 
   return (
-    <div className="flex items-center justify-center gap-1 rounded-full bg-sidebar-accent p-1 group-data-[collapsible=icon]:hidden">
-      <button
-        type="button"
-        aria-label="Светлая тема"
-        className={themeToggleButtonClass(resolvedTheme === "light")}
-        onClick={() => setTheme("light")}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <SidebarMenuButton
+            className="group-data-[collapsible=icon]:hidden"
+            aria-label="Тема оформления"
+          />
+        }
       >
-        <SunIcon />
-      </button>
-      <button
-        type="button"
-        aria-label="Тёмная тема"
-        className={themeToggleButtonClass(resolvedTheme === "dark")}
-        onClick={() => setTheme("dark")}
-      >
-        <MoonIcon />
-      </button>
-      <button
-        type="button"
-        aria-label="Фирменная тема"
-        className={themeToggleButtonClass(resolvedTheme === "brand")}
-        onClick={() => setTheme("brand")}
-      >
-        <ZapIcon />
-      </button>
-    </div>
+        <PaletteIcon />
+        <span className="truncate">
+          Тема: {activeTheme?.label ?? "Светлая"}
+        </span>
+        <ChevronDownIcon className="ml-auto" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Тема оформления</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {themeOptions.map((theme) => (
+            <DropdownMenuItem
+              key={theme.id}
+              onClick={() => setTheme(theme.id)}
+            >
+              <span className="flex items-center gap-1">
+                {theme.swatch.map((color, index) => (
+                  <span
+                    key={index}
+                    className="size-3.5 rounded-full ring-1 ring-foreground/15"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </span>
+              <span className="truncate">{theme.label}</span>
+              {activeTheme?.id === theme.id ? (
+                <CheckIcon className="ml-auto" />
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

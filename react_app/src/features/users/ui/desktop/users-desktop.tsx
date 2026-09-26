@@ -12,13 +12,18 @@ import { useCompanyUsers } from "@/features/users/hooks/use-company-users";
 import type {
   CompanyUser,
   CompanyUserLinkFilter,
+  CompanyUserSort,
 } from "@/features/users/types/user.types";
 import { UsersFilters } from "@/features/users/ui/desktop/users-filters";
 import { UsersList } from "@/features/users/ui/desktop/users-list";
-import { UsersSummary } from "@/features/users/ui/desktop/users-summary";
 import { UserObjectsDialog } from "@/features/users/ui/shared/user-objects-dialog";
 import { UserRoleDialog } from "@/features/users/ui/shared/user-role-dialog";
-import { filterCompanyUsers, userDisplayName } from "@/features/users/utils/user.utils";
+import { UserStatusDialog } from "@/features/users/ui/shared/user-status-dialog";
+import {
+  filterCompanyUsers,
+  sortCompanyUsers,
+  userDisplayName,
+} from "@/features/users/utils/user.utils";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAppSearch, AppSearchField } from "@/layouts/desktop/app-search";
 
@@ -27,17 +32,20 @@ export function UsersDesktop() {
   const { can, isOwner } = usePermissions();
   const { data, isLoading, isError, error } = useCompanyUsers();
   const objectsQuery = useObjects();
-  const objects = objectsQuery.data ?? [];
+  const objects = useMemo(() => objectsQuery.data ?? [], [objectsQuery.data]);
   const { query } = useAppSearch();
   const [link, setLink] = useState<CompanyUserLinkFilter>("all");
+  const [sort, setSort] = useState<CompanyUserSort>(null);
   const [editor, setEditor] = useState<CompanyUser | null>(null);
   const [roleEditor, setRoleEditor] = useState<CompanyUser | null>(null);
   const [objectsEditor, setObjectsEditor] = useState<CompanyUser | null>(null);
+  const [statusEditor, setStatusEditor] = useState<CompanyUser | null>(null);
 
   const canRead = can("users", "read");
   const canLinkEmployee = Boolean(profile?.canManageUsers);
   const canAssignObjects = canLinkEmployee && objectsQuery.isSuccess;
   const canAssignRole = isOwner;
+  const canChangeStatus = isOwner;
 
   const objectNames = useMemo(
     () => new Map(objects.map((object) => [object.id, object.name])),
@@ -46,12 +54,15 @@ export function UsersDesktop() {
 
   const users = useMemo(
     () =>
-      filterCompanyUsers(data ?? [], {
-        search: query,
-        link,
-        objectNames,
-      }),
-    [data, query, link, objectNames]
+      sortCompanyUsers(
+        filterCompanyUsers(data ?? [], {
+          search: query,
+          link,
+          objectNames,
+        }),
+        sort
+      ),
+    [data, query, link, objectNames, sort]
   );
 
   if (profileLoading) {
@@ -81,41 +92,50 @@ export function UsersDesktop() {
   }
 
   const companyName = profile?.activeMembership?.companyName || "компания";
+  const total = data?.length ?? 0;
+  const isFiltered = users.length !== total;
 
   return (
-    <div className="grid min-h-fit min-w-0 w-full flex-1 grid-cols-1 content-start items-start gap-3 lg:grid-cols-[minmax(0,1fr)_var(--content-aside-width)] lg:gap-6">
-      <div className="min-w-0">
-        {users.length === 0 ? (
+    <div
+      data-fill-viewport
+      className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col gap-3"
+    >
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
+        <AppSearchField
+          className="min-w-64 flex-1"
+          placeholder="Поиск по имени, почте, телефону..."
+          aria-label="Поиск по пользователям"
+        />
+        <UsersFilters link={link} onLinkChange={setLink} />
+        <p className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground tabular-nums max-lg:hidden">
+          {isFiltered ? `Найдено: ${users.length} из ${total}` : `Всего: ${total}`}
+        </p>
+      </div>
+
+      {users.length === 0 ? (
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center rounded-xl bg-card p-6 shadow-float ring-1 ring-foreground/10">
           <EmptyState
             title="Пользователи не найдены"
             description="Измените фильтр или поисковый запрос."
           />
-        ) : (
-          <UsersList
-            users={users}
-            objects={objects}
-            canLinkEmployee={canLinkEmployee}
-            canAssignObjects={canAssignObjects}
-            canAssignRole={canAssignRole}
-            canPreferWebApp={canLinkEmployee}
-            onAssign={setEditor}
-            onAssignRole={setRoleEditor}
-            onAssignObjects={setObjectsEditor}
-          />
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-0 lg:self-start lg:gap-6">
-        <div className="flex min-w-0 flex-col gap-2">
-          <AppSearchField
-            variant="aside"
-            placeholder="Поиск по имени, почте, телефону..."
-            aria-label="Поиск по пользователям"
-          />
-          <UsersFilters link={link} onLinkChange={setLink} />
         </div>
-        <UsersSummary users={data ?? []} />
-      </div>
+      ) : (
+        <UsersList
+          users={users}
+          objects={objects}
+          canLinkEmployee={canLinkEmployee}
+          canAssignObjects={canAssignObjects}
+          canAssignRole={canAssignRole}
+          canChangeStatus={canChangeStatus}
+          canPreferWebApp={canLinkEmployee}
+          sort={sort}
+          onSortChange={setSort}
+          onAssign={setEditor}
+          onAssignRole={setRoleEditor}
+          onAssignObjects={setObjectsEditor}
+          onChangeStatus={setStatusEditor}
+        />
+      )}
 
       {editor ? (
         <ProfileEmployeeDialog
@@ -147,6 +167,15 @@ export function UsersDesktop() {
         onOpenChange={(open) => {
           if (!open) {
             setObjectsEditor(null);
+          }
+        }}
+      />
+
+      <UserStatusDialog
+        user={statusEditor}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusEditor(null);
           }
         }}
       />

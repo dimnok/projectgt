@@ -3,8 +3,13 @@ import type {
   PurchaseRequestInvoice,
 } from "@/features/purchase-requests/types/purchase-request.types";
 
+/** Форматы файла счёта, которые принимает форма. */
 export const INVOICE_FILE_EXTENSIONS = ["pdf", "jpg", "jpeg", "png"] as const;
 
+/**
+ * Можно ли отправлять счета на согласование: счета есть и у каждого файл.
+ * Те же правила проверяет серверная функция.
+ */
 export function purchaseRequestInvoicesReadyForSubmit(
   invoices: PurchaseRequestInvoice[]
 ) {
@@ -14,6 +19,7 @@ export function purchaseRequestInvoicesReadyForSubmit(
   return invoices.every((invoice) => Boolean(invoice.invoiceFile));
 }
 
+/** Файл можно показать внутри приложения: PDF или картинка. */
 export function isPurchaseRequestInvoiceFilePreviewable(file: PurchaseRequestFile) {
   const name = file.fileName.toLowerCase();
   const mime = (file.mimeType ?? "").toLowerCase();
@@ -34,6 +40,7 @@ export function isPurchaseRequestInvoiceFilePdf(file: PurchaseRequestFile) {
   return mime.includes("pdf") || name.endsWith(".pdf");
 }
 
+/** Тип файла по расширению: нужен, чтобы браузер показал PDF, а не скачал его. */
 export function contentTypeForFileName(fileName: string) {
   const extension = fileName.split(".").pop()?.toLowerCase();
   if (extension === "pdf") {
@@ -48,6 +55,7 @@ export function contentTypeForFileName(fileName: string) {
   return "application/octet-stream";
 }
 
+/** Имя файла для хранилища: без пробелов и символов, ломающих путь. */
 export function buildSafeStorageFileName(fileName: string) {
   return fileName.replaceAll(" ", "_").replace(/[^a-zA-Z0-9_.-]/g, "");
 }

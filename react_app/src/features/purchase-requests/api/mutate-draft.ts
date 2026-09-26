@@ -25,6 +25,7 @@ export async function replacePurchaseRequestItems(
   return asRowList(data).map(mapItem);
 }
 
+/** Создаёт черновик заявки и сразу сохраняет его позиции. */
 export async function createPurchaseRequestDraft(input: {
   objectId: string;
   comment: string | null;
@@ -44,6 +45,7 @@ export async function createPurchaseRequestDraft(input: {
   return requestId;
 }
 
+/** Меняет шапку черновика и перезаписывает позиции. */
 export async function updatePurchaseRequestDraft(input: {
   requestId: string;
   objectId: string;
@@ -62,6 +64,7 @@ export async function updatePurchaseRequestDraft(input: {
   return input.requestId;
 }
 
+/** Удаляет свой черновик. Право «Все заявки» чужой черновик не удаляет. */
 export async function deletePurchaseRequestDraft(requestId: string) {
   const client = getRequiredClient();
   const { error } = await client.rpc("purchase_request_delete_draft", {

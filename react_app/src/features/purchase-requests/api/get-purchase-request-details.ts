@@ -43,6 +43,10 @@ async function fetchUserNames(userIds: string[]) {
   return names;
 }
 
+/**
+ * Заявка целиком: шапка, позиции, история, счета с файлами и строками.
+ * Запросы идут параллельно, имена участников добираются одним пакетом.
+ */
 export async function getPurchaseRequestDetails(
   requestId: string
 ): Promise<PurchaseRequestDetails | null> {

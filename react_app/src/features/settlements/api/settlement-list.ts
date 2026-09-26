@@ -1,5 +1,6 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
+import type { TableSort } from "@/lib/table-sort";
 import {
   mapSettlementListRow,
   toNumber,
@@ -28,10 +29,7 @@ export type SettlementSortKey =
   | "paid";
 
 /** Текущая сортировка реестра. `null` — исходный порядок (по дате счёта). */
-export type SettlementSort = {
-  key: SettlementSortKey;
-  direction: "asc" | "desc";
-} | null;
+export type SettlementSort = TableSort<SettlementSortKey>;
 
 /**
  * Условия выборки реестра: те же фильтры, что у формы фильтров, плюс

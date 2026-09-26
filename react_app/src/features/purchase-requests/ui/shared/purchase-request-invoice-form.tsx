@@ -43,6 +43,7 @@ import {
 import { INVOICE_FILE_EXTENSIONS } from "@/features/purchase-requests/utils/invoices";
 import { PurchaseRequestInvoiceItemsEditor } from "@/features/purchase-requests/ui/shared/purchase-request-invoice-items-editor";
 
+/** Что форма отдаёт наружу: шапка счёта, файл и позиции счёта. */
 export type PurchaseRequestInvoiceFormInput = {
   supplierId: string;
   amount: number;

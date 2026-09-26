@@ -23,8 +23,10 @@ const STATUS_LABELS: Record<PurchaseRequestStatus, string> = {
   unknown: "Неизвестный статус",
 };
 
+/** Значение фильтра «Все»: серверу статус не передаётся. */
 export const ALL_FILTER_VALUE = "all";
-export const ALL_FILTER_LABEL = "Все";
+/** Название пункта «Все» в фильтре реестра. */
+const ALL_FILTER_LABEL = "Все";
 
 /** Варианты фильтра реестра: «Все» и каждый реальный статус. */
 export const PURCHASE_REQUEST_FILTER_OPTIONS: {
@@ -38,6 +40,7 @@ export const PURCHASE_REQUEST_FILTER_OPTIONS: {
   })),
 ];
 
+/** Сколько заявок отдаёт сервер за один запрос. */
 export const LIST_LIMIT = 50;
 
 /** Статусы, в которых заявка ждёт действия первого согласующего (на Главной). */
@@ -59,6 +62,7 @@ export function purchaseRequestStageCount(
   return stages.reduce((sum, status) => sum + (counts[status] ?? 0), 0);
 }
 
+/** Статус из базы. Неизвестное значение — `unknown`, а не падение экрана. */
 export function parsePurchaseRequestStatus(value: unknown): PurchaseRequestStatus {
   if (typeof value === "string" && PURCHASE_REQUEST_STATUSES.includes(value as PurchaseRequestStatus)) {
     return value as PurchaseRequestStatus;
@@ -66,6 +70,7 @@ export function parsePurchaseRequestStatus(value: unknown): PurchaseRequestStatu
   return "unknown";
 }
 
+/** Статус из истории: `null` остаётся `null` (первая запись журнала). */
 export function parsePurchaseRequestStatusOrNull(
   value: unknown
 ): PurchaseRequestStatus | null {
@@ -75,14 +80,12 @@ export function parsePurchaseRequestStatusOrNull(
   return parsePurchaseRequestStatus(value);
 }
 
+/** Название статуса для интерфейса. */
 export function purchaseRequestStatusLabel(status: PurchaseRequestStatus) {
   return STATUS_LABELS[status];
 }
 
-export function purchaseRequestFilterLabel(filter: PurchaseRequestListFilter) {
-  return filter === ALL_FILTER_VALUE ? ALL_FILTER_LABEL : STATUS_LABELS[filter];
-}
-
+/** Значение фильтра из адреса: «Все» или реальный статус. */
 export function isPurchaseRequestListFilter(
   value: string
 ): value is PurchaseRequestListFilter {
@@ -92,10 +95,12 @@ export function isPurchaseRequestListFilter(
   );
 }
 
+/** Режим получателя: кто подтверждает получение — автор заявки или назначенные. */
 export function parseReceiverMode(value: unknown): PurchaseRequestReceiverMode {
   return value === "fixed_user" ? "fixed_user" : "initiator";
 }
 
+/** Статусы, в которых заявка уже имеет счета и их нужно показывать. */
 export function invoiceStatusesVisible(status: PurchaseRequestStatus) {
   return (
     status === "invoice_preparation" ||

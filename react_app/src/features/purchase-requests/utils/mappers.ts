@@ -1,3 +1,10 @@
+/**
+ * Преобразование строк базы в типы модуля.
+ *
+ * Ответы PostgREST приходят без типов, поэтому все значения приводятся
+ * защищённо: число — число, строка — строка, иначе `null`. Ни один маппер
+ * не бросает исключение: экран получает либо данные, либо пустое значение.
+ */
 import type {
   PurchaseRequest,
   PurchaseRequestCompanyUser,
@@ -40,6 +47,7 @@ function asOptionalNumber(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
+/** Строка реестра заявок из RPC `purchase_request_list`. */
 export function mapListItem(row: Record<string, unknown>): PurchaseRequestListItem {
   return {
     id: String(row.id),
@@ -76,6 +84,7 @@ export function mapPurchaseRequest(row: Record<string, unknown>): PurchaseReques
   };
 }
 
+/** Позиция заявки: наименование, количество, единица, артикул. */
 export function mapItem(row: Record<string, unknown>): PurchaseRequestItem {
   return {
     id: String(row.id),
@@ -99,6 +108,7 @@ export function mapItemToDraft(item: PurchaseRequestItem): PurchaseRequestItemDr
   };
 }
 
+/** Файл заявки в хранилище: путь, имя и тип. */
 export function mapFile(row: Record<string, unknown>): PurchaseRequestFile {
   return {
     id: String(row.id),
@@ -110,6 +120,10 @@ export function mapFile(row: Record<string, unknown>): PurchaseRequestFile {
   };
 }
 
+/**
+ * Счёт заявки. Файл и позиции счёта подставляются отдельно: они лежат
+ * в своих таблицах и приходят другими запросами.
+ */
 export function mapInvoice(row: Record<string, unknown>): PurchaseRequestInvoice {
   const contractor = asRecord(row.contractors);
   const supplierName = contractor
@@ -152,6 +166,7 @@ export function mapInvoiceItem(
   };
 }
 
+/** Запись истории: кто, что сделал, из какого статуса в какой. */
 export function mapHistory(row: Record<string, unknown>): PurchaseRequestHistoryEntry {
   return {
     id: String(row.id),
@@ -166,6 +181,7 @@ export function mapHistory(row: Record<string, unknown>): PurchaseRequestHistory
   };
 }
 
+/** Пользователь компании для выбора в маршруте: имя берём из профиля. */
 export function mapCompanyUser(row: Record<string, unknown>): PurchaseRequestCompanyUser {
   return {
     id: String(row.id),
@@ -229,6 +245,7 @@ export function mapPaidByObject(
   };
 }
 
+/** Список строк из ответа RPC: всё, что не строка, отбрасывается. */
 export function asRowList(data: unknown): Record<string, unknown>[] {
   if (!Array.isArray(data)) {
     return [];
@@ -239,6 +256,7 @@ export function asRowList(data: unknown): Record<string, unknown>[] {
   });
 }
 
+/** Одна строка из ответа RPC: серверная функция возвращает заявку строкой. */
 export function asRow(data: unknown): Record<string, unknown> | null {
   if (Array.isArray(data)) {
     return asRecord(data[0]);

@@ -20,6 +20,13 @@ const EMPTY_ACTIONS: PurchaseRequestActionSet = {
   canDeleteDraft: false,
 };
 
+/**
+ * Какие кнопки этапов показать пользователю.
+ *
+ * Право на действие складывается из трёх условий: статус заявки, участие
+ * человека в этапе (маршрут) и право его роли. Все три проверяет и база —
+ * интерфейс лишь не показывает заведомо недоступное.
+ */
 export function resolvePurchaseRequestActions({
   request,
   currentUserId,
@@ -89,6 +96,7 @@ export function resolvePurchaseRequestActions({
   };
 }
 
+/** Есть ли у пользователя хотя бы одно действие по заявке. */
 export function purchaseRequestActionsHasAny(actions: PurchaseRequestActionSet) {
   return (
     actions.canSubmit ||

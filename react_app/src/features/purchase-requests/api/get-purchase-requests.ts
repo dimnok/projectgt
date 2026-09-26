@@ -34,6 +34,7 @@ export async function getPurchaseRequests(options: {
   return asRowList(data).map(mapListItem);
 }
 
+/** Счётчики заявок по статусам для фильтра и сводки. */
 export async function getPurchaseRequestCounts(
   search: string
 ): Promise<PurchaseRequestCounts> {

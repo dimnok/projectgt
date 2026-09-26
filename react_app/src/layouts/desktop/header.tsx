@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Building2Icon } from "lucide-react";
 
 import { AppUpdateBell } from "@/components/app-update-bell";
+import { ConnectionIndicator } from "@/components/connection-indicator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getPageTitle, isMobileAllowedPath } from "@/config/navigation";
 import { UserMenu } from "@/layouts/user-menu";
@@ -29,6 +30,7 @@ export function Header() {
         <h1 className="font-heading truncate text-xl font-medium">{title}</h1>
       </div>
       <div className="ml-auto flex min-w-0 items-center gap-2">
+        <ConnectionIndicator />
         <AppUpdateBell />
         <div className="hidden md:block">
           <UserMenu />

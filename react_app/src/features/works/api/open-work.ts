@@ -1,31 +1,17 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
 import { getMyOpenWorkId } from "@/features/works/api/get-open-work-context";
-import { mapWorkRow } from "@/features/works/api/get-month-works";
-import { uploadWorkMorningPhoto } from "@/features/works/api/upload-work-morning-photo";
-import { composeWorkPhotoCollage } from "@/features/works/utils/compose-work-photo-collage";
+import { mapWorkRow, WORK_SELECT } from "@/features/works/api/get-month-works";
+import { uploadWorkPhotoCollage } from "@/features/works/api/manage-work-photo";
+import { uploadWorkShiftPhoto } from "@/features/works/api/upload-work-photo";
 import { employeeFullName } from "@/features/employees/utils/employee.utils";
 import type { Employee } from "@/features/employees/types/employee.types";
 import type { Work, WorksRow } from "@/features/works/types/work.types";
-import { toDateKey } from "@/features/works/utils/work.utils";
+import {
+  MAX_WORK_PHOTOS_PER_KIND,
+  toDateKey,
+} from "@/features/works/utils/work.utils";
 import { createId } from "@/lib/utils";
-
-const WORK_SELECT = [
-  "id",
-  "company_id",
-  "date",
-  "object_id",
-  "opened_by",
-  "status",
-  "photo_url",
-  "evening_photo_url",
-  "total_amount",
-  "own_total_amount",
-  "items_count",
-  "employees_count",
-  "objects!object_id(name)",
-  "profiles!opened_by(short_name, full_name)",
-].join(", ");
 
 export type OpenWorkDraft = {
   objectId: string;
@@ -35,7 +21,7 @@ export type OpenWorkDraft = {
 };
 
 /**
- * Opens a shift: morning photo, `works` row, `work_hours` with 0 hours.
+ * Opens a shift: morning photos, `works` row, `work_hours` with 0 hours.
  * Then Telegram outbox and admin push — same as Flutter `_saveWork`.
  * Local phone reminders are not scheduled in the web app.
  */
@@ -49,8 +35,10 @@ export async function openWork(draft: OpenWorkDraft): Promise<Work> {
   if (draft.photos.length === 0) {
     throw new Error("Добавьте фото смены");
   }
-  if (draft.photos.length > 4) {
-    throw new Error("Можно приложить не больше 4 фото");
+  if (draft.photos.length > MAX_WORK_PHOTOS_PER_KIND) {
+    throw new Error(
+      `Можно приложить не больше ${MAX_WORK_PHOTOS_PER_KIND} фото`
+    );
   }
 
   const existing = await getMyOpenWorkId();
@@ -71,11 +59,21 @@ export async function openWork(draft: OpenWorkDraft): Promise<Work> {
     throw new Error("Нужно войти в аккаунт");
   }
 
-  const morningFile =
+  const morningUrls: string[] = [];
+  for (const photo of draft.photos) {
+    morningUrls.push(
+      await uploadWorkShiftPhoto(draft.objectId, photo, "morning")
+    );
+  }
+  // Одиночное поле для мобильного приложения: коллаж из нескольких фото.
+  const photoUrl =
     draft.photos.length === 1
-      ? draft.photos[0]
-      : await composeWorkPhotoCollage(draft.photos);
-  const photoUrl = await uploadWorkMorningPhoto(draft.objectId, morningFile);
+      ? morningUrls[0]
+      : await uploadWorkPhotoCollage(
+          draft.objectId,
+          draft.photos,
+          "morning"
+        );
   const today = toDateKey(new Date());
   const now = new Date().toISOString();
 
@@ -88,7 +86,9 @@ export async function openWork(draft: OpenWorkDraft): Promise<Work> {
       opened_by: user.id,
       status: "open",
       photo_url: photoUrl,
+      photo_urls: morningUrls,
       evening_photo_url: null,
+      evening_photo_urls: [],
       created_at: now,
       updated_at: now,
       total_amount: 0,

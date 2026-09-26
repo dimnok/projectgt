@@ -23,6 +23,10 @@ function purchaseRequestItemsExcelFileName(requestNumber: string) {
   return `Заявка_${safe || "заявка"}.xlsx`;
 }
 
+/**
+ * Выгружает позиции заявки в Excel на устройство пользователя.
+ * Файл собирается в браузере и в базу не попадает.
+ */
 export async function exportPurchaseRequestItemsExcel({
   requestNumber,
   items,

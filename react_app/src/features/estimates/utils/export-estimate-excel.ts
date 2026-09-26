@@ -70,7 +70,7 @@ export async function exportEstimateToExcel({
     { width: 16 }, // Сумма
     { width: 14 }, // Вып. кол-во
     { width: 16 }, // Вып. сумма
-    { width: 14 }, // Ост. кол-во
+    { width: 14 }, // Кол-во ост.
     { width: 16 }, // Ост. сумма
   ];
 
@@ -104,7 +104,7 @@ export async function exportEstimateToExcel({
     "Сумма",
     "Кол-во вып.",
     "Сумма вып.",
-    "Ост. кол-во",
+    "Кол-во ост.",
     "Ост. сумма",
   ]);
   headerRow.height = 26;
@@ -304,7 +304,7 @@ export async function exportEstimateToExcel({
     "Сумма",
     "Кол-во вып.",
     "Сумма вып.",
-    "Ост. кол-во",
+    "Кол-во ост.",
     "Ост. сумма",
   ];
 

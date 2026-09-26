@@ -9,8 +9,14 @@ export type Work = {
   openedBy: string;
   openedByName: string;
   status: WorkStatus;
+  /** Одиночное утреннее фото: коллаж из списка или единственное фото (мобильное приложение, Telegram). */
   photoUrl: string | null;
+  /** Утренние фото смены, до 4 — источник правды для веба. */
+  photoUrls: string[];
+  /** Одиночное вечернее фото: коллаж из списка или единственное фото (мобильное приложение, Telegram). */
   eveningPhotoUrl: string | null;
+  /** Вечерние фото смены, до 4 — источник правды для веба. */
+  eveningPhotoUrls: string[];
   totalAmount: number;
   ownTotalAmount: number;
   itemsCount: number;
@@ -78,7 +84,9 @@ export type WorksRow = {
   opened_by: string;
   status: string;
   photo_url: string | null;
+  photo_urls?: string[] | null;
   evening_photo_url: string | null;
+  evening_photo_urls?: string[] | null;
   total_amount: number | string | null;
   own_total_amount: number | string | null;
   items_count: number | string | null;

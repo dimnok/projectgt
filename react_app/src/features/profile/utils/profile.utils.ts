@@ -90,6 +90,22 @@ export function companyDisplayName(
   return short || full || "Компания";
 }
 
+/**
+ * Видимость блока «Производство» (норма выработки компании).
+ * Блок нужен владельцу, администратору компании (`system_role = admin`)
+ * и супер-админу; остальным он не показывается.
+ */
+export function canViewProductionNorm(
+  membership: ProfileCompanyMembership | null,
+  isSuperAdmin: boolean
+): boolean {
+  if (!membership) {
+    return false;
+  }
+
+  return membership.isOwner || membership.systemRole === "admin" || isSuperAdmin;
+}
+
 export function profileDisplayName(profile: CurrentProfile): string {
   return profile.fullName.trim() || formatPhone(profile.phone) || "Пользователь";
 }

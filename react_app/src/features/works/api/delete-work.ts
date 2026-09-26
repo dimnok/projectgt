@@ -1,25 +1,7 @@
 import { getActiveCompanyId } from "@/lib/supabase/company";
 import { getRequiredClient } from "@/lib/supabase/client";
 import { assertIsSuperAdmin } from "@/features/works/api/get-work-membership";
-
-function storagePathFromPublicUrl(url: string | null | undefined): string | null {
-  if (!url?.trim()) {
-    return null;
-  }
-  try {
-    const pathSegments = new URL(url).pathname.split("/").filter(Boolean);
-    const publicIndex = pathSegments.indexOf("public");
-    if (publicIndex === -1 || publicIndex + 2 >= pathSegments.length) {
-      return null;
-    }
-    if (pathSegments[publicIndex + 1] !== "works") {
-      return null;
-    }
-    return decodeURIComponent(pathSegments.slice(publicIndex + 2).join("/"));
-  } catch {
-    return null;
-  }
-}
+import { workPhotoStoragePath } from "@/features/works/utils/work.utils";
 
 /**
  * Deletes a shift of any status. Super-admin only.
@@ -32,7 +14,7 @@ export async function deleteWork(workId: string): Promise<void> {
   const companyId = await getActiveCompanyId();
   const { data: row, error: fetchError } = await client
     .from("works")
-    .select("photo_url, evening_photo_url")
+    .select("photo_url, photo_urls, evening_photo_url, evening_photo_urls")
     .eq("id", workId)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -44,10 +26,18 @@ export async function deleteWork(workId: string): Promise<void> {
     throw new Error("Смена не найдена");
   }
 
-  const paths = [
-    storagePathFromPublicUrl(row.photo_url),
-    storagePathFromPublicUrl(row.evening_photo_url),
-  ].filter((path): path is string => Boolean(path));
+  const paths = Array.from(
+    new Set(
+      [
+        ...(row.photo_urls ?? []),
+        ...(row.evening_photo_urls ?? []),
+        row.photo_url,
+        row.evening_photo_url,
+      ]
+        .map((url) => workPhotoStoragePath(url))
+        .filter((path): path is string => Boolean(path))
+    )
+  );
 
   if (paths.length > 0) {
     try {

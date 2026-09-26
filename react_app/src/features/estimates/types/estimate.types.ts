@@ -1,3 +1,9 @@
+import type { EstimateColumnId } from "@/features/estimates/utils/estimate-table-columns";
+import type { TableSort } from "@/lib/table-sort";
+
+/** Сортировка таблицы смет по клику на заголовок. `null` — исходный порядок. */
+export type EstimateTableSort = TableSort<EstimateColumnId>;
+
 export type EstimateFile = {
   key: string;
   estimateTitle: string;

@@ -15,6 +15,7 @@ export const PURCHASE_REQUEST_STATUSES = [
   "unknown",
 ] as const;
 
+/** Статус заявки, включая `unknown` — запасной вариант для чужих значений. */
 export type PurchaseRequestStatus = (typeof PURCHASE_REQUEST_STATUSES)[number];
 
 /**
@@ -33,14 +34,17 @@ export const PURCHASE_REQUEST_FILTER_STATUSES = [
   "received",
 ] as const;
 
+/** Статус, который можно выбрать в фильтре реестра. */
 export type PurchaseRequestFilterStatus =
   (typeof PURCHASE_REQUEST_FILTER_STATUSES)[number];
 
 /** Фильтр реестра: «Все» или конкретный статус заявки. */
 export type PurchaseRequestListFilter = "all" | PurchaseRequestFilterStatus;
 
+/** Режим получателя: подтверждает автор заявки или назначенные сотрудники. */
 export type PurchaseRequestReceiverMode = "initiator" | "fixed_user";
 
+/** Строка реестра заявок: то, что видно в списке без открытия карточки. */
 export type PurchaseRequestListItem = {
   id: string;
   number: string;
@@ -53,6 +57,7 @@ export type PurchaseRequestListItem = {
   createdAt: string;
 };
 
+/** Шапка заявки: статус, объект, автор, сумма. */
 export type PurchaseRequest = {
   id: string;
   companyId: string;
@@ -67,6 +72,7 @@ export type PurchaseRequest = {
   createdAt: string | null;
 };
 
+/** Позиция заявки: что закупаем. */
 export type PurchaseRequestItem = {
   id: string;
   requestId: string;
@@ -77,6 +83,7 @@ export type PurchaseRequestItem = {
   createdAt: string | null;
 };
 
+/** Позиция для сохранения: без `id` строка добавляется, с `id` — обновляется. */
 export type PurchaseRequestItemDraft = {
   id?: string;
   name: string;
@@ -85,6 +92,7 @@ export type PurchaseRequestItemDraft = {
   article: string | null;
 };
 
+/** Файл заявки в хранилище: у счёта это PDF или картинка. */
 export type PurchaseRequestFile = {
   id: string;
   requestId: string;
@@ -94,6 +102,7 @@ export type PurchaseRequestFile = {
   mimeType: string | null;
 };
 
+/** Счёт поставщика: шапка, файл и строки «как в счёте». */
 export type PurchaseRequestInvoice = {
   id: string;
   requestId: string;
@@ -145,6 +154,7 @@ export type RecognizedInvoice = {
   items: PurchaseRequestInvoiceItemDraft[];
 };
 
+/** Запись журнала заявки: кто и что сделал. */
 export type PurchaseRequestHistoryEntry = {
   id: string;
   requestId: string;
@@ -157,6 +167,7 @@ export type PurchaseRequestHistoryEntry = {
   createdAt: string;
 };
 
+/** Маршрут согласования: участники каждого этапа и правило получателя. */
 export type PurchaseRequestSettings = {
   companyId: string;
   firstApproverIds: string[];
@@ -167,6 +178,7 @@ export type PurchaseRequestSettings = {
   fixedReceiverIds: string[];
 };
 
+/** Пользователь компании для списка участников маршрута. */
 export type PurchaseRequestCompanyUser = {
   id: string;
   email: string;
@@ -174,8 +186,10 @@ export type PurchaseRequestCompanyUser = {
   shortName: string | null;
 };
 
+/** Счётчики заявок по каждому пункту фильтра, включая «Все». */
 export type PurchaseRequestCounts = Record<PurchaseRequestListFilter, number>;
 
+/** Всё для карточки заявки: шапка, позиции, история, счета. */
 export type PurchaseRequestDetails = {
   request: PurchaseRequest;
   items: PurchaseRequestItem[];
@@ -191,6 +205,10 @@ export type PurchaseRequestPaidByObject = {
   requestsCount: number;
 };
 
+/**
+ * Какие кнопки этапов доступны текущему пользователю.
+ * Считается по статусу заявки, участию в этапе и правам роли.
+ */
 export type PurchaseRequestActionSet = {
   canSubmit: boolean;
   canApprove: boolean;

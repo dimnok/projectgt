@@ -38,6 +38,12 @@ type PurchaseRequestsFiltersProps = {
   onSettings: () => void;
 };
 
+/**
+ * Фильтр реестра в правой колонке.
+ *
+ * В списке статусов — счётчики; кнопка настроек маршрута видна только
+ * владельцу компании, кнопка новой заявки — при праве на создание.
+ */
 export function PurchaseRequestsFilters({
   filter,
   counts,

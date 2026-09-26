@@ -29,7 +29,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSwitchActiveCompany } from "@/features/profile/hooks/use-current-profile";
 import type { CurrentProfile } from "@/features/profile/types/profile.types";
 import { ProfileCompanyOutputNorm } from "@/features/profile/ui/shared/profile-company-output-norm";
-import { membershipRoleLabel } from "@/features/profile/utils/profile.utils";
+import {
+  canViewProductionNorm,
+  membershipRoleLabel,
+} from "@/features/profile/utils/profile.utils";
 
 type ProfileAccessTabProps = {
   profile: CurrentProfile;
@@ -154,7 +157,7 @@ export function ProfileAccessTab({ profile }: ProfileAccessTabProps) {
       </Card>
 
       {/* Производство: норма выработки компании */}
-      {active ? (
+      {active && canViewProductionNorm(active, profile.isSuperAdmin) ? (
         <Card>
           <CardHeader>
             <CardTitle>Производство</CardTitle>

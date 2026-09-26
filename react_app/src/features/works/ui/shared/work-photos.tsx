@@ -1,124 +1,81 @@
 "use client";
 
-import { useState } from "react";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, MoonIcon, SunIcon } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkPhotoGallery } from "@/features/works/ui/shared/work-photo-gallery";
 import type { Work } from "@/features/works/types/work.types";
-import { extractPhotoTime } from "@/features/works/utils/work.utils";
+import { MAX_WORK_PHOTOS_PER_KIND } from "@/features/works/utils/work.utils";
 
 type WorkPhotosProps = {
   work: Work;
+  canModify?: boolean;
 };
 
-export function WorkPhotos({ work }: WorkPhotosProps) {
-  const [preview, setPreview] = useState<{
-    title: string;
-    url: string;
-  } | null>(null);
+export function WorkPhotos({ work, canModify = false }: WorkPhotosProps) {
+  const hasMorning = work.photoUrls.length > 0;
+  const hasEvening = work.eveningPhotoUrls.length > 0;
 
-  const morning = work.photoUrl;
-  const evening = work.eveningPhotoUrl;
-
-  if (!morning && !evening) {
+  if (!hasMorning && !hasEvening && !canModify) {
     return (
       <EmptyState
         title="Фотографий нет"
-        description="У этой смены ещё нет утреннего или вечернего фото."
+        description="У этой смены ещё нет утренних или вечерних фото."
         icon={ImageIcon}
       />
     );
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {morning ? (
-          <PhotoCard
-            title="Утро"
-            url={morning}
-            onOpen={() => setPreview({ title: "Утро", url: morning })}
-          />
-        ) : null}
-        {evening ? (
-          <PhotoCard
-            title="Вечер"
-            url={evening}
-            onOpen={() => setPreview({ title: "Вечер", url: evening })}
-          />
-        ) : null}
-      </div>
-      <Dialog
-        open={Boolean(preview)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPreview(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-3xl p-0 sm:max-w-3xl">
-          <DialogHeader className="px-4 pt-4">
-            <DialogTitle>{preview?.title}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Фото смены
-            </DialogDescription>
-          </DialogHeader>
-          {preview ? (
-            // Stored public URL from the `works` bucket, same as the app.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview.url}
-              alt={preview.title}
-              className="max-h-[80vh] w-full rounded-b-xl object-contain bg-muted"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
-    </>
+    <div className="flex flex-col gap-3">
+      {hasMorning || canModify ? (
+        <PhotoCard
+          title="Утро"
+          icon={SunIcon}
+          count={work.photoUrls.length}
+        >
+          <WorkPhotoGallery work={work} kind="morning" canModify={canModify} />
+        </PhotoCard>
+      ) : null}
+      {hasEvening || canModify ? (
+        <PhotoCard
+          title="Вечер"
+          icon={MoonIcon}
+          count={work.eveningPhotoUrls.length}
+        >
+          <WorkPhotoGallery work={work} kind="evening" canModify={canModify} />
+        </PhotoCard>
+      ) : null}
+    </div>
   );
 }
 
 function PhotoCard({
   title,
-  url,
-  onOpen,
+  icon: Icon,
+  count,
+  children,
 }: {
   title: string;
-  url: string;
-  onOpen: () => void;
+  icon: typeof SunIcon;
+  count: number;
+  children: React.ReactNode;
 }) {
-  const time = extractPhotoTime(url);
-
   return (
     <Card size="sm" className="gap-0 overflow-hidden py-0 shadow-xs">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        <CardHeader className="py-2.5 px-3 border-b border-border/60">
-          <CardTitle className="text-xs font-medium">
-            {title}
-            {time ? ` · ${time}` : ""}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-hidden p-0 rounded-b-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt={title}
-            className="aspect-[16/10] max-h-56 w-full rounded-b-xl object-cover sm:max-h-64"
-          />
-        </CardContent>
-      </button>
+      <CardHeader className="border-b border-border/60 px-3 py-2.5">
+        <CardTitle className="flex items-center gap-2 text-xs font-medium">
+          <Icon className="size-3.5 text-muted-foreground" />
+          <span>{title}</span>
+          {count > 0 ? (
+            <span className="text-muted-foreground">
+              · {count} из {MAX_WORK_PHOTOS_PER_KIND}
+            </span>
+          ) : null}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-3">{children}</CardContent>
     </Card>
   );
 }

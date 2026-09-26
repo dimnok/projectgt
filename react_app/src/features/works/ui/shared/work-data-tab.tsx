@@ -79,7 +79,7 @@ export function WorkDataTab({
         </Card>
       ) : null}
 
-      <WorkPhotos work={work} />
+      <WorkPhotos work={work} canModify={canModify} />
     </div>
   );
 }

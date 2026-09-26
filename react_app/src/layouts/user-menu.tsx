@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleHelpIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
+import {
+  CircleHelpIcon,
+  LogOutIcon,
+  SparklesIcon,
+  UserRoundIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { launchWorksHelpTour } from "@/features/works/tour/launch-works-help-tour";
+import { openWhatsNew } from "@/config/whats-new";
 import { useCurrentProfile } from "@/features/profile/hooks/use-current-profile";
 import {
   profileDisplayName,
@@ -92,6 +98,10 @@ export function UserMenu() {
           <DropdownMenuItem onClick={() => router.push("/profile")}>
             <UserRoundIcon />
             Профиль
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => openWhatsNew()}>
+            <SparklesIcon />
+            Что нового
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleHelp}>
             <CircleHelpIcon />

@@ -39,8 +39,10 @@ import { EstimateFileDeleteDialog } from "@/features/estimates/ui/shared/estimat
 import { useEstimateGroups } from "@/features/estimates/hooks/use-estimate-groups";
 import { useEstimateItems } from "@/features/estimates/hooks/use-estimate-items";
 import { useEstimateCompletion } from "@/features/estimates/hooks/use-estimate-completion";
+import { useEstimateTableSort } from "@/features/estimates/hooks/use-estimate-table-sort";
 import { deleteEstimateFile } from "@/features/estimates/api/delete-estimate";
 import { exportEstimateToExcel } from "@/features/estimates/utils/export-estimate-excel";
+import { sortEstimateItemsByColumn } from "@/features/estimates/utils/estimate-table-sort";
 import {
   filterEstimateItemsByOverrun,
   isEstimateOverrun,
@@ -78,6 +80,7 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showExecution, setShowExecution] = useState(false);
   const [showOverrunsOnly, setShowOverrunsOnly] = useState(false);
+  const { sort, setSort } = useEstimateTableSort(showExecution);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<EstimateFile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -157,6 +160,12 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
     return result;
   }, [items, searchQuery, isOverrunsActive, completionById]);
 
+  // Экспорт в Excel идёт в том же порядке, что видно в таблице.
+  const rows = useMemo(
+    () => sortEstimateItemsByColumn(displayItems, sort, completionById),
+    [displayItems, sort, completionById]
+  );
+
   // Расчет сводных данных по договору
   const totalContractEstimatesAmount = useMemo(() => {
     return contractFiles.reduce((sum, f) => sum + f.total, 0);
@@ -191,7 +200,7 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
 
   // Экспорт в Excel
   async function handleExportExcel() {
-    if (!displayItems || displayItems.length === 0) {
+    if (!rows || rows.length === 0) {
       toast.warning("Нет позиций для экспорта");
       return;
     }
@@ -199,7 +208,7 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
     try {
       setIsExporting(true);
       await exportEstimateToExcel({
-        items: displayItems,
+        items: rows,
         completionById,
         objectName: contract.objectName,
         contractNumber: contract.number,
@@ -437,7 +446,7 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
             type="button"
             size="sm"
             onClick={handleExportExcel}
-            disabled={!displayItems || displayItems.length === 0 || isExporting}
+            disabled={rows.length === 0 || isExporting}
             className="gap-1.5 border-emerald-600/30 bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
             title="Экспорт в Excel"
           >
@@ -497,7 +506,7 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
               }
             />
           </div>
-        ) : displayItems.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="flex h-full min-h-0 flex-1 items-center justify-center p-6">
             <EmptyState
               title={
@@ -518,11 +527,13 @@ export function ContractEstimatesTab({ contract }: ContractEstimatesTabProps) {
           </div>
         ) : (
           <EstimateItemsTable
-            items={displayItems}
+            items={rows}
             showExecution={showExecution}
             completionById={completionById}
             isCompletionLoading={isCompletionLoading}
             dense
+            sort={sort}
+            onSortChange={setSort}
             onEdit={canUpdate ? handleEditItem : undefined}
             onDelete={canDelete ? handleDeleteItem : undefined}
           />

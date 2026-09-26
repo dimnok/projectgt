@@ -1,21 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldError, FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
-import { CompanyRequisitesFields } from "@/features/company/ui/shared/company-requisites-fields";
-import type { CompanyDraft, CompanyProfile } from "@/features/company/types/company.types";
-import { companyToDraft } from "@/features/company/utils/company.utils";
+import { CompanyRequisitesForm } from "@/features/company/ui/shared/company-requisites-form";
+import type {
+  CompanyDraft,
+  CompanyProfile,
+} from "@/features/company/types/company.types";
 
 type CompanyRequisitesDialogProps = {
   open: boolean;
@@ -25,7 +21,7 @@ type CompanyRequisitesDialogProps = {
   onSubmit: (draft: CompanyDraft) => void;
 };
 
-/** Редактирование реквизитов компании (только владелец). */
+/** Редактирование реквизитов компании: настольное окно. */
 export function CompanyRequisitesDialog({
   open,
   company,
@@ -45,6 +41,7 @@ export function CompanyRequisitesDialog({
         {open ? (
           <CompanyRequisitesForm
             key={company.id}
+            layout="dialog"
             company={company}
             isSaving={isSaving}
             onCancel={() => onOpenChange(false)}
@@ -53,69 +50,5 @@ export function CompanyRequisitesDialog({
         ) : null}
       </DialogContent>
     </Dialog>
-  );
-}
-
-type CompanyRequisitesFormProps = {
-  company: CompanyProfile;
-  isSaving: boolean;
-  onCancel: () => void;
-  onSubmit: (draft: CompanyDraft) => void;
-};
-
-function CompanyRequisitesForm({
-  company,
-  isSaving,
-  onCancel,
-  onSubmit,
-}: CompanyRequisitesFormProps) {
-  const [draft, setDraft] = useState<CompanyDraft>(() =>
-    companyToDraft(company)
-  );
-  const [error, setError] = useState("");
-
-  function set<K extends keyof CompanyDraft>(key: K, value: CompanyDraft[K]) {
-    setDraft((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!draft.nameFull.trim()) {
-      setError("Введите полное наименование");
-      return;
-    }
-    if (!draft.nameShort.trim()) {
-      setError("Введите краткое наименование");
-      return;
-    }
-    setError("");
-    onSubmit(draft);
-  }
-
-  return (
-    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-      <FieldGroup>
-        <CompanyRequisitesFields
-          draft={draft}
-          onChange={set}
-          disabled={isSaving}
-        />
-        {error ? <FieldError>{error}</FieldError> : null}
-      </FieldGroup>
-      <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isSaving}
-          onClick={onCancel}
-        >
-          Отмена
-        </Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving ? <Spinner data-icon="inline-start" /> : null}
-          Сохранить
-        </Button>
-      </DialogFooter>
-    </form>
   );
 }

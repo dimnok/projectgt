@@ -24,5 +24,10 @@ export function parseAmountInput(value: string): number | null {
 /** Приводит введённое число к виду с разделителями. Нечисловое — как есть. */
 export function formatAmountInput(value: string): string {
   const parsed = parseAmountInput(value);
-  return parsed === null ? value : MONEY_FORMAT.format(parsed);
+  return parsed === null ? value : formatMoneyInput(parsed);
+}
+
+/** Число для поля ввода: «1 767,55». */
+export function formatMoneyInput(value: number): string {
+  return MONEY_FORMAT.format(value);
 }

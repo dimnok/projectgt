@@ -67,12 +67,14 @@ export type WorkPhotoKind = "morning" | "evening";
 /**
  * Uploads a shift photo to bucket `works`.
  * Path matches Flutter PhotoService: `{objectId}/{dd-MM-yyyy}/{timestamp}_{kind}.jpg`.
+ * `fileSuffix` отличает служебные файлы (например, коллаж для мобильного приложения).
  */
 export async function uploadWorkShiftPhoto(
   objectId: string,
   file: File,
   kind: WorkPhotoKind,
-  workDate?: string
+  workDate?: string,
+  fileSuffix = ""
 ): Promise<string> {
   if (!objectId) {
     throw new Error("Не выбран объект");
@@ -84,7 +86,7 @@ export async function uploadWorkShiftPhoto(
   const folderDate = workDate ? parseLocalDate(workDate) : now;
   const dateFolder = `${pad(folderDate.getDate())}-${pad(folderDate.getMonth() + 1)}-${folderDate.getFullYear()}`;
   const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-  const filePath = `${objectId}/${dateFolder}/${stamp}_${kind}.jpg`;
+  const filePath = `${objectId}/${dateFolder}/${stamp}_${kind}${fileSuffix}.jpg`;
 
   const { error } = await client.storage.from("works").upload(filePath, blob, {
     contentType: mime,
@@ -100,11 +102,4 @@ export async function uploadWorkShiftPhoto(
     throw new Error("Не удалось получить ссылку на фото");
   }
   return data.publicUrl;
-}
-
-export async function uploadWorkMorningPhoto(
-  objectId: string,
-  file: File
-): Promise<string> {
-  return uploadWorkShiftPhoto(objectId, file, "morning");
 }

@@ -4,9 +4,9 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import {
   ESTIMATE_COLUMNS,
-  ESTIMATE_EXECUTION_COLUMNS,
   ESTIMATE_TABLE_STORAGE_KEY,
   isEstimatePlanColumnId,
+  resolveEstimateColumns,
   type EstimateColumn,
   type EstimatePlanColumnId,
 } from "@/features/estimates/utils/estimate-table-columns";
@@ -84,6 +84,15 @@ function writeLayout(layout: LayoutState) {
   emitLayoutChange();
 }
 
+/**
+ * Настройки вида таблицы сметы: какие колонки скрыты.
+ *
+ * Хранится в браузере (localStorage) и общее для смет и вкладки «Сметы»
+ * в договорах — это одна и та же таблица.
+ *
+ * @param showExecution включать ли колонки выполнения. Колонки «Сумма вып.»
+ * и «Ост. сумма» следуют за колонкой «Сумма»: скрыли её — скрылись и они.
+ */
 export function useEstimateTableLayout(showExecution = false) {
   const snapshot = useSyncExternalStore(
     subscribeToLayout,
@@ -92,15 +101,10 @@ export function useEstimateTableLayout(showExecution = false) {
   );
   const layout = useMemo(() => parseLayoutSnapshot(snapshot), [snapshot]);
   const hidden = useMemo(() => new Set(layout.hidden), [layout.hidden]);
-  const visibleColumns = useMemo(() => {
-    const planColumns = ESTIMATE_COLUMNS.filter(
-      (column) => !hidden.has(column.id)
-    );
-    if (!showExecution) {
-      return planColumns;
-    }
-    return [...planColumns, ...ESTIMATE_EXECUTION_COLUMNS];
-  }, [hidden, showExecution]);
+  const visibleColumns = useMemo(
+    () => resolveEstimateColumns(hidden, showExecution),
+    [hidden, showExecution]
+  );
 
   const setColumnVisible = useCallback(
     (column: EstimateColumn<EstimatePlanColumnId>, visible: boolean) => {

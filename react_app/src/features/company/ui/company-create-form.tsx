@@ -13,6 +13,13 @@ import {
   type CompanyDraft,
   type CompanyInnSuggestion,
 } from "@/features/company/types/company.types";
+import {
+  companyDraftErrors,
+  companyFieldBlurError,
+  isCompanyFieldKey,
+  type CompanyFieldErrors,
+  type CompanyFieldKey,
+} from "@/features/company/utils/company.utils";
 
 /** Заполняет только пустые поля — введённое вручную не затираем. */
 function applyInnSuggestion(
@@ -39,18 +46,43 @@ function applyInnSuggestion(
   };
 }
 
-/** Полная форма создания организации. */
+/**
+ * Полная форма создания организации.
+ *
+ * Поля проверяются при уходе из них, а при создании — все: организация новая,
+ * заполненных ранее значений нет.
+ */
 export function CompanyCreateForm() {
   const createCompany = useCreateCompany();
   const searchByInn = useSearchCompanyByInn();
   const [draft, setDraft] = useState<CompanyDraft>(emptyCompanyDraft);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<CompanyFieldErrors>({});
+  const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const disabled = isSubmitting || searchByInn.isPending;
 
   function set<K extends keyof CompanyDraft>(key: K, value: CompanyDraft[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+    if (typeof value !== "string" || !isCompanyFieldKey(key)) {
+      return;
+    }
+    // Пока ошибка не исправлена, проверяем поле на каждый ввод: сообщение
+    // исчезает сразу, как только значение стало верным.
+    if (errors[key]) {
+      setErrors((prev) => ({
+        ...prev,
+        [key]: companyFieldBlurError(key, value),
+      }));
+    }
+  }
+
+  function handleBlur(key: CompanyFieldKey) {
+    setErrors((prev) => ({
+      ...prev,
+      [key]: companyFieldBlurError(key, draft[key]),
+    }));
   }
 
   async function handleSearch() {
@@ -72,22 +104,19 @@ export function CompanyCreateForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!draft.nameFull.trim()) {
-      setError("Введите полное наименование");
-      return;
-    }
-    if (!draft.nameShort.trim()) {
-      setError("Введите краткое наименование");
+    const found = companyDraftErrors(draft);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
       return;
     }
 
-    setError("");
+    setSubmitError("");
     setIsSubmitting(true);
     try {
       await createCompany.mutateAsync(draft);
       toast.success(`Организация «${draft.nameShort.trim()}» создана`);
     } catch (caught) {
-      setError(
+      setSubmitError(
         caught instanceof Error
           ? caught.message
           : "Не удалось создать организацию"
@@ -104,11 +133,13 @@ export function CompanyCreateForm() {
           draft={draft}
           onChange={set}
           disabled={disabled}
+          errors={errors}
+          onBlurField={handleBlur}
           showInnSearch
           isSearching={searchByInn.isPending}
           onSearchInn={() => void handleSearch()}
         />
-        {error ? <FieldError>{error}</FieldError> : null}
+        {submitError ? <FieldError>{submitError}</FieldError> : null}
       </FieldGroup>
 
       <Button type="submit" size="lg" disabled={disabled}>
